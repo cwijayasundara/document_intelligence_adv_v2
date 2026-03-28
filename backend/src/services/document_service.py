@@ -9,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.models import Document
 from src.db.repositories.documents import DocumentRepository
 from src.services.state_machine import (
-    InvalidTransitionError,
     get_available_actions,
     validate_transition,
 )
@@ -95,9 +94,7 @@ class DocumentService:
         await self._repo.delete(doc_id)
         return True
 
-    async def transition_status(
-        self, doc_id: uuid.UUID, new_status: str
-    ) -> Document:
+    async def transition_status(self, doc_id: uuid.UUID, new_status: str) -> Document:
         """Transition a document to a new status.
 
         Validates the transition against the state machine.

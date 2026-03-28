@@ -2,9 +2,7 @@
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
 from src.api.app import _seed_default_category, create_app
 

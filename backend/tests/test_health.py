@@ -9,9 +9,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import src.db.connection as conn_module
 from src.api.app import create_app
 from src.api.schemas.common import ErrorResponse, HealthResponse
-import src.db.connection as conn_module
 
 
 @pytest.fixture

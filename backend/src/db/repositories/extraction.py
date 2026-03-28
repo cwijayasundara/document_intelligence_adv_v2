@@ -14,9 +14,7 @@ class ExtractionSchemaRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_latest_for_category(
-        self, category_id: uuid.UUID
-    ) -> ExtractionSchema | None:
+    async def get_latest_for_category(self, category_id: uuid.UUID) -> ExtractionSchema | None:
         """Get the latest version schema for a category."""
         stmt = (
             select(ExtractionSchema)
@@ -46,9 +44,8 @@ class ExtractionSchemaRepository:
 
     async def get_next_version(self, category_id: uuid.UUID) -> int:
         """Get the next version number for a category's schema."""
-        stmt = (
-            select(func.coalesce(func.max(ExtractionSchema.version), 0))
-            .where(ExtractionSchema.category_id == category_id)
+        stmt = select(func.coalesce(func.max(ExtractionSchema.version), 0)).where(
+            ExtractionSchema.category_id == category_id
         )
         result = await self._session.execute(stmt)
         current_max = result.scalar() or 0
@@ -61,9 +58,7 @@ class ExtractionFieldRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_fields_for_schema(
-        self, schema_id: uuid.UUID
-    ) -> list[ExtractionField]:
+    async def get_fields_for_schema(self, schema_id: uuid.UUID) -> list[ExtractionField]:
         """Get all fields for a schema, ordered by sort_order."""
         stmt = (
             select(ExtractionField)

@@ -41,9 +41,7 @@ class TestSummarizerSubagent:
 
     @pytest.mark.asyncio
     async def test_summarize_with_mock_agent(self) -> None:
-        self.summarizer._agent.run = AsyncMock(
-            return_value={"response": "Test summary"}
-        )
+        self.summarizer._agent.run = AsyncMock(return_value={"response": "Test summary"})
         result = await self.summarizer.summarize(self.sample_content)
         assert result.summary == "Test summary"
 
@@ -59,9 +57,7 @@ class TestSummarizerSubagent:
         assert content == "test"
 
     def test_extract_topics_finds_keywords(self) -> None:
-        topics = SummarizerSubagent._extract_topics(
-            "fund management fee carried interest"
-        )
+        topics = SummarizerSubagent._extract_topics("fund management fee carried interest")
         assert "fund" in topics
         assert "management fee" in topics
 
@@ -75,9 +71,7 @@ class TestSummaryService:
 
     def setup_method(self) -> None:
         self.mock_summarizer = SummarizerSubagent()
-        self.mock_summarizer._agent.run = AsyncMock(
-            return_value={"response": "Test summary"}
-        )
+        self.mock_summarizer._agent.run = AsyncMock(return_value={"response": "Test summary"})
         self.service = SummaryService(summarizer=self.mock_summarizer)
 
     @pytest.mark.asyncio

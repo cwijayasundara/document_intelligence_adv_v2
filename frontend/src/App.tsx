@@ -1,21 +1,15 @@
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/ui/Layout";
+import BulkPage from "./pages/BulkPage";
 import CategoriesPage from "./pages/CategoriesPage";
+import ChatPage from "./pages/ChatPage";
+import ClassifyPage from "./pages/ClassifyPage";
 import DashboardPage from "./pages/DashboardPage";
 import ExtractionFieldsPage from "./pages/ExtractionFieldsPage";
+import ExtractionPage from "./pages/ExtractionPage";
+import ParsePage from "./pages/ParsePage";
+import SummaryPage from "./pages/SummaryPage";
 import UploadPage from "./pages/UploadPage";
-
-/** Placeholder page component for routes not yet implemented. */
-function PlaceholderPage({ title }: { title: string }) {
-  return (
-    <div className="p-8">
-      <h1 className="text-2xl font-heading font-semibold text-gray-900">
-        {title}
-      </h1>
-      <p className="mt-2 text-gray-500">This page is coming soon.</p>
-    </div>
-  );
-}
 
 export default function App() {
   return (
@@ -23,35 +17,17 @@ export default function App() {
       <Route element={<Layout />}>
         <Route index element={<DashboardPage />} />
         <Route path="upload" element={<UploadPage />} />
-        <Route
-          path="documents/:id/parse"
-          element={<PlaceholderPage title="Parse Document" />}
-        />
-        <Route
-          path="documents/:id/classify"
-          element={<PlaceholderPage title="Classify Document" />}
-        />
-        <Route
-          path="documents/:id/extract"
-          element={<PlaceholderPage title="Extract Fields" />}
-        />
-        <Route
-          path="documents/:id/summary"
-          element={<PlaceholderPage title="Document Summary" />}
-        />
-        <Route
-          path="documents/:id/chat"
-          element={<PlaceholderPage title="Chat with Document" />}
-        />
+        <Route path="documents/:id/parse" element={<ParsePage />} />
+        <Route path="documents/:id/classify" element={<ClassifyPage />} />
+        <Route path="documents/:id/extract" element={<ExtractionPage />} />
+        <Route path="documents/:id/summary" element={<SummaryPage />} />
+        <Route path="documents/:id/chat" element={<ChatPage />} />
         <Route path="config/categories" element={<CategoriesPage />} />
         <Route
           path="config/extraction-fields"
           element={<ExtractionFieldsPage />}
         />
-        <Route
-          path="bulk"
-          element={<PlaceholderPage title="Bulk Processing" />}
-        />
+        <Route path="bulk" element={<BulkPage />} />
       </Route>
     </Routes>
   );

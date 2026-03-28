@@ -1,13 +1,9 @@
 """Tests for the DeepAgent orchestrator scaffold."""
 
-import pytest
-
 from src.agents.deepagents_stub import (
     DeepAgent,
     FilesystemMiddleware,
-    SubAgentMiddleware,
     SubAgentSlot,
-    SummarizationMiddleware,
     create_deep_agent,
 )
 from src.agents.orchestrator import (

@@ -27,9 +27,7 @@ class ParseService:
         self._storage = storage
         self._reducto = reducto_client
 
-    async def parse_document(
-        self, doc_id: uuid.UUID
-    ) -> tuple[Document, str, bool]:
+    async def parse_document(self, doc_id: uuid.UUID) -> tuple[Document, str, bool]:
         """Parse a document via Reducto.
 
         Returns:
@@ -80,9 +78,7 @@ class ParseService:
 
         return await self._read_file(path)
 
-    async def save_edited_content(
-        self, doc_id: uuid.UUID, content: str
-    ) -> Document:
+    async def save_edited_content(self, doc_id: uuid.UUID, content: str) -> Document:
         """Save edited markdown content and transition to edited status.
 
         Raises:

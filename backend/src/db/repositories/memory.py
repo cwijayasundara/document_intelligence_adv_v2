@@ -25,9 +25,7 @@ class ConversationSummaryRepository:
         queries_count: int,
     ) -> ConversationSummary:
         """Create or update a conversation summary (upsert by session_id)."""
-        stmt = select(ConversationSummary).where(
-            ConversationSummary.session_id == session_id
-        )
+        stmt = select(ConversationSummary).where(ConversationSummary.session_id == session_id)
         result = await self._session.execute(stmt)
         existing = result.scalar_one_or_none()
 
@@ -53,13 +51,9 @@ class ConversationSummaryRepository:
         await self._session.flush()
         return record
 
-    async def get_by_session(
-        self, session_id: str
-    ) -> ConversationSummary | None:
+    async def get_by_session(self, session_id: str) -> ConversationSummary | None:
         """Get a conversation summary by session ID."""
-        stmt = select(ConversationSummary).where(
-            ConversationSummary.session_id == session_id
-        )
+        stmt = select(ConversationSummary).where(ConversationSummary.session_id == session_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -70,9 +64,7 @@ class MemoryEntryRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def put(
-        self, namespace: str, key: str, data: dict[str, Any]
-    ) -> MemoryEntry:
+    async def put(self, namespace: str, key: str, data: dict[str, Any]) -> MemoryEntry:
         """Create or update a memory entry (upsert by namespace+key)."""
         stmt = select(MemoryEntry).where(
             MemoryEntry.namespace == namespace,
@@ -96,9 +88,7 @@ class MemoryEntryRepository:
         await self._session.flush()
         return entry
 
-    async def get(
-        self, namespace: str, key: str
-    ) -> MemoryEntry | None:
+    async def get(self, namespace: str, key: str) -> MemoryEntry | None:
         """Get a memory entry by namespace and key."""
         stmt = select(MemoryEntry).where(
             MemoryEntry.namespace == namespace,

@@ -1,20 +1,13 @@
 """Shared test fixtures for the backend test suite."""
 
-import os
 from collections.abc import AsyncGenerator
 from pathlib import Path
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
-from src.db.connection import (
-    _engine,
-    _session_factory,
-    create_engine,
-    create_session_factory,
-)
 
 
 @pytest.fixture
@@ -39,7 +32,7 @@ def test_env(tmp_path: Path) -> dict[str, str]:
 
 
 @pytest.fixture
-def app() -> "FastAPI":
+def app() -> FastAPI:
     """Create a FastAPI test app without database initialization."""
     return create_app(database_url="")
 

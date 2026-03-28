@@ -91,9 +91,7 @@ async def test_list_all(repo: DocumentRepository) -> None:
     assert len(docs) == 2
 
 
-async def test_list_all_with_status_filter(
-    repo: DocumentRepository, session: AsyncSession
-) -> None:
+async def test_list_all_with_status_filter(repo: DocumentRepository, session: AsyncSession) -> None:
     """list_all filters by status."""
     doc1 = await repo.create(
         file_name="1.pdf",

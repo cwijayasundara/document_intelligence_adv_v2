@@ -6,7 +6,7 @@ the context window for multi-turn agent interactions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 
 
@@ -46,25 +46,19 @@ class ShortTermMemory:
     def add_human_message(self, session_id: str, content: str) -> None:
         """Add a human message to a session."""
         self._ensure_session(session_id)
-        self._sessions[session_id].append(
-            Message(role=MessageRole.HUMAN, content=content)
-        )
+        self._sessions[session_id].append(Message(role=MessageRole.HUMAN, content=content))
         self._trim(session_id)
 
     def add_ai_message(self, session_id: str, content: str) -> None:
         """Add an AI message to a session."""
         self._ensure_session(session_id)
-        self._sessions[session_id].append(
-            Message(role=MessageRole.AI, content=content)
-        )
+        self._sessions[session_id].append(Message(role=MessageRole.AI, content=content))
         self._trim(session_id)
 
     def add_system_message(self, session_id: str, content: str) -> None:
         """Add a system message to a session."""
         self._ensure_session(session_id)
-        self._sessions[session_id].insert(
-            0, Message(role=MessageRole.SYSTEM, content=content)
-        )
+        self._sessions[session_id].insert(0, Message(role=MessageRole.SYSTEM, content=content))
         self._trim(session_id)
 
     def get_messages(self, session_id: str) -> list[Message]:

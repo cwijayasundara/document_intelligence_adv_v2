@@ -175,9 +175,7 @@ async def test_upload_invalid_type(
 ) -> None:
     """POST /documents/upload returns 422 for invalid file type."""
     instance = MockService.return_value
-    instance.upload = AsyncMock(
-        side_effect=ValueError("File type 'exe' not allowed")
-    )
+    instance.upload = AsyncMock(side_effect=ValueError("File type 'exe' not allowed"))
 
     response = await client.post(
         "/api/v1/documents/upload",

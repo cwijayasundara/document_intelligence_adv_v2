@@ -56,9 +56,7 @@ class DocumentCategory(TimestampMixin, Base):
 
     # Relationships
     documents: Mapped[list["Document"]] = relationship(back_populates="category")
-    extraction_schemas: Mapped[list["ExtractionSchema"]] = relationship(
-        back_populates="category"
-    )
+    extraction_schemas: Mapped[list["ExtractionSchema"]] = relationship(back_populates="category")
 
 
 class Document(TimestampMixin, Base):
@@ -248,18 +246,14 @@ class BulkJob(Base):
         String(20), nullable=False, server_default=text("'pending'"), index=True
     )
     total_documents: Mapped[int] = mapped_column(Integer, nullable=False)
-    processed_count: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default=text("0")
-    )
+    processed_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     failed_count: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         nullable=False,
         server_default=text("NOW()"),
     )
-    completed_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     documents: Mapped[list["BulkJobDocument"]] = relationship(back_populates="job")
@@ -325,9 +319,7 @@ class MemoryEntry(TimestampMixin, Base):
     """Generic key-value store for long-term memory."""
 
     __tablename__ = "memory_entries"
-    __table_args__ = (
-        UniqueConstraint("namespace", "key", name="uq_memory_entries_ns_key"),
-    )
+    __table_args__ = (UniqueConstraint("namespace", "key", name="uq_memory_entries_ns_key"),)
 
     id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),

@@ -65,9 +65,7 @@ class DocumentRepository:
             count_stmt = count_stmt.where(Document.status == status)
         if category_id is not None:
             stmt = stmt.where(Document.document_category_id == category_id)
-            count_stmt = count_stmt.where(
-                Document.document_category_id == category_id
-            )
+            count_stmt = count_stmt.where(Document.document_category_id == category_id)
 
         sort_column = getattr(Document, sort_by, Document.created_at)
         if sort_order == "asc":

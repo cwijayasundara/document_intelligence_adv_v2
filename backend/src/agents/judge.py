@@ -56,10 +56,8 @@ class JudgeSubagent:
         filtered = self._pii_filter.filter_content(parsed_content)
         self._parsed_content = filtered.redacted_text
 
-        prompt = self._build_prompt(
-            extracted_fields, filtered.redacted_text
-        )
-        response = await self._agent.run(prompt)
+        prompt = self._build_prompt(extracted_fields, filtered.redacted_text)
+        _response = await self._agent.run(prompt)
 
         return self._build_result(extracted_fields)
 
@@ -70,8 +68,7 @@ class JudgeSubagent:
     ) -> str:
         """Build the judge evaluation prompt."""
         field_desc = "\n".join(
-            f"- {f.field_name}: value='{f.extracted_value}', "
-            f"source='{f.source_text[:200]}'"
+            f"- {f.field_name}: value='{f.extracted_value}', source='{f.source_text[:200]}'"
             for f in fields
         )
         return (
@@ -81,9 +78,7 @@ class JudgeSubagent:
             f"Rate each field as high/medium/low confidence."
         )
 
-    def _build_result(
-        self, fields: list[ExtractedField]
-    ) -> JudgeResult:
+    def _build_result(self, fields: list[ExtractedField]) -> JudgeResult:
         """Build JudgeResult (stub: assigns medium confidence)."""
         evaluations = []
         for f in fields:

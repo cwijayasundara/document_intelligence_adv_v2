@@ -41,8 +41,7 @@ def retry_on_db_error(
                 last_exc = exc
                 delay = RETRY_BASE_DELAY * (2**attempt)
                 logger.warning(
-                    "DB transient error (attempt %d/%d): %s. "
-                    "Retrying in %.1fs...",
+                    "DB transient error (attempt %d/%d): %s. Retrying in %.1fs...",
                     attempt + 1,
                     MAX_RETRIES,
                     exc,
@@ -93,9 +92,7 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def get_conversation_summary(
-        self, session_id: str
-    ) -> dict[str, Any] | None:
+    async def get_conversation_summary(self, session_id: str) -> dict[str, Any] | None:
         """Retrieve a conversation summary by session ID."""
         record = await self._summary_repo.get_by_session(session_id)
         if record is None:
@@ -110,9 +107,7 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def put(
-        self, namespace: str, key: str, data: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def put(self, namespace: str, key: str, data: dict[str, Any]) -> dict[str, Any]:
         """Store a key-value entry in the given namespace."""
         entry = await self._memory_repo.put(namespace, key, data)
         return {
@@ -122,9 +117,7 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def get(
-        self, namespace: str, key: str
-    ) -> dict[str, Any] | None:
+    async def get(self, namespace: str, key: str) -> dict[str, Any] | None:
         """Retrieve a value by namespace and key."""
         entry = await self._memory_repo.get(namespace, key)
         if entry is None:

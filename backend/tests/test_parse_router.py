@@ -29,9 +29,7 @@ class TestParseRouter:
     @pytest.mark.asyncio
     async def test_parse_document_not_found(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
             service.parse_document = AsyncMock(
                 side_effect=ValueError(f"Document {doc_id} not found")
@@ -42,13 +40,9 @@ class TestParseRouter:
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_parse_document_invalid_transition(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_parse_document_invalid_transition(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
             service.parse_document = AsyncMock(
                 side_effect=InvalidTransitionError("classified", "parsed")
@@ -65,13 +59,9 @@ class TestParseRouter:
         mock_doc.id = doc_id
         mock_doc.status = "parsed"
 
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
-            service.parse_document = AsyncMock(
-                return_value=(mock_doc, "# Content", False)
-            )
+            service.parse_document = AsyncMock(return_value=(mock_doc, "# Content", False))
             mock_build.return_value = service
 
             resp = await client.post(f"/api/v1/parse/{doc_id}")
@@ -87,13 +77,9 @@ class TestParseRouter:
         mock_doc.id = doc_id
         mock_doc.status = "parsed"
 
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
-            service.parse_document = AsyncMock(
-                return_value=(mock_doc, "# Cached", True)
-            )
+            service.parse_document = AsyncMock(return_value=(mock_doc, "# Cached", True))
             mock_build.return_value = service
 
             resp = await client.post(f"/api/v1/parse/{doc_id}")
@@ -105,11 +91,10 @@ class TestParseRouter:
     @pytest.mark.asyncio
     async def test_get_content_not_found(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build, patch(
-            "src.api.routers.parse.DocumentRepository"
-        ) as mock_repo_cls:
+        with (
+            patch("src.api.routers.parse._build_parse_service") as mock_build,
+            patch("src.api.routers.parse.DocumentRepository") as mock_repo_cls,
+        ):
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=None)
             mock_repo_cls.return_value = mock_repo
@@ -127,11 +112,10 @@ class TestParseRouter:
         mock_doc.id = doc_id
         mock_doc.status = "parsed"
 
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build, patch(
-            "src.api.routers.parse.DocumentRepository"
-        ) as mock_repo_cls:
+        with (
+            patch("src.api.routers.parse._build_parse_service") as mock_build,
+            patch("src.api.routers.parse.DocumentRepository") as mock_repo_cls,
+        ):
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
@@ -152,9 +136,7 @@ class TestParseRouter:
         mock_doc.id = doc_id
         mock_doc.status = "edited"
 
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
             service.save_edited_content = AsyncMock(return_value=mock_doc)
             mock_build.return_value = service
@@ -169,13 +151,9 @@ class TestParseRouter:
             assert data["content_length"] == 8
 
     @pytest.mark.asyncio
-    async def test_put_content_invalid_transition(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_put_content_invalid_transition(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
             service.save_edited_content = AsyncMock(
                 side_effect=InvalidTransitionError("uploaded", "edited")
@@ -193,13 +171,9 @@ class TestParseRouter:
         doc_id = uuid.uuid4()
         from src.parser.reducto import ReductoParseError
 
-        with patch(
-            "src.api.routers.parse._build_parse_service"
-        ) as mock_build:
+        with patch("src.api.routers.parse._build_parse_service") as mock_build:
             service = MagicMock()
-            service.parse_document = AsyncMock(
-                side_effect=ReductoParseError("API failed")
-            )
+            service.parse_document = AsyncMock(side_effect=ReductoParseError("API failed"))
             mock_build.return_value = service
 
             resp = await client.post(f"/api/v1/parse/{doc_id}")

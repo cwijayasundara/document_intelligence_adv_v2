@@ -116,13 +116,16 @@ class TestAppSettings:
     """Test AppSettings with environment variable loading."""
 
     def test_creates_from_env_vars(self, test_env: dict[str, str]) -> None:
-        with patch.dict(os.environ, {
-            "OPENAI_API_KEY": test_env["OPENAI_API_KEY"],
-            "REDUCTO_API_KEY": test_env["REDUCTO_API_KEY"],
-            "DATABASE_URL": test_env["DATABASE_URL"],
-            "WEAVIATE_URL": test_env["WEAVIATE_URL"],
-            "OPENAI_MODEL": test_env["OPENAI_MODEL"],
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": test_env["OPENAI_API_KEY"],
+                "REDUCTO_API_KEY": test_env["REDUCTO_API_KEY"],
+                "DATABASE_URL": test_env["DATABASE_URL"],
+                "WEAVIATE_URL": test_env["WEAVIATE_URL"],
+                "OPENAI_MODEL": test_env["OPENAI_MODEL"],
+            },
+        ):
             settings = AppSettings()
             assert settings.openai_api_key == "sk-test-key-123"
             assert settings.reducto_api_key == "reducto-test-key"
@@ -131,12 +134,16 @@ class TestAppSettings:
             assert settings.openai_model == "gpt-4o"
 
     def test_missing_openai_key_raises_error(self) -> None:
-        with patch.dict(os.environ, {
-            "REDUCTO_API_KEY": "test",
-            "DATABASE_URL": "postgresql+asyncpg://x:x@localhost/x",
-            "WEAVIATE_URL": "http://localhost:8080",
-            "OPENAI_MODEL": "gpt-4o",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "REDUCTO_API_KEY": "test",
+                "DATABASE_URL": "postgresql+asyncpg://x:x@localhost/x",
+                "WEAVIATE_URL": "http://localhost:8080",
+                "OPENAI_MODEL": "gpt-4o",
+            },
+            clear=True,
+        ):
             with pytest.raises(ValidationError) as exc_info:
                 AppSettings(_env_file=None)
             errors = exc_info.value.errors()
@@ -144,12 +151,16 @@ class TestAppSettings:
             assert "openai_api_key" in field_names
 
     def test_missing_database_url_raises_error(self) -> None:
-        with patch.dict(os.environ, {
-            "OPENAI_API_KEY": "sk-test",
-            "REDUCTO_API_KEY": "test",
-            "WEAVIATE_URL": "http://localhost:8080",
-            "OPENAI_MODEL": "gpt-4o",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "sk-test",
+                "REDUCTO_API_KEY": "test",
+                "WEAVIATE_URL": "http://localhost:8080",
+                "OPENAI_MODEL": "gpt-4o",
+            },
+            clear=True,
+        ):
             with pytest.raises(ValidationError) as exc_info:
                 AppSettings(_env_file=None)
             errors = exc_info.value.errors()
@@ -157,12 +168,16 @@ class TestAppSettings:
             assert "database_url" in field_names
 
     def test_missing_reducto_key_raises_error(self) -> None:
-        with patch.dict(os.environ, {
-            "OPENAI_API_KEY": "sk-test",
-            "DATABASE_URL": "postgresql+asyncpg://x:x@localhost/x",
-            "WEAVIATE_URL": "http://localhost:8080",
-            "OPENAI_MODEL": "gpt-4o",
-        }, clear=True):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": "sk-test",
+                "DATABASE_URL": "postgresql+asyncpg://x:x@localhost/x",
+                "WEAVIATE_URL": "http://localhost:8080",
+                "OPENAI_MODEL": "gpt-4o",
+            },
+            clear=True,
+        ):
             with pytest.raises(ValidationError) as exc_info:
                 AppSettings(_env_file=None)
             errors = exc_info.value.errors()
@@ -170,13 +185,16 @@ class TestAppSettings:
             assert "reducto_api_key" in field_names
 
     def test_nested_settings_loaded(self, test_env: dict[str, str]) -> None:
-        with patch.dict(os.environ, {
-            "OPENAI_API_KEY": test_env["OPENAI_API_KEY"],
-            "REDUCTO_API_KEY": test_env["REDUCTO_API_KEY"],
-            "DATABASE_URL": test_env["DATABASE_URL"],
-            "WEAVIATE_URL": test_env["WEAVIATE_URL"],
-            "OPENAI_MODEL": test_env["OPENAI_MODEL"],
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": test_env["OPENAI_API_KEY"],
+                "REDUCTO_API_KEY": test_env["REDUCTO_API_KEY"],
+                "DATABASE_URL": test_env["DATABASE_URL"],
+                "WEAVIATE_URL": test_env["WEAVIATE_URL"],
+                "OPENAI_MODEL": test_env["OPENAI_MODEL"],
+            },
+        ):
             settings = AppSettings()
             assert isinstance(settings.storage, StorageSettings)
             assert isinstance(settings.chunking, ChunkingSettings)
@@ -184,13 +202,16 @@ class TestAppSettings:
             assert isinstance(settings.rag, RAGSettings)
 
     def test_from_yaml_and_env(self, test_env: dict[str, str]) -> None:
-        with patch.dict(os.environ, {
-            "OPENAI_API_KEY": test_env["OPENAI_API_KEY"],
-            "REDUCTO_API_KEY": test_env["REDUCTO_API_KEY"],
-            "DATABASE_URL": test_env["DATABASE_URL"],
-            "WEAVIATE_URL": test_env["WEAVIATE_URL"],
-            "OPENAI_MODEL": test_env["OPENAI_MODEL"],
-        }):
+        with patch.dict(
+            os.environ,
+            {
+                "OPENAI_API_KEY": test_env["OPENAI_API_KEY"],
+                "REDUCTO_API_KEY": test_env["REDUCTO_API_KEY"],
+                "DATABASE_URL": test_env["DATABASE_URL"],
+                "WEAVIATE_URL": test_env["WEAVIATE_URL"],
+                "OPENAI_MODEL": test_env["OPENAI_MODEL"],
+            },
+        ):
             settings = AppSettings.from_yaml_and_env(env_file=None)
             assert settings.storage.upload_dir == "./data/upload"
             assert settings.storage.parsed_dir == "./data/parsed"

@@ -6,8 +6,6 @@ parsed document content. Applies PII middleware.
 
 from __future__ import annotations
 
-from typing import Any
-
 from src.agents.deepagents_stub import SubAgentSlot, create_deep_agent
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.summary import SummaryResult
@@ -60,8 +58,12 @@ class SummarizerSubagent:
         """Extract key topics from content (stub implementation)."""
         topics = []
         keywords = [
-            "fund", "partnership", "management fee",
-            "carried interest", "investor", "commitment",
+            "fund",
+            "partnership",
+            "management fee",
+            "carried interest",
+            "investor",
+            "commitment",
         ]
         lower_content = content.lower()
         for keyword in keywords:

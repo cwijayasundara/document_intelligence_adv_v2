@@ -1,6 +1,5 @@
 """Tests for extractor subagent."""
 
-import uuid
 from unittest.mock import AsyncMock
 
 import pytest
@@ -78,17 +77,13 @@ class TestExtractorSubagent:
 
     @pytest.mark.asyncio
     async def test_extract_returns_result(self) -> None:
-        result = await self.extractor.extract(
-            self.sample_content, self.sample_fields
-        )
+        result = await self.extractor.extract(self.sample_content, self.sample_fields)
         assert isinstance(result, ExtractionResult)
         assert len(result.fields) == 2
 
     @pytest.mark.asyncio
     async def test_extract_field_names_match(self) -> None:
-        result = await self.extractor.extract(
-            self.sample_content, self.sample_fields
-        )
+        result = await self.extractor.extract(self.sample_content, self.sample_fields)
         field_names = {f.field_name for f in result.fields}
         expected = {"fund_name", "management_fee"}
         assert field_names == expected
@@ -101,12 +96,8 @@ class TestExtractorSubagent:
 
     @pytest.mark.asyncio
     async def test_extract_with_mock_agent(self) -> None:
-        self.extractor._agent.run = AsyncMock(
-            return_value={"response": "Extracted values"}
-        )
-        result = await self.extractor.extract(
-            self.sample_content, self.sample_fields
-        )
+        self.extractor._agent.run = AsyncMock(return_value={"response": "Extracted values"})
+        result = await self.extractor.extract(self.sample_content, self.sample_fields)
         assert isinstance(result, ExtractionResult)
         self.extractor._agent.run.assert_called_once()
 
@@ -134,8 +125,6 @@ class TestExtractorSubagent:
         assert content == "test content"
 
     def test_build_prompt_includes_fields(self) -> None:
-        prompt = self.extractor._build_prompt(
-            "test content", self.sample_fields
-        )
+        prompt = self.extractor._build_prompt("test content", self.sample_fields)
         assert "fund_name" in prompt
         assert "management_fee" in prompt

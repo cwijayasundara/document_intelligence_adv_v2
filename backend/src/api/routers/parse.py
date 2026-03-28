@@ -49,13 +49,9 @@ async def parse_document(
     try:
         doc, content, skipped = await service.parse_document(doc_id)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTransitionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except ReductoParseError as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
@@ -67,11 +63,7 @@ async def parse_document(
         status=doc.status,
         content=content,
         skipped=skipped,
-        message=(
-            "File hash unchanged, returning cached parse result"
-            if skipped
-            else None
-        ),
+        message=("File hash unchanged, returning cached parse result" if skipped else None),
     )
 
 
@@ -101,9 +93,7 @@ async def get_parsed_content(
             detail="No parsed content exists",
         )
 
-    return ParseContentResponse(
-        document_id=doc.id, content=content, status=doc.status
-    )
+    return ParseContentResponse(document_id=doc.id, content=content, status=doc.status)
 
 
 @router.put(
@@ -121,13 +111,9 @@ async def save_edited_content(
     try:
         doc = await service.save_edited_content(doc_id, body.content)
     except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
     except InvalidTransitionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     return EditContentResponse(
         document_id=doc.id,

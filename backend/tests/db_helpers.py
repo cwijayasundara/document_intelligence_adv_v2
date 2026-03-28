@@ -1,6 +1,5 @@
 """Shared test helpers for database test fixtures."""
 
-import sqlite3
 import uuid
 from datetime import datetime, timezone
 
@@ -13,12 +12,8 @@ from src.db.models import Base
 
 def _register_sqlite_functions(dbapi_conn, connection_record):
     """Register PostgreSQL-compatible functions for SQLite."""
-    dbapi_conn.create_function(
-        "gen_random_uuid", 0, lambda: str(uuid.uuid4())
-    )
-    dbapi_conn.create_function(
-        "NOW", 0, lambda: datetime.now(timezone.utc).isoformat()
-    )
+    dbapi_conn.create_function("gen_random_uuid", 0, lambda: str(uuid.uuid4()))
+    dbapi_conn.create_function("NOW", 0, lambda: datetime.now(timezone.utc).isoformat())
     cursor = dbapi_conn.cursor()
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()

@@ -48,9 +48,7 @@ async def ingest_document(
     try:
         validate_transition(doc.status, "ingested")
     except InvalidTransitionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not doc.parsed_path:
         raise HTTPException(

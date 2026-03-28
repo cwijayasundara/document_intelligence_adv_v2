@@ -14,12 +14,8 @@ class TestIngestionService:
 
     def setup_method(self) -> None:
         self.weaviate = WeaviateClient(url="http://localhost:8080")
-        self.chunker = SemanticChunker(
-            max_tokens=50, overlap_tokens=10, chars_per_token=4
-        )
-        self.service = IngestionService(
-            weaviate_client=self.weaviate, chunker=self.chunker
-        )
+        self.chunker = SemanticChunker(max_tokens=50, overlap_tokens=10, chars_per_token=4)
+        self.service = IngestionService(weaviate_client=self.weaviate, chunker=self.chunker)
 
     @pytest.mark.asyncio
     async def test_ingest_document(self) -> None:
@@ -56,7 +52,7 @@ class TestIngestionService:
             file_name="test.pdf",
             parsed_content="Content v1. " * 50,
         )
-        count1 = await self.weaviate.get_chunk_count(str(doc_id))
+        _count1 = await self.weaviate.get_chunk_count(str(doc_id))
 
         await self.service.ingest_document(
             document_id=doc_id,

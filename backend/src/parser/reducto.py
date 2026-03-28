@@ -52,12 +52,12 @@ class ReductoClient:
                 last_error = exc
                 logger.warning(
                     "Reducto parse attempt %d/%d failed: %s",
-                    attempt, MAX_RETRIES, exc,
+                    attempt,
+                    MAX_RETRIES,
+                    exc,
                 )
 
-        raise ReductoParseError(
-            f"Reducto parsing failed after {MAX_RETRIES} retries: {last_error}"
-        )
+        raise ReductoParseError(f"Reducto parsing failed after {MAX_RETRIES} retries: {last_error}")
 
     async def _send_request(self, path: Path) -> str:
         """Send a single parse request to Reducto."""

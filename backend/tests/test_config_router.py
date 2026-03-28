@@ -51,9 +51,7 @@ def _mock_category(
 
 
 @patch("src.api.routers.config.CategoryRepository")
-async def test_list_categories(
-    MockRepo: MagicMock, client: AsyncClient
-) -> None:
+async def test_list_categories(MockRepo: MagicMock, client: AsyncClient) -> None:
     """GET /config/categories returns all categories."""
     instance = MockRepo.return_value
     instance.list_all = AsyncMock(return_value=[_mock_category()])
@@ -67,14 +65,10 @@ async def test_list_categories(
 
 
 @patch("src.api.routers.config.CategoryRepository")
-async def test_create_category(
-    MockRepo: MagicMock, client: AsyncClient
-) -> None:
+async def test_create_category(MockRepo: MagicMock, client: AsyncClient) -> None:
     """POST /config/categories creates a new category."""
     instance = MockRepo.return_value
-    instance.create = AsyncMock(
-        return_value=_mock_category(name="Sub Agreement")
-    )
+    instance.create = AsyncMock(return_value=_mock_category(name="Sub Agreement"))
 
     response = await client.post(
         "/api/v1/config/categories",
@@ -89,15 +83,11 @@ async def test_create_category(
 
 
 @patch("src.api.routers.config.CategoryRepository")
-async def test_update_category(
-    MockRepo: MagicMock, client: AsyncClient
-) -> None:
+async def test_update_category(MockRepo: MagicMock, client: AsyncClient) -> None:
     """PUT /config/categories/:id updates a category."""
     cat_id = uuid.uuid4()
     instance = MockRepo.return_value
-    instance.update = AsyncMock(
-        return_value=_mock_category(cat_id=cat_id, name="Updated")
-    )
+    instance.update = AsyncMock(return_value=_mock_category(cat_id=cat_id, name="Updated"))
 
     response = await client.put(
         f"/api/v1/config/categories/{cat_id}",
@@ -109,9 +99,7 @@ async def test_update_category(
 
 
 @patch("src.api.routers.config.CategoryRepository")
-async def test_update_category_not_found(
-    MockRepo: MagicMock, client: AsyncClient
-) -> None:
+async def test_update_category_not_found(MockRepo: MagicMock, client: AsyncClient) -> None:
     """PUT /config/categories/:id returns 404 for missing category."""
     instance = MockRepo.return_value
     instance.update = AsyncMock(return_value=None)
@@ -134,17 +122,13 @@ async def test_delete_category(
     """DELETE /config/categories/:id returns 204."""
     cat_id = uuid.uuid4()
     cat_instance = MockCatRepo.return_value
-    cat_instance.get_by_id = AsyncMock(
-        return_value=_mock_category(cat_id=cat_id)
-    )
+    cat_instance.get_by_id = AsyncMock(return_value=_mock_category(cat_id=cat_id))
     cat_instance.delete = AsyncMock(return_value=True)
 
     doc_instance = MockDocRepo.return_value
     doc_instance.count_by_category = AsyncMock(return_value=0)
 
-    response = await client.delete(
-        f"/api/v1/config/categories/{cat_id}"
-    )
+    response = await client.delete(f"/api/v1/config/categories/{cat_id}")
 
     assert response.status_code == 204
 
@@ -159,31 +143,23 @@ async def test_delete_category_with_documents(
     """DELETE /config/categories/:id returns 400 if documents assigned."""
     cat_id = uuid.uuid4()
     cat_instance = MockCatRepo.return_value
-    cat_instance.get_by_id = AsyncMock(
-        return_value=_mock_category(cat_id=cat_id)
-    )
+    cat_instance.get_by_id = AsyncMock(return_value=_mock_category(cat_id=cat_id))
 
     doc_instance = MockDocRepo.return_value
     doc_instance.count_by_category = AsyncMock(return_value=5)
 
-    response = await client.delete(
-        f"/api/v1/config/categories/{cat_id}"
-    )
+    response = await client.delete(f"/api/v1/config/categories/{cat_id}")
 
     assert response.status_code == 400
     assert "assigned documents" in response.json()["detail"]
 
 
 @patch("src.api.routers.config.CategoryRepository")
-async def test_delete_category_not_found(
-    MockCatRepo: MagicMock, client: AsyncClient
-) -> None:
+async def test_delete_category_not_found(MockCatRepo: MagicMock, client: AsyncClient) -> None:
     """DELETE /config/categories/:id returns 404 for missing category."""
     cat_instance = MockCatRepo.return_value
     cat_instance.get_by_id = AsyncMock(return_value=None)
 
-    response = await client.delete(
-        f"/api/v1/config/categories/{uuid.uuid4()}"
-    )
+    response = await client.delete(f"/api/v1/config/categories/{uuid.uuid4()}")
 
     assert response.status_code == 404

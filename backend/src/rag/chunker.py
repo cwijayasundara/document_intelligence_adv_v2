@@ -66,12 +66,14 @@ class SemanticChunker:
 
         chunks = []
         for idx, (chunk_text, start) in enumerate(raw_chunks):
-            chunks.append(Chunk(
-                text=chunk_text,
-                index=idx,
-                start_char=start,
-                end_char=start + len(chunk_text),
-            ))
+            chunks.append(
+                Chunk(
+                    text=chunk_text,
+                    index=idx,
+                    start_char=start,
+                    end_char=start + len(chunk_text),
+                )
+            )
         return chunks
 
     def _recursive_split(
@@ -103,9 +105,7 @@ class SemanticChunker:
 
             if len(candidate) > self._max_chars and current:
                 result.append((current.strip(), current_start))
-                overlap_start = max(
-                    0, len(current) - self._overlap_chars
-                )
+                overlap_start = max(0, len(current) - self._overlap_chars)
                 current = current[overlap_start:] + sep + part
                 current_start = pos - len(current) + len(part) + len(sep)
             else:

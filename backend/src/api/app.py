@@ -7,7 +7,18 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from src.api.routers import config, documents, health, ingest, parse, summarize
+from src.api.routers import (
+    bulk,
+    classify,
+    config,
+    documents,
+    extract,
+    health,
+    ingest,
+    parse,
+    rag,
+    summarize,
+)
 from src.db.connection import dispose_engine, get_session_factory, init_engine
 
 logger = logging.getLogger(__name__)
@@ -83,5 +94,9 @@ def create_app(database_url: str = "") -> FastAPI:
     app.include_router(parse.router, prefix="/api/v1", tags=["parse"])
     app.include_router(summarize.router, prefix="/api/v1", tags=["summarize"])
     app.include_router(ingest.router, prefix="/api/v1", tags=["ingest"])
+    app.include_router(classify.router, prefix="/api/v1", tags=["classify"])
+    app.include_router(extract.router, prefix="/api/v1", tags=["extract"])
+    app.include_router(rag.router, prefix="/api/v1", tags=["rag"])
+    app.include_router(bulk.router, prefix="/api/v1", tags=["bulk"])
 
     return app

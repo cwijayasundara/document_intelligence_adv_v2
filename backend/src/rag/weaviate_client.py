@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import logging
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 
@@ -72,9 +72,7 @@ class WeaviateClient:
         """Disconnect from Weaviate."""
         self._connected = False
 
-    async def create_collection(
-        self, name: str = COLLECTION_NAME
-    ) -> None:
+    async def create_collection(self, name: str = COLLECTION_NAME) -> None:
         """Create a collection if it doesn't exist."""
         if name not in self._collections:
             self._collections[name] = []
@@ -96,16 +94,18 @@ class WeaviateClient:
         """
         await self.create_collection(collection)
         for chunk in chunks:
-            self._collections[collection].append({
-                "id": str(uuid.uuid4()),
-                "text": chunk.text,
-                "document_id": chunk.document_id,
-                "document_name": chunk.document_name,
-                "document_category": chunk.document_category,
-                "file_name": chunk.file_name,
-                "chunk_index": chunk.chunk_index,
-                "created_at": chunk.created_at,
-            })
+            self._collections[collection].append(
+                {
+                    "id": str(uuid.uuid4()),
+                    "text": chunk.text,
+                    "document_id": chunk.document_id,
+                    "document_name": chunk.document_name,
+                    "document_category": chunk.document_category,
+                    "file_name": chunk.file_name,
+                    "chunk_index": chunk.chunk_index,
+                    "created_at": chunk.created_at,
+                }
+            )
         return len(chunks)
 
     async def delete_by_document(
@@ -123,8 +123,7 @@ class WeaviateClient:
 
         before = len(self._collections[collection])
         self._collections[collection] = [
-            c for c in self._collections[collection]
-            if c["document_id"] != document_id
+            c for c in self._collections[collection] if c["document_id"] != document_id
         ]
         deleted = before - len(self._collections[collection])
         return deleted
@@ -152,20 +151,19 @@ class WeaviateClient:
 
         candidates = self._collections[collection]
         if document_id:
-            candidates = [
-                c for c in candidates
-                if c["document_id"] == document_id
-            ]
+            candidates = [c for c in candidates if c["document_id"] == document_id]
 
         results = []
         for chunk in candidates[:top_k]:
-            results.append(SearchResult(
-                chunk_text=chunk["text"],
-                document_id=chunk["document_id"],
-                document_name=chunk["document_name"],
-                chunk_index=chunk["chunk_index"],
-                relevance_score=0.8,
-            ))
+            results.append(
+                SearchResult(
+                    chunk_text=chunk["text"],
+                    document_id=chunk["document_id"],
+                    document_name=chunk["document_name"],
+                    chunk_index=chunk["chunk_index"],
+                    relevance_score=0.8,
+                )
+            )
         return results
 
     async def get_chunk_count(
@@ -176,7 +174,4 @@ class WeaviateClient:
         """Count chunks for a document."""
         if collection not in self._collections:
             return 0
-        return sum(
-            1 for c in self._collections[collection]
-            if c["document_id"] == document_id
-        )
+        return sum(1 for c in self._collections[collection] if c["document_id"] == document_id)

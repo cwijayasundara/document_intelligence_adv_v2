@@ -29,9 +29,7 @@ def service(session: AsyncSession, storage: LocalStorage) -> DocumentService:
     return DocumentService(session, storage)
 
 
-async def test_upload_creates_document(
-    service: DocumentService, storage: LocalStorage
-) -> None:
+async def test_upload_creates_document(service: DocumentService, storage: LocalStorage) -> None:
     """Upload saves file and creates document record."""
     content = b"PDF content here"
     doc, is_dup = await service.upload("test.pdf", content)
@@ -86,9 +84,7 @@ async def test_list_documents(service: DocumentService) -> None:
     assert len(docs) == 2
 
 
-async def test_delete_document(
-    service: DocumentService, storage: LocalStorage
-) -> None:
+async def test_delete_document(service: DocumentService, storage: LocalStorage) -> None:
     """delete_document removes record and file."""
     doc, _ = await service.upload("del.pdf", b"delete me")
     path = doc.original_path

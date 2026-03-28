@@ -82,19 +82,16 @@ class ExtractorSubagent:
         filtered = self._pii_filter.filter_content(parsed_content)
         self._parsed_content = filtered.redacted_text
 
-        dynamic_model = build_dynamic_model(extraction_fields)
+        _dynamic_model = build_dynamic_model(extraction_fields)
         prompt = self._build_prompt(filtered.redacted_text, extraction_fields)
-        response = await self._agent.run(prompt)
+        _response = await self._agent.run(prompt)
 
         return self._build_result(extraction_fields, filtered.redacted_text)
 
-    def _build_prompt(
-        self, content: str, fields: list[dict[str, Any]]
-    ) -> str:
+    def _build_prompt(self, content: str, fields: list[dict[str, Any]]) -> str:
         """Build the extraction prompt."""
         field_desc = "\n".join(
-            f"- {f['field_name']} ({f.get('data_type', 'string')}): "
-            f"{f.get('description', 'N/A')}"
+            f"- {f['field_name']} ({f.get('data_type', 'string')}): {f.get('description', 'N/A')}"
             for f in fields
         )
         return (

@@ -6,13 +6,14 @@ Provides engine creation, session factory, and FastAPI dependency.
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
     AsyncSession,
     async_sessionmaker,
     create_async_engine,
 )
 
 
-def create_engine(database_url: str) -> "AsyncEngine":
+def create_engine(database_url: str) -> AsyncEngine:
     """Create an async SQLAlchemy engine with connection pooling.
 
     Args:
@@ -21,8 +22,6 @@ def create_engine(database_url: str) -> "AsyncEngine":
     Returns:
         Configured async engine with pool_size=5, max_overflow=10.
     """
-    from sqlalchemy.ext.asyncio import AsyncEngine
-
     engine: AsyncEngine = create_async_engine(
         database_url,
         pool_size=5,
@@ -32,7 +31,7 @@ def create_engine(database_url: str) -> "AsyncEngine":
     return engine
 
 
-def create_session_factory(engine: "AsyncEngine") -> async_sessionmaker[AsyncSession]:
+def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
     """Create an async session factory bound to the given engine.
 
     Args:
@@ -60,7 +59,7 @@ def init_engine(database_url: str) -> None:
     _session_factory = create_session_factory(_engine)
 
 
-def get_engine() -> "AsyncEngine":
+def get_engine() -> AsyncEngine:
     """Return the module-level engine. Raises if not initialized."""
     if _engine is None:
         raise RuntimeError("Database engine not initialized. Call init_engine() first.")

@@ -65,9 +65,7 @@ class TestParseService:
         parsed_file = tmp_path / f"{doc_id}.md"
         parsed_file.write_text("# Cached content")
 
-        doc = _make_mock_doc(
-            doc_id=doc_id, status="parsed", parsed_path=str(parsed_file)
-        )
+        doc = _make_mock_doc(doc_id=doc_id, status="parsed", parsed_path=str(parsed_file))
         self.repo.get_by_id = AsyncMock(return_value=doc)
         self.storage.parsed_dir = tmp_path
 

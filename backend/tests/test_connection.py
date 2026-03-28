@@ -4,48 +4,40 @@ Verifies async engine creation, session factory, connection pooling,
 and get_session dependency.
 """
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+import src.db.connection as conn_module
 from src.db.connection import (
     create_engine,
     create_session_factory,
+    dispose_engine,
     get_engine,
     get_session,
     get_session_factory,
     init_engine,
-    dispose_engine,
 )
-import src.db.connection as conn_module
 
 
 class TestCreateEngine:
     """Test async engine creation."""
 
     def test_creates_async_engine(self) -> None:
-        engine = create_engine(
-            "postgresql+asyncpg://test:test@localhost:5432/test"
-        )
+        engine = create_engine("postgresql+asyncpg://test:test@localhost:5432/test")
         assert isinstance(engine, AsyncEngine)
 
     def test_engine_pool_size(self) -> None:
-        engine = create_engine(
-            "postgresql+asyncpg://test:test@localhost:5432/test"
-        )
+        engine = create_engine("postgresql+asyncpg://test:test@localhost:5432/test")
         assert engine.pool.size() == 5
 
     def test_engine_max_overflow(self) -> None:
-        engine = create_engine(
-            "postgresql+asyncpg://test:test@localhost:5432/test"
-        )
+        engine = create_engine("postgresql+asyncpg://test:test@localhost:5432/test")
         assert engine.pool._max_overflow == 10
 
     def test_engine_url_contains_asyncpg(self) -> None:
-        engine = create_engine(
-            "postgresql+asyncpg://test:test@localhost:5432/test"
-        )
+        engine = create_engine("postgresql+asyncpg://test:test@localhost:5432/test")
         assert "asyncpg" in str(engine.url)
 
 
@@ -53,16 +45,12 @@ class TestCreateSessionFactory:
     """Test session factory creation."""
 
     def test_creates_session_factory(self) -> None:
-        engine = create_engine(
-            "postgresql+asyncpg://test:test@localhost:5432/test"
-        )
+        engine = create_engine("postgresql+asyncpg://test:test@localhost:5432/test")
         factory = create_session_factory(engine)
         assert isinstance(factory, async_sessionmaker)
 
     def test_factory_produces_async_sessions(self) -> None:
-        engine = create_engine(
-            "postgresql+asyncpg://test:test@localhost:5432/test"
-        )
+        engine = create_engine("postgresql+asyncpg://test:test@localhost:5432/test")
         factory = create_session_factory(engine)
         # The factory class should create AsyncSession instances
         assert factory.class_ is AsyncSession

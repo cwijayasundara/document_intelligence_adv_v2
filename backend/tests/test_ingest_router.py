@@ -28,9 +28,7 @@ class TestIngestRouter:
     @pytest.mark.asyncio
     async def test_ingest_not_found(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
-        with patch(
-            "src.api.routers.ingest.DocumentRepository"
-        ) as mock_repo_cls:
+        with patch("src.api.routers.ingest.DocumentRepository") as mock_repo_cls:
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=None)
             mock_repo_cls.return_value = mock_repo
@@ -39,17 +37,13 @@ class TestIngestRouter:
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_ingest_invalid_transition(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_ingest_invalid_transition(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
         mock_doc = MagicMock()
         mock_doc.id = doc_id
         mock_doc.status = "uploaded"
 
-        with patch(
-            "src.api.routers.ingest.DocumentRepository"
-        ) as mock_repo_cls:
+        with patch("src.api.routers.ingest.DocumentRepository") as mock_repo_cls:
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
@@ -58,18 +52,14 @@ class TestIngestRouter:
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_ingest_no_parsed_content(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_ingest_no_parsed_content(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
         mock_doc = MagicMock()
         mock_doc.id = doc_id
         mock_doc.status = "summarized"
         mock_doc.parsed_path = None
 
-        with patch(
-            "src.api.routers.ingest.DocumentRepository"
-        ) as mock_repo_cls:
+        with patch("src.api.routers.ingest.DocumentRepository") as mock_repo_cls:
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
@@ -78,18 +68,14 @@ class TestIngestRouter:
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
-    async def test_ingest_parsed_file_missing(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_ingest_parsed_file_missing(self, client: AsyncClient) -> None:
         doc_id = uuid.uuid4()
         mock_doc = MagicMock()
         mock_doc.id = doc_id
         mock_doc.status = "summarized"
         mock_doc.parsed_path = "/nonexistent/path.md"
 
-        with patch(
-            "src.api.routers.ingest.DocumentRepository"
-        ) as mock_repo_cls:
+        with patch("src.api.routers.ingest.DocumentRepository") as mock_repo_cls:
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
@@ -98,9 +84,7 @@ class TestIngestRouter:
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
-    async def test_ingest_success(
-        self, client: AsyncClient, tmp_path
-    ) -> None:
+    async def test_ingest_success(self, client: AsyncClient, tmp_path) -> None:
         doc_id = uuid.uuid4()
         parsed_file = tmp_path / "test.md"
         parsed_file.write_text("# Test content for ingestion")
@@ -113,13 +97,11 @@ class TestIngestRouter:
         mock_doc.category = MagicMock()
         mock_doc.category.name = "LPA"
 
-        with patch(
-            "src.api.routers.ingest.DocumentRepository"
-        ) as mock_repo_cls, patch(
-            "src.api.routers.ingest.get_app_settings"
-        ) as mock_settings, patch(
-            "src.api.routers.ingest.WeaviateClient"
-        ) as mock_wv_cls:
+        with (
+            patch("src.api.routers.ingest.DocumentRepository") as mock_repo_cls,
+            patch("src.api.routers.ingest.get_app_settings") as mock_settings,
+            patch("src.api.routers.ingest.WeaviateClient") as mock_wv_cls,
+        ):
             mock_repo = MagicMock()
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo

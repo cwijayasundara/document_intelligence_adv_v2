@@ -32,37 +32,27 @@ class TestJudgeSubagent:
 
     @pytest.mark.asyncio
     async def test_evaluate_returns_judge_result(self) -> None:
-        result = await self.judge.evaluate(
-            self.sample_fields, self.sample_content
-        )
+        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
         assert isinstance(result, JudgeResult)
         assert len(result.evaluations) == 2
 
     @pytest.mark.asyncio
     async def test_evaluate_field_names_match(self) -> None:
-        result = await self.judge.evaluate(
-            self.sample_fields, self.sample_content
-        )
+        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
         names = {e.field_name for e in result.evaluations}
         assert names == {"fund_name", "fund_term"}
 
     @pytest.mark.asyncio
     async def test_evaluate_valid_confidence_levels(self) -> None:
-        result = await self.judge.evaluate(
-            self.sample_fields, self.sample_content
-        )
+        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
         valid = {"high", "medium", "low"}
         for ev in result.evaluations:
             assert ev.confidence in valid
 
     @pytest.mark.asyncio
     async def test_evaluate_high_confidence_when_value_in_source(self) -> None:
-        result = await self.judge.evaluate(
-            self.sample_fields, self.sample_content
-        )
-        fund_eval = next(
-            e for e in result.evaluations if e.field_name == "fund_name"
-        )
+        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
+        fund_eval = next(e for e in result.evaluations if e.field_name == "fund_name")
         assert fund_eval.confidence == "high"
 
     @pytest.mark.asyncio
@@ -85,21 +75,15 @@ class TestJudgeSubagent:
 
     @pytest.mark.asyncio
     async def test_evaluate_reasoning_provided(self) -> None:
-        result = await self.judge.evaluate(
-            self.sample_fields, self.sample_content
-        )
+        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
         for ev in result.evaluations:
             assert ev.reasoning
             assert len(ev.reasoning) > 0
 
     @pytest.mark.asyncio
     async def test_evaluate_with_mock_agent(self) -> None:
-        self.judge._agent.run = AsyncMock(
-            return_value={"response": "Evaluated"}
-        )
-        result = await self.judge.evaluate(
-            self.sample_fields, self.sample_content
-        )
+        self.judge._agent.run = AsyncMock(return_value={"response": "Evaluated"})
+        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
         assert isinstance(result, JudgeResult)
         self.judge._agent.run.assert_called_once()
 
@@ -128,9 +112,7 @@ class TestJudgeSubagent:
         assert content == "test content"
 
     def test_build_prompt_includes_fields(self) -> None:
-        prompt = self.judge._build_prompt(
-            self.sample_fields, "document content"
-        )
+        prompt = self.judge._build_prompt(self.sample_fields, "document content")
         assert "fund_name" in prompt
         assert "fund_term" in prompt
         assert "document content" in prompt

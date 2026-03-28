@@ -7,8 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_app_settings, get_session
 from src.api.schemas.documents import (
-    DocumentListResponse,
     DocumentListItem,
+    DocumentListResponse,
     DocumentResponse,
 )
 from src.services.document_service import DocumentService

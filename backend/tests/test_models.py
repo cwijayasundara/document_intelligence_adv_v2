@@ -4,9 +4,6 @@ Verifies all 10 SQLAlchemy ORM models, enum types, FK relationships,
 column types, and UUID primary keys.
 """
 
-import uuid
-
-from sqlalchemy import inspect
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from src.db.enums import (
@@ -23,12 +20,11 @@ from src.db.models import (
     Document,
     DocumentCategory,
     DocumentSummary,
+    ExtractedValue,
     ExtractionField,
     ExtractionSchema,
-    ExtractedValue,
     MemoryEntry,
 )
-
 
 # --- Enum Tests ---
 
@@ -167,7 +163,14 @@ class TestDocumentCategoryModel:
 
     def test_columns(self) -> None:
         cols = _get_column_names(DocumentCategory)
-        expected = {"id", "name", "description", "classification_criteria", "created_at", "updated_at"}
+        expected = {
+            "id",
+            "name",
+            "description",
+            "classification_criteria",
+            "created_at",
+            "updated_at",
+        }
         assert expected == cols
 
 
@@ -196,9 +199,17 @@ class TestDocumentModel:
     def test_columns(self) -> None:
         cols = _get_column_names(Document)
         expected = {
-            "id", "file_name", "original_path", "parsed_path", "file_hash",
-            "status", "document_category_id", "file_type", "file_size",
-            "created_at", "updated_at",
+            "id",
+            "file_name",
+            "original_path",
+            "parsed_path",
+            "file_hash",
+            "status",
+            "document_category_id",
+            "file_type",
+            "file_size",
+            "created_at",
+            "updated_at",
         }
         assert expected == cols
 
@@ -251,8 +262,15 @@ class TestExtractionFieldModel:
     def test_columns(self) -> None:
         cols = _get_column_names(ExtractionField)
         expected = {
-            "id", "schema_id", "field_name", "display_name", "description",
-            "examples", "data_type", "required", "sort_order",
+            "id",
+            "schema_id",
+            "field_name",
+            "display_name",
+            "description",
+            "examples",
+            "data_type",
+            "required",
+            "sort_order",
         }
         assert expected == cols
 
@@ -285,8 +303,15 @@ class TestExtractedValueModel:
     def test_columns(self) -> None:
         cols = _get_column_names(ExtractedValue)
         expected = {
-            "id", "document_id", "field_id", "extracted_value", "source_text",
-            "confidence", "confidence_reasoning", "requires_review", "reviewed",
+            "id",
+            "document_id",
+            "field_id",
+            "extracted_value",
+            "source_text",
+            "confidence",
+            "confidence_reasoning",
+            "requires_review",
+            "reviewed",
             "created_at",
         }
         assert expected == cols
@@ -329,8 +354,13 @@ class TestBulkJobModel:
     def test_columns(self) -> None:
         cols = _get_column_names(BulkJob)
         expected = {
-            "id", "status", "total_documents", "processed_count",
-            "failed_count", "created_at", "completed_at",
+            "id",
+            "status",
+            "total_documents",
+            "processed_count",
+            "failed_count",
+            "created_at",
+            "completed_at",
         }
         assert expected == cols
 
@@ -383,8 +413,15 @@ class TestConversationSummaryModel:
     def test_columns(self) -> None:
         cols = _get_column_names(ConversationSummary)
         expected = {
-            "id", "session_id", "agent_type", "summary", "key_topics",
-            "documents_discussed", "queries_count", "created_at", "updated_at",
+            "id",
+            "session_id",
+            "agent_type",
+            "summary",
+            "key_topics",
+            "documents_discussed",
+            "queries_count",
+            "created_at",
+            "updated_at",
         }
         assert expected == cols
 
@@ -424,15 +461,20 @@ class TestAllModelsHaveUUIDPrimaryKeys:
 
     def test_all_pks_are_uuid(self) -> None:
         all_models = [
-            Document, DocumentCategory, ExtractionSchema, ExtractionField,
-            ExtractedValue, DocumentSummary, BulkJob, BulkJobDocument,
-            ConversationSummary, MemoryEntry,
+            Document,
+            DocumentCategory,
+            ExtractionSchema,
+            ExtractionField,
+            ExtractedValue,
+            DocumentSummary,
+            BulkJob,
+            BulkJobDocument,
+            ConversationSummary,
+            MemoryEntry,
         ]
         for model in all_models:
             pk_cols = [c for c in model.__table__.primary_key.columns]
             assert len(pk_cols) == 1, f"{model.__name__} should have exactly 1 PK"
             pk = pk_cols[0]
             assert isinstance(pk.type, UUID), f"{model.__name__}.id should be UUID"
-            assert pk.server_default is not None, (
-                f"{model.__name__}.id should have server_default"
-            )
+            assert pk.server_default is not None, f"{model.__name__}.id should have server_default"

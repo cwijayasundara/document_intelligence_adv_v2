@@ -9,12 +9,8 @@ class ExtractedField(BaseModel):
     """A single extracted field value."""
 
     field_name: str = Field(..., description="Name of the extraction field")
-    extracted_value: str = Field(
-        ..., description="The value extracted from the document"
-    )
-    source_text: str = Field(
-        ..., description="Source text from the document supporting this value"
-    )
+    extracted_value: str = Field(..., description="The value extracted from the document")
+    source_text: str = Field(..., description="Source text from the document supporting this value")
 
 
 class ExtractionResult(BaseModel):
@@ -30,12 +26,8 @@ class FieldEvaluation(BaseModel):
     """Confidence evaluation for a single extracted field."""
 
     field_name: str = Field(..., description="Name of the evaluated field")
-    confidence: str = Field(
-        ..., description="Confidence level: high, medium, or low"
-    )
-    reasoning: str = Field(
-        ..., description="Explanation for the confidence rating"
-    )
+    confidence: str = Field(..., description="Confidence level: high, medium, or low")
+    reasoning: str = Field(..., description="Explanation for the confidence rating")
 
 
 class JudgeResult(BaseModel):

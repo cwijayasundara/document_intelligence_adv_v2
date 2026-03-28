@@ -13,9 +13,7 @@ class TestReductoClient:
     """Tests for ReductoClient."""
 
     def setup_method(self) -> None:
-        self.client = ReductoClient(
-            api_key="test-key", api_url="https://test.reducto.ai/parse"
-        )
+        self.client = ReductoClient(api_key="test-key", api_url="https://test.reducto.ai/parse")
 
     @pytest.mark.asyncio
     async def test_parse_file_not_found(self) -> None:
@@ -30,9 +28,7 @@ class TestReductoClient:
         mock_response = MagicMock()
         mock_response.status_code = 200
         mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {
-            "result": {"content": "# Parsed markdown"}
-        }
+        mock_response.json.return_value = {"result": {"content": "# Parsed markdown"}}
 
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
@@ -51,9 +47,7 @@ class TestReductoClient:
 
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
-            mock_client.post = AsyncMock(
-                side_effect=httpx.RequestError("Connection failed")
-            )
+            mock_client.post = AsyncMock(side_effect=httpx.RequestError("Connection failed"))
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client

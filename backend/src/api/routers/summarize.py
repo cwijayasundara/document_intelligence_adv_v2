@@ -5,12 +5,11 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_app_settings, get_session
+from src.api.dependencies import get_session
 from src.api.schemas.summarize import SummarizeResponse, SummaryGetResponse
 from src.db.repositories.documents import DocumentRepository
 from src.services.state_machine import InvalidTransitionError, validate_transition
 from src.services.summarize_service import SummaryService
-from src.storage.local import LocalStorage
 
 router = APIRouter()
 
@@ -46,21 +45,13 @@ async def summarize_document(
     try:
         validate_transition(doc.status, "summarized")
     except InvalidTransitionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
-        ) from exc
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
     if not doc.parsed_path:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Document has no parsed content",
         )
-
-    settings = get_app_settings()
-    storage = LocalStorage(
-        upload_dir=settings.storage.upload_dir,
-        parsed_dir=settings.storage.parsed_dir,
-    )
 
     from pathlib import Path
 

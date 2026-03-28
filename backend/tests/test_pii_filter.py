@@ -52,10 +52,7 @@ class TestPIIFilterMiddleware:
         assert "12345678901234" not in result.redacted_text
 
     def test_multiple_pii_types(self) -> None:
-        text = (
-            "SSN: 123-45-6789, Email: test@example.com, "
-            "Phone: (555) 234-5678"
-        )
+        text = "SSN: 123-45-6789, Email: test@example.com, Phone: (555) 234-5678"
         result = self.middleware.filter_content(text)
         assert "[REDACTED_SSN]" in result.redacted_text
         assert "[REDACTED_EMAIL]" in result.redacted_text

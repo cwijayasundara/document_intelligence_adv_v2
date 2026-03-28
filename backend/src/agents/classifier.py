@@ -9,7 +9,7 @@ from __future__ import annotations
 import uuid
 from typing import Any
 
-from src.agents.deepagents_stub import DeepAgent, SubAgentSlot, create_deep_agent
+from src.agents.deepagents_stub import SubAgentSlot, create_deep_agent
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.classification import ClassificationResult
 
@@ -56,13 +56,10 @@ class ClassifierSubagent:
 
         return self._parse_response(response, categories)
 
-    def _build_prompt(
-        self, content: str, categories: list[dict[str, Any]]
-    ) -> str:
+    def _build_prompt(self, content: str, categories: list[dict[str, Any]]) -> str:
         """Build the classification prompt."""
         cat_descriptions = "\n".join(
-            f"- {c['name']}: {c.get('classification_criteria', 'N/A')}"
-            for c in categories
+            f"- {c['name']}: {c.get('classification_criteria', 'N/A')}" for c in categories
         )
         return (
             f"Classify the following document into one of these categories:\n"
@@ -85,9 +82,7 @@ class ClassifierSubagent:
             return ClassificationResult(
                 category_id=cat["id"],
                 category_name=cat["name"],
-                reasoning=response.get(
-                    "response", "Classification based on content analysis."
-                ),
+                reasoning=response.get("response", "Classification based on content analysis."),
             )
 
         return ClassificationResult(

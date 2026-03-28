@@ -3,8 +3,8 @@
 import pytest
 
 from src.services.state_machine import (
-    InvalidTransitionError,
     VALID_TRANSITIONS,
+    InvalidTransitionError,
     get_available_actions,
     validate_transition,
 )
@@ -97,8 +97,13 @@ class TestValidTransitionsMap:
 
     def test_all_statuses_present(self) -> None:
         expected = {
-            "uploaded", "parsed", "edited", "classified",
-            "extracted", "summarized", "ingested",
+            "uploaded",
+            "parsed",
+            "edited",
+            "classified",
+            "extracted",
+            "summarized",
+            "ingested",
         }
         assert set(VALID_TRANSITIONS.keys()) == expected
 

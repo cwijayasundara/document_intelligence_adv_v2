@@ -7,9 +7,7 @@ class TestSemanticChunker:
     """Tests for SemanticChunker."""
 
     def setup_method(self) -> None:
-        self.chunker = SemanticChunker(
-            max_tokens=50, overlap_tokens=10, chars_per_token=4
-        )
+        self.chunker = SemanticChunker(max_tokens=50, overlap_tokens=10, chars_per_token=4)
 
     def test_chunk_short_text(self) -> None:
         text = "Hello world"

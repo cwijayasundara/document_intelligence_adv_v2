@@ -131,9 +131,7 @@ async def test_list_fields_category_not_found(
     cat_instance = MockCatRepo.return_value
     cat_instance.get_by_id = AsyncMock(return_value=None)
 
-    response = await client.get(
-        f"/api/v1/config/categories/{uuid.uuid4()}/fields"
-    )
+    response = await client.get(f"/api/v1/config/categories/{uuid.uuid4()}/fields")
 
     assert response.status_code == 404
 

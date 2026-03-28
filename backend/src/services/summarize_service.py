@@ -49,9 +49,7 @@ class SummaryService:
         self._cache[cache_key] = summary_data
         return summary_data
 
-    def get_cached_summary(
-        self, doc_id: uuid.UUID
-    ) -> dict[str, Any] | None:
+    def get_cached_summary(self, doc_id: uuid.UUID) -> dict[str, Any] | None:
         """Get a cached summary for a document.
 
         Returns:

@@ -27,14 +27,10 @@ PASSTHROUGH_TERMS = {
 SSN_PATTERN = re.compile(r"\b\d{3}-\d{2}-\d{4}\b")
 
 # Pattern: Phone numbers - (XXX) XXX-XXXX or XXX-XXX-XXXX
-PHONE_PATTERN = re.compile(
-    r"\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b"
-)
+PHONE_PATTERN = re.compile(r"\(?\d{3}\)?[\s\-.]?\d{3}[\s\-.]?\d{4}\b")
 
 # Pattern: Email addresses
-EMAIL_PATTERN = re.compile(
-    r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b"
-)
+EMAIL_PATTERN = re.compile(r"\b[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}\b")
 
 # Pattern: Bank account / routing numbers (8-17 digit sequences)
 ACCOUNT_PATTERN = re.compile(r"\b\d{8,17}\b")
@@ -90,26 +86,19 @@ class PIIFilterMiddleware:
         for pattern, replacement, pii_type in self._patterns:
             matches = pattern.findall(redacted)
             if matches:
-                filtered_matches = [
-                    m for m in matches
-                    if not self._is_financial_term(m, redacted)
-                ]
+                filtered_matches = [m for m in matches if not self._is_financial_term(m, redacted)]
                 if filtered_matches:
                     redacted = pattern.sub(
                         lambda m: (
                             replacement
-                            if not self._is_financial_term(
-                                m.group(), redacted
-                            )
+                            if not self._is_financial_term(m.group(), redacted)
                             else m.group()
                         ),
                         redacted,
                     )
                     count = len(filtered_matches)
                     total_count += count
-                    type_counts[pii_type] = (
-                        type_counts.get(pii_type, 0) + count
-                    )
+                    type_counts[pii_type] = type_counts.get(pii_type, 0) + count
 
         return PIIFilterResult(
             redacted_text=redacted,
