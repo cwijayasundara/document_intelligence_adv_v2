@@ -1,0 +1,21 @@
+storage:
+  upload_dir: "./data/upload"
+  parsed_dir: "./data/parsed"
+  schemas_dir: "./schemas"
+
+chunking:
+  max_tokens: 512
+  overlap_tokens: 100
+
+bulk:
+  concurrent_documents: 3
+  max_retries: 3
+  retry_delay_seconds: 30
+
+rag:
+  default_search_mode: "hybrid"
+  default_alpha: 0.5
+  top_k: 5
+
+extraction:
+  default_schema_dir: "./schemas"
