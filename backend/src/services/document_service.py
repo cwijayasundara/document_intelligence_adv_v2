@@ -1,12 +1,18 @@
-"""Document upload service with SHA-256 dedup."""
+"""Document upload service with SHA-256 dedup and state transitions."""
 
 import uuid
+from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Document
 from src.db.repositories.documents import DocumentRepository
+from src.services.state_machine import (
+    InvalidTransitionError,
+    get_available_actions,
+    validate_transition,
+)
 from src.storage.local import LocalStorage
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx", "png", "jpg", "tiff"}
@@ -19,9 +25,7 @@ class DocumentService:
         self._repo = DocumentRepository(session)
         self._storage = storage
 
-    async def upload(
-        self, filename: str, content: bytes
-    ) -> tuple[Document, bool]:
+    async def upload(self, filename: str, content: bytes) -> tuple[Document, bool]:
         """Upload a document file with SHA-256 dedup.
 
         Returns:
@@ -90,6 +94,38 @@ class DocumentService:
 
         await self._repo.delete(doc_id)
         return True
+
+    async def transition_status(
+        self, doc_id: uuid.UUID, new_status: str
+    ) -> Document:
+        """Transition a document to a new status.
+
+        Validates the transition against the state machine.
+
+        Raises:
+            ValueError: If document not found.
+            InvalidTransitionError: If the transition is invalid.
+        """
+        doc = await self._repo.get_by_id(doc_id)
+        if doc is None:
+            raise ValueError(f"Document {doc_id} not found")
+
+        validate_transition(doc.status, new_status)
+        doc.status = new_status
+        doc.updated_at = datetime.now()
+        await self._repo._session.flush()
+        return doc
+
+    async def get_available_actions(self, doc_id: uuid.UUID) -> list[str]:
+        """Return valid next transitions for the document's current status.
+
+        Raises:
+            ValueError: If document not found.
+        """
+        doc = await self._repo.get_by_id(doc_id)
+        if doc is None:
+            raise ValueError(f"Document {doc_id} not found")
+        return get_available_actions(doc.status)
 
     @staticmethod
     def _extract_extension(filename: str) -> str:

@@ -1,5 +1,9 @@
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/ui/Layout";
+import CategoriesPage from "./pages/CategoriesPage";
+import DashboardPage from "./pages/DashboardPage";
+import ExtractionFieldsPage from "./pages/ExtractionFieldsPage";
+import UploadPage from "./pages/UploadPage";
 
 /** Placeholder page component for routes not yet implemented. */
 function PlaceholderPage({ title }: { title: string }) {
@@ -17,11 +21,8 @@ export default function App() {
   return (
     <Routes>
       <Route element={<Layout />}>
-        <Route index element={<PlaceholderPage title="Dashboard" />} />
-        <Route
-          path="upload"
-          element={<PlaceholderPage title="Upload Documents" />}
-        />
+        <Route index element={<DashboardPage />} />
+        <Route path="upload" element={<UploadPage />} />
         <Route
           path="documents/:id/parse"
           element={<PlaceholderPage title="Parse Document" />}
@@ -42,13 +43,10 @@ export default function App() {
           path="documents/:id/chat"
           element={<PlaceholderPage title="Chat with Document" />}
         />
-        <Route
-          path="config/categories"
-          element={<PlaceholderPage title="Categories" />}
-        />
+        <Route path="config/categories" element={<CategoriesPage />} />
         <Route
           path="config/extraction-fields"
-          element={<PlaceholderPage title="Extraction Fields" />}
+          element={<ExtractionFieldsPage />}
         />
         <Route
           path="bulk"
