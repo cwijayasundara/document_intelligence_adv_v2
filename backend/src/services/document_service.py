@@ -1,5 +1,6 @@
 """Document upload service with SHA-256 dedup and state transitions."""
 
+import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -13,6 +14,8 @@ from src.services.state_machine import (
     validate_transition,
 )
 from src.storage.local import LocalStorage
+
+logger = logging.getLogger(__name__)
 
 ALLOWED_EXTENSIONS = {"pdf", "docx", "xlsx", "png", "jpg", "tiff"}
 
@@ -44,6 +47,7 @@ class DocumentService:
 
         existing = await self._repo.get_by_hash(file_hash)
         if existing is not None:
+            logger.info("Duplicate detected: %s (hash=%s)", filename, file_hash[:12])
             return existing, True
 
         saved_path = await self._storage.save_file(filename, content)
@@ -55,6 +59,7 @@ class DocumentService:
             file_type=file_ext,
             file_size=len(content),
         )
+        logger.info("Uploaded document %s id=%s (%d bytes)", filename, doc.id, len(content))
         return doc, False
 
     async def get_document(self, doc_id: uuid.UUID) -> Document | None:
@@ -92,6 +97,7 @@ class DocumentService:
             await self._storage.delete_file(doc.parsed_path)
 
         await self._repo.delete(doc_id)
+        logger.info("Deleted document %s (%s)", doc_id, doc.file_name)
         return True
 
     async def transition_status(self, doc_id: uuid.UUID, new_status: str) -> Document:
@@ -108,9 +114,11 @@ class DocumentService:
             raise ValueError(f"Document {doc_id} not found")
 
         validate_transition(doc.status, new_status)
+        old_status = doc.status
         doc.status = new_status
         doc.updated_at = datetime.now()
         await self._repo._session.flush()
+        logger.info("Document %s transitioned %s -> %s", doc_id, old_status, new_status)
         return doc
 
     async def get_available_actions(self, doc_id: uuid.UUID) -> list[str]:

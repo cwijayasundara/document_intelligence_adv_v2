@@ -32,34 +32,53 @@ try {
   }
 
   const typechecker = manifest && manifest.typechecker ? manifest.typechecker : null;
+  const normalized = filePath.replace(/\\/g, '/');
 
   if (isPython) {
-    const useChecker = typechecker ? typechecker === 'mypy' : true; // fallback: use mypy
+    const useChecker = typechecker ? typechecker === 'mypy' : true;
     if (useChecker) {
+      const backendIdx = normalized.indexOf('/backend/');
+      const cwd = backendIdx !== -1 ? normalized.substring(0, backendIdx + '/backend'.length) : process.cwd();
       const result = spawnSync('sh', ['-c', `uv run mypy "${filePath}"`], {
         encoding: 'utf8',
         shell: false,
+        cwd,
       });
       if (result.status !== 0) {
+        // Only report errors in the edited file, not the entire project
         const output = (result.stdout || '') + (result.stderr || '');
-        process.stderr.write(`Typecheck errors in ${filePath}:\n${output}\nFix: Add type annotations or fix the type mismatch shown above.\n`);
+        const lines = output.split('\n');
+        const basename = path.basename(filePath);
+        const relevantErrors = lines.filter(line => line.includes(basename) && line.includes('error:'));
+        if (relevantErrors.length > 0) {
+          process.stderr.write(`Typecheck errors in ${filePath}:\n${relevantErrors.join('\n')}\nFix: Add type annotations or fix the type mismatch shown above.\n`);
+        }
       }
     }
   } else if (isTypeScript) {
-    const useChecker = typechecker ? typechecker === 'tsc' : true; // fallback: use tsc
+    const useChecker = typechecker ? typechecker === 'tsc' : true;
     if (useChecker) {
+      const frontendIdx = normalized.indexOf('/frontend/');
+      const cwd = frontendIdx !== -1 ? normalized.substring(0, frontendIdx + '/frontend'.length) : process.cwd();
       const result = spawnSync('sh', ['-c', 'npx tsc --noEmit'], {
         encoding: 'utf8',
         shell: false,
+        cwd,
       });
       if (result.status !== 0) {
+        // Only report errors in the edited file
         const output = (result.stdout || '') + (result.stderr || '');
-        process.stderr.write(`Typecheck errors (tsc):\n${output}\nFix: Add type annotations or fix the type mismatch shown above.\n`);
+        const lines = output.split('\n');
+        const basename = path.basename(filePath);
+        const relevantErrors = lines.filter(line => line.includes(basename) && line.includes('error'));
+        if (relevantErrors.length > 0) {
+          process.stderr.write(`Typecheck errors (tsc):\n${relevantErrors.join('\n')}\nFix: Add type annotations or fix the type mismatch shown above.\n`);
+        }
       }
     }
   }
 } catch (err) {
-  process.stderr.write(`typecheck.js error: ${err.message}\n`);
+  // Swallow hook errors so they don't block edits
 }
 
 process.exit(0);

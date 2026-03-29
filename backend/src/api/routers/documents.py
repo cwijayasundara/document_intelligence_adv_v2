@@ -1,10 +1,13 @@
 """Document management API endpoints: upload, list, get, delete."""
 
+import logging
 import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import get_app_settings, get_session
 from src.api.schemas.documents import (
@@ -90,6 +93,7 @@ async def upload_document(
     try:
         doc, is_duplicate = await service.upload(filename, content)
     except ValueError as exc:
+        logger.warning("Upload rejected for %s: %s", filename, exc)
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(exc),

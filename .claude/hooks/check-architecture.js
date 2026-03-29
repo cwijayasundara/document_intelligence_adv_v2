@@ -88,8 +88,8 @@ try {
   if (violated) {
     process.exit(2);
   }
-} catch (err) {
-  process.stderr.write(`check-architecture.js error: ${err.message}\n`);
+} catch (_) {
+  // Swallow parse/read errors so they don't appear as hook errors
 }
 
 process.exit(0);

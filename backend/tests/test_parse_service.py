@@ -16,6 +16,7 @@ def _make_mock_doc(
     status: str = "uploaded",
     parsed_path: str | None = None,
     original_path: str = "/tmp/test.pdf",
+    file_name: str = "test.pdf",
 ) -> MagicMock:
     """Create a mock Document object."""
     doc = MagicMock()
@@ -23,6 +24,7 @@ def _make_mock_doc(
     doc.status = status
     doc.parsed_path = parsed_path
     doc.original_path = original_path
+    doc.file_name = file_name
     doc.file_hash = "abc123"
     return doc
 
@@ -62,7 +64,7 @@ class TestParseService:
     @pytest.mark.asyncio
     async def test_parse_document_skips_if_exists(self, tmp_path: Path) -> None:
         doc_id = uuid.uuid4()
-        parsed_file = tmp_path / f"{doc_id}.md"
+        parsed_file = tmp_path / "test.md"
         parsed_file.write_text("# Cached content")
 
         doc = _make_mock_doc(doc_id=doc_id, status="parsed", parsed_path=str(parsed_file))
@@ -124,7 +126,7 @@ class TestParseService:
         result = await self.service.save_edited_content(doc_id, "# Edited")
         assert result.status == "edited"
 
-        saved_content = (tmp_path / f"{doc_id}.md").read_text()
+        saved_content = (tmp_path / "test.md").read_text()
         assert saved_content == "# Edited"
 
     @pytest.mark.asyncio

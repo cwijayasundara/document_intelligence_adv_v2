@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from src.agents.rag_retriever import RAGRetrieverSubagent
 from src.rag.weaviate_client import WeaviateClient
+
+logger = logging.getLogger(__name__)
 
 SEARCH_MODE_ALPHA = {
     "keyword": 0.0,
@@ -41,6 +44,13 @@ class RAGService:
         Returns:
             Dict with answer, citations, search_mode, chunks_retrieved.
         """
+        logger.info(
+            "RAG query: scope=%s scope_id=%s mode=%s top_k=%d",
+            scope,
+            scope_id,
+            search_mode,
+            top_k,
+        )
         alpha = SEARCH_MODE_ALPHA.get(search_mode, 0.5)
         doc_id = scope_id if scope == "single_document" else None
         category = scope_id if scope == "by_category" else None
@@ -66,6 +76,7 @@ class RAGService:
             for c in chunks
         ]
 
+        logger.info("RAG query returned %d chunks", len(chunks))
         return {
             "answer": answer,
             "citations": citations,

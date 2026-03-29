@@ -3,6 +3,7 @@
 Provides engine creation, session factory, and FastAPI dependency.
 """
 
+import logging
 from collections.abc import AsyncGenerator
 
 from sqlalchemy.ext.asyncio import (
@@ -11,6 +12,8 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def create_engine(database_url: str) -> AsyncEngine:
@@ -55,6 +58,9 @@ _session_factory: async_sessionmaker[AsyncSession] | None = None
 def init_engine(database_url: str) -> None:
     """Initialize the module-level engine and session factory."""
     global _engine, _session_factory
+    # Mask password in log output
+    masked = database_url.split("@")[-1] if "@" in database_url else database_url
+    logger.info("Initializing database engine -> %s", masked)
     _engine = create_engine(database_url)
     _session_factory = create_session_factory(_engine)
 
@@ -84,6 +90,7 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
             yield session
             await session.commit()
         except Exception:
+            logger.warning("Session rollback triggered by unhandled exception")
             await session.rollback()
             raise
 
@@ -92,6 +99,7 @@ async def dispose_engine() -> None:
     """Dispose the module-level engine, closing all connections."""
     global _engine, _session_factory
     if _engine is not None:
+        logger.info("Disposing database engine and connection pool")
         await _engine.dispose()
         _engine = None
         _session_factory = None

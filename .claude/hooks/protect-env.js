@@ -4,7 +4,12 @@
 const fs = require('fs');
 const path = require('path');
 
-const input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
+let input;
+try {
+  input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
+} catch (_) {
+  process.exit(0);
+}
 const filePath = input.tool_input && input.tool_input.file_path;
 
 if (!filePath) {

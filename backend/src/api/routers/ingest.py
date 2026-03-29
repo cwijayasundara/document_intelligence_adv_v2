@@ -1,5 +1,6 @@
 """Ingest API endpoints for Weaviate ingestion."""
 
+import logging
 import uuid
 from pathlib import Path
 
@@ -7,6 +8,8 @@ import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import get_app_settings, get_session
 from src.db.repositories.documents import DocumentRepository
@@ -80,6 +83,7 @@ async def ingest_document(
     if doc.category:
         category_name = doc.category.name
 
+    logger.info("Starting ingestion for document %s (%s)", doc_id, doc.file_name)
     chunks_created = await service.ingest_document(
         document_id=doc.id,
         document_name=doc.file_name,

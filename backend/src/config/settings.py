@@ -73,6 +73,9 @@ class AppSettings(BaseSettings):
     weaviate_url: str = Field(..., description="Weaviate server URL")
     openai_model: str = Field(..., description="OpenAI model identifier")
 
+    # Logging (configurable via LOG_LEVEL env var, defaults to INFO)
+    log_level: str = Field(default="INFO", description="Root log level")
+
     # Nested config from config.yml
     storage: StorageSettings = Field(default_factory=StorageSettings)
     chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)

@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
 from src.agents.extractor import ExtractorSubagent
 from src.agents.judge import JudgeSubagent
+
+logger = logging.getLogger(__name__)
 
 CONFIDENCE_LOW = "low"
 
@@ -35,8 +38,10 @@ class ExtractionService:
         Returns:
             List of result dicts with merged confidence data.
         """
+        logger.info("Extracting %d fields from content (%d chars)", len(extraction_fields), len(parsed_content))
         extraction_result = await self._extractor.extract(parsed_content, extraction_fields)
 
+        logger.info("Judging %d extracted fields", len(extraction_result.fields))
         judge_result = await self._judge.evaluate(extraction_result.fields, parsed_content)
 
         eval_map = {e.field_name: e for e in judge_result.evaluations}
@@ -63,4 +68,10 @@ class ExtractionService:
                 }
             )
 
+        low_count = sum(1 for r in results if r["requires_review"])
+        logger.info(
+            "Extraction complete: %d fields, %d require review",
+            len(results),
+            low_count,
+        )
         return results

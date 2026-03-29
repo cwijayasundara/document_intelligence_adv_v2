@@ -1,9 +1,12 @@
 """Summarize API endpoints: generate and get summaries."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import get_session
 from src.api.schemas.summarize import SummarizeResponse, SummaryGetResponse

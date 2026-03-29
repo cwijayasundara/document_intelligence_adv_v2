@@ -1,11 +1,15 @@
 """RAG query API endpoint for document retrieval and Q&A."""
 
+import logging
+
 from fastapi import APIRouter
 
 from src.api.dependencies import get_app_settings
 from src.api.schemas.rag import Citation, RAGQueryRequest, RAGQueryResponse
 from src.rag.weaviate_client import WeaviateClient
 from src.services.rag_service import RAGService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 

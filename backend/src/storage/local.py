@@ -1,9 +1,12 @@
 """Local filesystem storage operations for document files."""
 
 import hashlib
+import logging
 from pathlib import Path
 
 import aiofiles
+
+logger = logging.getLogger(__name__)
 
 
 class LocalStorage:
@@ -65,6 +68,7 @@ class LocalStorage:
 
         async with aiofiles.open(dest, "wb") as f:
             await f.write(content)
+        logger.info("Saved file %s (%d bytes)", safe_name, len(content))
         return dest
 
     async def delete_file(self, file_path: str | Path) -> bool:
@@ -72,7 +76,9 @@ class LocalStorage:
         p = Path(file_path)
         if p.exists():
             p.unlink()
+            logger.info("Deleted file %s", p.name)
             return True
+        logger.debug("Delete skipped, file not found: %s", file_path)
         return False
 
     def file_exists(self, file_path: str | Path) -> bool:

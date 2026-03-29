@@ -1,9 +1,12 @@
 """Parse API endpoints: trigger parse, get content, save edits."""
 
+import logging
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import get_app_settings, get_session
 from src.api.schemas.parse import (
@@ -53,6 +56,7 @@ async def parse_document(
     except InvalidTransitionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     except ReductoParseError as exc:
+        logger.error("Reducto parse failed for document %s: %s", doc_id, exc)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=str(exc),

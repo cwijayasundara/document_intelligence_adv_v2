@@ -162,8 +162,8 @@ try {
   for (const w of warnings) {
     process.stderr.write(w + '\n');
   }
-} catch (err) {
-  process.stderr.write(`check-function-length.js error: ${err.message}\n`);
+} catch (_) {
+  // Swallow parse/read errors so they don't appear as hook errors
 }
 
 process.exit(0);

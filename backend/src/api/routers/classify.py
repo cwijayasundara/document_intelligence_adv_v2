@@ -1,11 +1,14 @@
 """Classification API endpoint: trigger classifier subagent."""
 
+import logging
 import uuid
 from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.agents.classifier import ClassifierSubagent
 from src.api.dependencies import get_session
@@ -78,7 +81,9 @@ async def classify_document(
     ]
 
     classifier = _get_classifier()
+    logger.info("Classifying document %s against %d categories", doc_id, len(cat_dicts))
     result = await classifier.classify(content, cat_dicts)
+    logger.info("Document %s classified as '%s'", doc_id, result.category_name)
 
     doc.document_category_id = result.category_id
     doc.status = "classified"

@@ -1,10 +1,13 @@
 """Bulk processing API endpoints: upload, list jobs, get job details."""
 
+import logging
 import uuid
 from typing import List
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import get_session
 from src.api.routers.documents import MAX_FILE_SIZE, _validate_magic_bytes
@@ -85,7 +88,9 @@ async def bulk_upload(
         file_types.append(ext)
 
     service = BulkJobService(session)
+    logger.info("Creating bulk job with %d files", len(file_names))
     job, documents = await service.create_job(file_names, file_contents, file_types)
+    logger.info("Bulk job %s created with %d documents", job.id, len(documents))
 
     # Build document response list using uploaded document info
     doc_responses = []

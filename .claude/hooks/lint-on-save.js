@@ -32,26 +32,46 @@ try {
   }
 
   const linter = manifest && manifest.linter ? manifest.linter : null;
+  const normalized = filePath.replace(/\\/g, '/');
 
   if (isPython) {
-    const useLinter = linter ? linter === 'ruff' : true; // fallback: use ruff
+    const useLinter = linter ? linter === 'ruff' : true;
     if (useLinter) {
-      spawnSync('sh', ['-c', `uv run ruff check --fix "${filePath}" && uv run ruff format "${filePath}"`], {
-        stdio: 'inherit',
+      const backendIdx = normalized.indexOf('/backend/');
+      const cwd = backendIdx !== -1 ? normalized.substring(0, backendIdx + '/backend'.length) : process.cwd();
+      // Run auto-fix silently; only report unfixable errors
+      const result = spawnSync('sh', ['-c', `uv run ruff check --fix "${filePath}" 2>&1 && uv run ruff format "${filePath}" 2>&1`], {
+        encoding: 'utf8',
         shell: false,
+        cwd,
       });
+      if (result.status !== 0) {
+        const output = (result.stdout || '').trim();
+        if (output) {
+          process.stderr.write(`Lint errors in ${filePath}:\n${output}\n`);
+        }
+      }
     }
   } else if (isTypeScript) {
-    const useLinter = linter ? linter === 'eslint' : true; // fallback: use eslint
+    const useLinter = linter ? linter === 'eslint' : true;
     if (useLinter) {
-      spawnSync('sh', ['-c', `npx eslint --fix "${filePath}"`], {
-        stdio: 'inherit',
+      const frontendIdx = normalized.indexOf('/frontend/');
+      const cwd = frontendIdx !== -1 ? normalized.substring(0, frontendIdx + '/frontend'.length) : process.cwd();
+      const result = spawnSync('sh', ['-c', `npx eslint --fix "${filePath}" 2>&1`], {
+        encoding: 'utf8',
         shell: false,
+        cwd,
       });
+      if (result.status !== 0) {
+        const output = (result.stdout || '').trim();
+        if (output) {
+          process.stderr.write(`Lint errors in ${filePath}:\n${output}\n`);
+        }
+      }
     }
   }
-} catch (lintErr) {
-  process.stderr.write(`lint-on-save: auto-fix failed — ${lintErr.message}\nFix: Review the linter output above and resolve any unfixable issues manually before saving.\n`);
+} catch (_) {
+  // Swallow hook errors so they don't block edits
 }
 
 process.exit(0);

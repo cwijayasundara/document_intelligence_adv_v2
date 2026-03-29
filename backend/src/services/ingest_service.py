@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 
 from src.rag.chunker import SemanticChunker
 from src.rag.weaviate_client import ChunkData, WeaviateClient
+
+logger = logging.getLogger(__name__)
 
 
 class IngestionService:
@@ -43,6 +46,7 @@ class IngestionService:
         """
         doc_id_str = str(document_id)
 
+        logger.info("Ingesting document %s (%s), deleting existing chunks", document_id, file_name)
         await self._weaviate.delete_by_document(doc_id_str)
 
         chunks = self._chunker.chunk(parsed_content)
@@ -62,4 +66,5 @@ class IngestionService:
         if chunk_data:
             await self._weaviate.upsert_chunks(chunk_data)
 
+        logger.info("Ingested %d chunks for document %s", len(chunk_data), document_id)
         return len(chunk_data)

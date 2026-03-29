@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import uuid
 from typing import Any
 
 from src.agents.summarizer import SummarizerSubagent
+
+logger = logging.getLogger(__name__)
 
 
 class SummaryService:
@@ -35,8 +38,10 @@ class SummaryService:
 
         cached = self._cache.get(cache_key)
         if cached and cached.get("content_hash") == content_hash:
+            logger.info("Summary cache hit for document %s", doc_id)
             return {**cached, "cached": True}
 
+        logger.info("Generating summary for document %s (%d chars)", doc_id, len(parsed_content))
         result = await self._summarizer.summarize(parsed_content)
 
         summary_data = {
@@ -47,6 +52,11 @@ class SummaryService:
             "cached": False,
         }
         self._cache[cache_key] = summary_data
+        logger.info(
+            "Summary generated for document %s: %d topics",
+            doc_id,
+            len(result.key_topics),
+        )
         return summary_data
 
     def get_cached_summary(self, doc_id: uuid.UUID) -> dict[str, Any] | None:

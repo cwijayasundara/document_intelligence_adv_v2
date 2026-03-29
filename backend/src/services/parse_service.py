@@ -2,16 +2,24 @@
 
 from __future__ import annotations
 
+import logging
 import uuid
 from pathlib import Path
 
 import aiofiles
+
+logger = logging.getLogger(__name__)
 
 from src.db.models import Document
 from src.db.repositories.documents import DocumentRepository
 from src.parser.reducto import ReductoClient
 from src.services.state_machine import validate_transition
 from src.storage.local import LocalStorage
+
+
+def _parsed_filename(doc: Document) -> str:
+    """Derive the parsed markdown filename from the original file name."""
+    return Path(doc.file_name).stem + ".md"
 
 
 class ParseService:
@@ -41,17 +49,25 @@ class ParseService:
         if doc is None:
             raise ValueError(f"Document {doc_id} not found")
 
-        parsed_path = self._storage.parsed_dir / f"{doc_id}.md"
+        parsed_path = self._storage.parsed_dir / _parsed_filename(doc)
 
         if parsed_path.exists() and doc.parsed_path:
+            logger.info("Parse cache hit for %s (%s)", doc_id, doc.file_name)
             content = await self._read_file(parsed_path)
             return doc, content, True
 
         validate_transition(doc.status, "parsed")
 
+        logger.info("Parsing document %s (%s) via Reducto", doc_id, doc.file_name)
         content = await self._reducto.parse(doc.original_path)
 
         await self._write_file(parsed_path, content)
+        logger.info(
+            "Parse complete for %s -> %s (%d chars)",
+            doc.file_name,
+            parsed_path.name,
+            len(content),
+        )
 
         doc.parsed_path = str(parsed_path)
         doc.status = "parsed"
@@ -90,12 +106,13 @@ class ParseService:
 
         validate_transition(doc.status, "edited")
 
-        parsed_path = self._storage.parsed_dir / f"{doc_id}.md"
+        parsed_path = self._storage.parsed_dir / _parsed_filename(doc)
         await self._write_file(parsed_path, content)
 
         doc.parsed_path = str(parsed_path)
         doc.status = "edited"
         await self._repo._session.flush()
+        logger.info("Saved edited content for %s (%d chars)", doc_id, len(content))
 
         return doc
 

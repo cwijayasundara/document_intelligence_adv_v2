@@ -1,11 +1,14 @@
 """Extraction API endpoints with review gate enforcement."""
 
+import logging
 import uuid
 from pathlib import Path
 
 import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import get_session
 from src.api.schemas.extract import (
@@ -80,12 +83,14 @@ async def extract_document(
     field_defs = await _load_extraction_fields(session, doc.document_category_id)
 
     service = _get_extraction_service()
+    logger.info("Starting extraction for document %s (%d fields)", doc_id, len(field_defs))
     results = await service.extract_and_judge(content, field_defs)
 
     ev_repo = ExtractedValuesRepository(session)
     saved = await ev_repo.save_results(doc_id, results)
 
     review_count = sum(1 for r in results if r["requires_review"])
+    logger.info("Extraction saved for %s: %d results, %d need review", doc_id, len(saved), review_count)
 
     doc.status = "extracted"
     await session.flush()

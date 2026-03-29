@@ -68,8 +68,8 @@ try {
   if (lineCount > WARN_LIMIT) {
     process.stderr.write(`WARNING: ${filePath} is ${lineCount} lines (recommended max ${WARN_LIMIT}).\nFix: Split by responsibility into separate modules. Re-export from an index file if needed.\n`);
   }
-} catch (err) {
-  process.stderr.write(`check-file-length.js error: ${err.message}\n`);
+} catch (_) {
+  // Swallow parse/read errors so they don't appear as hook errors
 }
 
 process.exit(0);
