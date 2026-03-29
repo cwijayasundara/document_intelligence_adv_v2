@@ -1,0 +1,436 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PE Document Intelligence Platform — Data Models",
+  "description": "JSON Schema definitions for all 10 database entities",
+  "definitions": {
+    "uuid": {
+      "type": "string",
+      "format": "uuid",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "documents": {
+      "type": "object",
+      "title": "Document",
+      "description": "Core document metadata and state machine status",
+      "required": ["id", "file_name", "original_path", "file_hash", "status", "file_type", "file_size", "created_at", "updated_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid",
+          "description": "Primary key"
+        },
+        "file_name": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Original filename"
+        },
+        "original_path": {
+          "type": "string",
+          "maxLength": 1000,
+          "description": "Path in data/upload/"
+        },
+        "parsed_path": {
+          "type": ["string", "null"],
+          "maxLength": 1000,
+          "description": "Path in data/parsed/ (null until parsed)"
+        },
+        "file_hash": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[0-9a-f]{64}$",
+          "description": "SHA-256 hex digest"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["uploaded", "parsed", "edited", "classified", "extracted", "summarized", "ingested"],
+          "description": "Document processing state"
+        },
+        "document_category_id": {
+          "oneOf": [
+            { "$ref": "#/definitions/uuid" },
+            { "type": "null" }
+          ],
+          "description": "FK to document_categories"
+        },
+        "file_type": {
+          "type": "string",
+          "enum": ["pdf", "docx", "xlsx", "png", "jpg", "tiff"],
+          "description": "File format"
+        },
+        "file_size": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "File size in bytes"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        },
+        "updated_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "document_categories": {
+      "type": "object",
+      "title": "Document Category",
+      "description": "User-defined document classification categories",
+      "required": ["id", "name", "created_at", "updated_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Category name (unique)"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Human-readable description"
+        },
+        "classification_criteria": {
+          "type": ["string", "null"],
+          "description": "Prompt/rules for classifier LLM"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        },
+        "updated_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "extraction_schemas": {
+      "type": "object",
+      "title": "Extraction Schema",
+      "description": "Versioned extraction field definitions per category",
+      "required": ["id", "category_id", "version", "created_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "category_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to document_categories"
+        },
+        "version": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Schema version number"
+        },
+        "schema_yaml": {
+          "type": ["string", "null"],
+          "description": "Generated YAML representation"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "extraction_fields": {
+      "type": "object",
+      "title": "Extraction Field",
+      "description": "Individual field definition within an extraction schema",
+      "required": ["id", "schema_id", "field_name", "display_name", "data_type", "required", "sort_order"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "schema_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to extraction_schemas"
+        },
+        "field_name": {
+          "type": "string",
+          "maxLength": 200,
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Machine name (snake_case)"
+        },
+        "display_name": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Human-readable label"
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "Context for LLM prompt"
+        },
+        "examples": {
+          "type": ["string", "null"],
+          "description": "Example values for LLM"
+        },
+        "data_type": {
+          "type": "string",
+          "enum": ["string", "number", "date", "currency", "percentage"],
+          "description": "Field value type"
+        },
+        "required": {
+          "type": "boolean",
+          "default": false,
+          "description": "Whether field must be extracted"
+        },
+        "sort_order": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Display ordering"
+        }
+      },
+      "additionalProperties": false
+    },
+    "extracted_values": {
+      "type": "object",
+      "title": "Extracted Value",
+      "description": "Extracted data per document per field with confidence scoring",
+      "required": ["id", "document_id", "field_id", "confidence", "requires_review", "reviewed", "created_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "document_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to documents"
+        },
+        "field_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to extraction_fields"
+        },
+        "extracted_value": {
+          "type": ["string", "null"],
+          "description": "The extracted value"
+        },
+        "source_text": {
+          "type": ["string", "null"],
+          "description": "Original passage the value came from"
+        },
+        "confidence": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "Confidence level from Judge"
+        },
+        "confidence_reasoning": {
+          "type": ["string", "null"],
+          "description": "Judge's explanation"
+        },
+        "requires_review": {
+          "type": "boolean",
+          "default": false,
+          "description": "True if confidence is low"
+        },
+        "reviewed": {
+          "type": "boolean",
+          "default": false,
+          "description": "User has confirmed/edited"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "document_summaries": {
+      "type": "object",
+      "title": "Document Summary",
+      "description": "Generated document summaries with cache invalidation",
+      "required": ["id", "document_id", "summary_text", "key_topics", "content_hash", "created_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "document_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to documents (unique, one-to-one)"
+        },
+        "summary_text": {
+          "type": "string",
+          "description": "Generated summary"
+        },
+        "key_topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Key topic strings"
+        },
+        "content_hash": {
+          "type": "string",
+          "maxLength": 64,
+          "description": "SHA-256 of parsed content for cache check"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bulk_jobs": {
+      "type": "object",
+      "title": "Bulk Job",
+      "description": "Bulk processing job tracking",
+      "required": ["id", "status", "total_documents", "processed_count", "failed_count", "created_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "processing", "completed", "failed", "partial_failure"],
+          "description": "Job status"
+        },
+        "total_documents": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Total files in this job"
+        },
+        "processed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Successfully processed count"
+        },
+        "failed_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Failed document count"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        },
+        "completed_at": {
+          "oneOf": [
+            { "$ref": "#/definitions/timestamp" },
+            { "type": "null" }
+          ],
+          "description": "Set when job finishes"
+        }
+      },
+      "additionalProperties": false
+    },
+    "bulk_job_documents": {
+      "type": "object",
+      "title": "Bulk Job Document",
+      "description": "Per-document status within a bulk job",
+      "required": ["id", "job_id", "document_id", "status"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "job_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to bulk_jobs"
+        },
+        "document_id": {
+          "$ref": "#/definitions/uuid",
+          "description": "FK to documents"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "processing", "completed", "failed"],
+          "description": "Per-document processing status"
+        },
+        "error_message": {
+          "type": ["string", "null"],
+          "description": "Failure reason if status=failed"
+        },
+        "processing_time_ms": {
+          "type": ["integer", "null"],
+          "minimum": 0,
+          "description": "Processing time in milliseconds"
+        }
+      },
+      "additionalProperties": false
+    },
+    "conversation_summaries": {
+      "type": "object",
+      "title": "Conversation Summary",
+      "description": "Persistent conversation summaries for long-term memory",
+      "required": ["id", "session_id", "agent_type", "summary", "key_topics", "documents_discussed", "queries_count", "created_at", "updated_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "session_id": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Chat session identifier (unique)"
+        },
+        "agent_type": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Agent that produced the summary"
+        },
+        "summary": {
+          "type": "string",
+          "description": "Conversation summary text"
+        },
+        "key_topics": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Key topics discussed"
+        },
+        "documents_discussed": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "description": "Document IDs referenced in conversation"
+        },
+        "queries_count": {
+          "type": "integer",
+          "minimum": 0,
+          "default": 0,
+          "description": "Number of queries in session"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        },
+        "updated_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    },
+    "memory_entries": {
+      "type": "object",
+      "title": "Memory Entry",
+      "description": "Generic key-value store for long-term memory",
+      "required": ["id", "namespace", "key", "data", "created_at", "updated_at"],
+      "properties": {
+        "id": {
+          "$ref": "#/definitions/uuid"
+        },
+        "namespace": {
+          "type": "string",
+          "maxLength": 200,
+          "description": "Logical grouping"
+        },
+        "key": {
+          "type": "string",
+          "maxLength": 500,
+          "description": "Lookup key within namespace"
+        },
+        "data": {
+          "type": "object",
+          "description": "Arbitrary JSON data (stored as JSONB)"
+        },
+        "created_at": {
+          "$ref": "#/definitions/timestamp"
+        },
+        "updated_at": {
+          "$ref": "#/definitions/timestamp"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

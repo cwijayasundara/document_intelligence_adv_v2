@@ -1,0 +1,1756 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "PE Document Intelligence Platform API",
+    "version": "1.0.0",
+    "description": "API for document processing, classification, extraction, summarization, and RAG retrieval for PE documents."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api/v1",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "operationId": "healthCheck",
+        "summary": "Health check",
+        "tags": ["Health"],
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HealthResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/upload": {
+      "post": {
+        "operationId": "uploadDocuments",
+        "summary": "Upload one or more document files",
+        "tags": ["Documents"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": ["files"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "File uploaded successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Duplicate file, existing document returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Invalid file type",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents": {
+      "get": {
+        "operationId": "listDocuments",
+        "summary": "List all documents",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["uploaded", "parsed", "edited", "classified", "extracted", "summarized", "ingested"]
+            }
+          },
+          {
+            "name": "category_id",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "sort_by",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["created_at", "file_name", "status"],
+              "default": "created_at"
+            }
+          },
+          {
+            "name": "sort_order",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["asc", "desc"],
+              "default": "desc"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/documents/{id}": {
+      "get": {
+        "operationId": "getDocument",
+        "summary": "Get document details",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DocumentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteDocument",
+        "summary": "Delete a document",
+        "tags": ["Documents"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Document deleted"
+          },
+          "404": {
+            "description": "Document not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parse/{id}": {
+      "post": {
+        "operationId": "parseDocument",
+        "summary": "Parse document via Reducto",
+        "tags": ["Parse"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Document parsed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Cached parse result returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/parse/{id}/content": {
+      "get": {
+        "operationId": "getParseContent",
+        "summary": "Get parsed markdown content",
+        "tags": ["Parse"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Parsed content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ParseContentResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No parsed content",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateParseContent",
+        "summary": "Save edited content",
+        "tags": ["Parse"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditContentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Content saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EditContentResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/classify/{id}": {
+      "post": {
+        "operationId": "classifyDocument",
+        "summary": "Classify document against categories",
+        "tags": ["Classify"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Classification result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClassificationResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extract/{id}": {
+      "post": {
+        "operationId": "extractDocument",
+        "summary": "Extract fields and judge confidence",
+        "tags": ["Extract"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Extraction results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/extract/{id}/results": {
+      "get": {
+        "operationId": "getExtractionResults",
+        "summary": "Get extraction results",
+        "tags": ["Extract"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Extraction results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionResultsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No extraction results",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "updateExtractionResults",
+        "summary": "Update/review extracted values",
+        "tags": ["Extract"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateExtractionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Values updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpdateExtractionResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Review gate failure",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/summarize/{id}": {
+      "post": {
+        "operationId": "summarizeDocument",
+        "summary": "Generate or regenerate summary",
+        "tags": ["Summarize"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "New summary generated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryResponse"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "Cached summary returned",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "getSummary",
+        "summary": "Get existing summary",
+        "tags": ["Summarize"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SummaryDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No summary exists",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ingest/{id}": {
+      "post": {
+        "operationId": "ingestDocument",
+        "summary": "Ingest document into Weaviate",
+        "tags": ["Ingest"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Document ingested",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IngestResponse"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid state transition",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rag/query": {
+      "post": {
+        "operationId": "ragQuery",
+        "summary": "Query documents via RAG",
+        "tags": ["RAG"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RAGQueryRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "RAG query result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RAGQueryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/categories": {
+      "get": {
+        "operationId": "listCategories",
+        "summary": "List all document categories",
+        "tags": ["Config"],
+        "responses": {
+          "200": {
+            "description": "Category list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryListResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "createCategory",
+        "summary": "Create a new category",
+        "tags": ["Config"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Category created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/categories/{id}": {
+      "put": {
+        "operationId": "updateCategory",
+        "summary": "Update a category",
+        "tags": ["Config"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoryCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CategoryResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteCategory",
+        "summary": "Delete a category",
+        "tags": ["Config"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Category deleted"
+          },
+          "400": {
+            "description": "Category has assigned documents",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/config/categories/{id}/fields": {
+      "get": {
+        "operationId": "listExtractionFields",
+        "summary": "List extraction fields for a category",
+        "tags": ["Config"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Field list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExtractionFieldListResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "upsertExtractionFields",
+        "summary": "Create or update extraction fields",
+        "tags": ["Config"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertFieldsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Fields upserted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UpsertFieldsResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Category not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bulk/upload": {
+      "post": {
+        "operationId": "bulkUpload",
+        "summary": "Start a bulk processing job",
+        "tags": ["Bulk"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "files": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "binary"
+                    }
+                  }
+                },
+                "required": ["files"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Bulk job created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkJobCreateResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bulk/jobs": {
+      "get": {
+        "operationId": "listBulkJobs",
+        "summary": "List all bulk jobs",
+        "tags": ["Bulk"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "processing", "completed", "failed", "partial_failure"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkJobListResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bulk/jobs/{id}": {
+      "get": {
+        "operationId": "getBulkJob",
+        "summary": "Get bulk job details with per-document progress",
+        "tags": ["Bulk"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Job details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkJobDetailResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Job not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "required": ["detail", "error_code"],
+        "properties": {
+          "detail": {
+            "type": "string"
+          },
+          "error_code": {
+            "type": "string"
+          },
+          "context": {
+            "type": "object"
+          }
+        }
+      },
+      "HealthResponse": {
+        "type": "object",
+        "required": ["status", "version", "dependencies"],
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": ["healthy", "degraded"]
+          },
+          "version": {
+            "type": "string"
+          },
+          "dependencies": {
+            "type": "object",
+            "properties": {
+              "database": {
+                "type": "string"
+              },
+              "weaviate": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "DocumentResponse": {
+        "type": "object",
+        "required": ["id", "file_name", "original_path", "file_hash", "status", "file_type", "file_size", "created_at", "updated_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "original_path": {
+            "type": "string"
+          },
+          "parsed_path": {
+            "type": "string",
+            "nullable": true
+          },
+          "file_hash": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["uploaded", "parsed", "edited", "classified", "extracted", "summarized", "ingested"]
+          },
+          "document_category_id": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "file_type": {
+            "type": "string"
+          },
+          "file_size": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DocumentListResponse": {
+        "type": "object",
+        "required": ["documents", "total"],
+        "properties": {
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DocumentResponse"
+            }
+          },
+          "total": {
+            "type": "integer"
+          }
+        }
+      },
+      "ParseResponse": {
+        "type": "object",
+        "required": ["document_id", "status", "content"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      },
+      "ParseContentResponse": {
+        "type": "object",
+        "required": ["document_id", "content", "status"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "content": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "EditContentRequest": {
+        "type": "object",
+        "required": ["content"],
+        "properties": {
+          "content": {
+            "type": "string"
+          }
+        }
+      },
+      "EditContentResponse": {
+        "type": "object",
+        "required": ["document_id", "status", "content_length"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "content_length": {
+            "type": "integer"
+          }
+        }
+      },
+      "ClassificationResponse": {
+        "type": "object",
+        "required": ["document_id", "category_id", "category_name", "reasoning", "status"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "reasoning": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ExtractedField": {
+        "type": "object",
+        "required": ["id", "field_name", "display_name", "confidence", "requires_review", "reviewed"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "field_name": {
+            "type": "string"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "extracted_value": {
+            "type": "string",
+            "nullable": true
+          },
+          "source_text": {
+            "type": "string",
+            "nullable": true
+          },
+          "confidence": {
+            "type": "string",
+            "enum": ["high", "medium", "low"]
+          },
+          "confidence_reasoning": {
+            "type": "string",
+            "nullable": true
+          },
+          "requires_review": {
+            "type": "boolean"
+          },
+          "reviewed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ExtractionResponse": {
+        "type": "object",
+        "required": ["document_id", "status", "results", "requires_review_count"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractedField"
+            }
+          },
+          "requires_review_count": {
+            "type": "integer"
+          }
+        }
+      },
+      "ExtractionResultsResponse": {
+        "type": "object",
+        "required": ["document_id", "results", "requires_review_count", "all_reviewed"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractedField"
+            }
+          },
+          "requires_review_count": {
+            "type": "integer"
+          },
+          "all_reviewed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "UpdateExtractionRequest": {
+        "type": "object",
+        "required": ["updates"],
+        "properties": {
+          "updates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["field_id"],
+              "properties": {
+                "field_id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "extracted_value": {
+                  "type": "string"
+                },
+                "reviewed": {
+                  "type": "boolean"
+                }
+              }
+            }
+          }
+        }
+      },
+      "UpdateExtractionResponse": {
+        "type": "object",
+        "required": ["document_id", "updated_count", "requires_review_count", "all_reviewed", "can_proceed"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "updated_count": {
+            "type": "integer"
+          },
+          "requires_review_count": {
+            "type": "integer"
+          },
+          "all_reviewed": {
+            "type": "boolean"
+          },
+          "can_proceed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SummaryResponse": {
+        "type": "object",
+        "required": ["document_id", "summary", "key_topics", "status"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "key_topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "status": {
+            "type": "string"
+          },
+          "cached": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SummaryDetailResponse": {
+        "type": "object",
+        "required": ["document_id", "summary", "key_topics", "content_hash", "created_at"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "key_topics": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "content_hash": {
+            "type": "string"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "IngestResponse": {
+        "type": "object",
+        "required": ["document_id", "status", "chunks_created", "collection"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "chunks_created": {
+            "type": "integer"
+          },
+          "collection": {
+            "type": "string"
+          }
+        }
+      },
+      "RAGQueryRequest": {
+        "type": "object",
+        "required": ["query", "scope"],
+        "properties": {
+          "query": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": ["single_document", "all", "by_category"]
+          },
+          "scope_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "search_mode": {
+            "type": "string",
+            "enum": ["semantic", "keyword", "hybrid"],
+            "default": "hybrid"
+          },
+          "top_k": {
+            "type": "integer",
+            "default": 5,
+            "minimum": 1,
+            "maximum": 20
+          }
+        }
+      },
+      "RAGCitation": {
+        "type": "object",
+        "required": ["chunk_text", "document_name", "document_id", "chunk_index", "relevance_score"],
+        "properties": {
+          "chunk_text": {
+            "type": "string"
+          },
+          "document_name": {
+            "type": "string"
+          },
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "chunk_index": {
+            "type": "integer"
+          },
+          "relevance_score": {
+            "type": "number",
+            "format": "float"
+          }
+        }
+      },
+      "RAGQueryResponse": {
+        "type": "object",
+        "required": ["answer", "citations", "search_mode", "chunks_retrieved"],
+        "properties": {
+          "answer": {
+            "type": "string"
+          },
+          "citations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RAGCitation"
+            }
+          },
+          "search_mode": {
+            "type": "string"
+          },
+          "chunks_retrieved": {
+            "type": "integer"
+          }
+        }
+      },
+      "CategoryResponse": {
+        "type": "object",
+        "required": ["id", "name", "created_at", "updated_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "classification_criteria": {
+            "type": "string",
+            "nullable": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CategoryListResponse": {
+        "type": "object",
+        "required": ["categories"],
+        "properties": {
+          "categories": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CategoryResponse"
+            }
+          }
+        }
+      },
+      "CategoryCreateRequest": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string"
+          },
+          "classification_criteria": {
+            "type": "string"
+          }
+        }
+      },
+      "ExtractionFieldDefinition": {
+        "type": "object",
+        "required": ["field_name", "display_name", "data_type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "field_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "display_name": {
+            "type": "string",
+            "maxLength": 200
+          },
+          "description": {
+            "type": "string"
+          },
+          "examples": {
+            "type": "string"
+          },
+          "data_type": {
+            "type": "string",
+            "enum": ["string", "number", "date", "currency", "percentage"]
+          },
+          "required": {
+            "type": "boolean",
+            "default": false
+          },
+          "sort_order": {
+            "type": "integer",
+            "default": 0
+          }
+        }
+      },
+      "ExtractionFieldListResponse": {
+        "type": "object",
+        "required": ["category_id", "category_name", "schema_version", "fields"],
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "category_name": {
+            "type": "string"
+          },
+          "schema_version": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractionFieldDefinition"
+            }
+          }
+        }
+      },
+      "UpsertFieldsRequest": {
+        "type": "object",
+        "required": ["fields"],
+        "properties": {
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExtractionFieldDefinition"
+            }
+          }
+        }
+      },
+      "UpsertFieldsResponse": {
+        "type": "object",
+        "required": ["category_id", "schema_version", "fields_created", "fields_updated"],
+        "properties": {
+          "category_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "schema_version": {
+            "type": "integer"
+          },
+          "fields_created": {
+            "type": "integer"
+          },
+          "fields_updated": {
+            "type": "integer"
+          }
+        }
+      },
+      "BulkJobDocument": {
+        "type": "object",
+        "required": ["document_id", "file_name", "status"],
+        "properties": {
+          "document_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed"]
+          },
+          "error_message": {
+            "type": "string",
+            "nullable": true
+          },
+          "processing_time_ms": {
+            "type": "integer",
+            "nullable": true
+          }
+        }
+      },
+      "BulkJobSummary": {
+        "type": "object",
+        "required": ["id", "status", "total_documents", "processed_count", "failed_count", "created_at"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["pending", "processing", "completed", "failed", "partial_failure"]
+          },
+          "total_documents": {
+            "type": "integer"
+          },
+          "processed_count": {
+            "type": "integer"
+          },
+          "failed_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          }
+        }
+      },
+      "BulkJobCreateResponse": {
+        "type": "object",
+        "required": ["job_id", "status", "total_documents", "documents", "created_at"],
+        "properties": {
+          "job_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "total_documents": {
+            "type": "integer"
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkJobDocument"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "BulkJobListResponse": {
+        "type": "object",
+        "required": ["jobs"],
+        "properties": {
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkJobSummary"
+            }
+          }
+        }
+      },
+      "BulkJobDetailResponse": {
+        "type": "object",
+        "required": ["id", "status", "total_documents", "processed_count", "failed_count", "created_at", "documents"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string"
+          },
+          "total_documents": {
+            "type": "integer"
+          },
+          "processed_count": {
+            "type": "integer"
+          },
+          "failed_count": {
+            "type": "integer"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "completed_at": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "documents": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BulkJobDocument"
+            }
+          }
+        }
+      }
+    }
+  }
+}

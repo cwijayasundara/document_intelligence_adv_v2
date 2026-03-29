@@ -1,9 +1,45 @@
-.venv/
+# Python
 __pycache__/
 *.pyc
-.env
-backend/data/
+*.pyo
 *.egg-info/
-.DS_Store
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+dist/
+build/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Data
+backend/data/
+
+# Node
 node_modules/
 
+# Vite
+frontend/dist/
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Playwright
+playwright-report/
+test-results/
+
+# OS
+Thumbs.db

@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PE Document Intelligence -- UI Mockup Index</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;padding:48px 24px;}
+  .container{max-width:900px;margin:0 auto;}
+  h1{font-family:var(--font-heading);font-size:28px;font-weight:700;color:var(--gray-900);margin-bottom:4px;}
+  .subtitle{font-size:15px;color:var(--gray-500);margin-bottom:32px;}
+  .section-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);margin-bottom:12px;margin-top:32px;}
+  .mockup-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;}
+  .mockup-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm);transition:all .15s;text-decoration:none;color:inherit;display:block;}
+  .mockup-card:hover{box-shadow:var(--shadow-md);border-color:var(--primary-500);transform:translateY(-2px);}
+  .mockup-card h3{font-family:var(--font-heading);font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:6px;}
+  .mockup-card .story-id{font-size:11px;font-weight:600;color:var(--primary-500);margin-bottom:4px;}
+  .mockup-card p{font-size:13px;color:var(--gray-500);line-height:1.5;margin-bottom:10px;}
+  .mockup-card .endpoints{font-size:11px;color:var(--gray-400);font-family:monospace;line-height:1.6;}
+  .mockup-card .route{display:inline-block;background:var(--gray-100);padding:1px 6px;border-radius:4px;font-size:11px;font-family:monospace;color:var(--gray-600);margin-bottom:4px;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>PE Document Intelligence -- UI Mockups</h1>
+  <p class="subtitle">Interactive HTML mockups for all frontend stories. Click any card to open the mockup.</p>
+
+  <div class="section-label">E7 -- Frontend Core</div>
+  <div class="mockup-grid">
+    <a class="mockup-card" href="E7-S1.html">
+      <div class="story-id">E7-S1</div>
+      <h3>App Shell &amp; Design Tokens</h3>
+      <p>Sidebar navigation, header bar, and full design token showcase: colors, typography, shadows, badges, buttons.</p>
+      <div class="route">All routes</div>
+      <div class="endpoints">Design system reference page</div>
+    </a>
+    <a class="mockup-card" href="E7-S2.html">
+      <div class="story-id">E7-S2</div>
+      <h3>Dashboard -- Document List</h3>
+      <p>Document table with status badges, category, file info. Empty state with upload CTA. Stats overview.</p>
+      <div class="route">/</div>
+      <div class="endpoints">GET /api/v1/documents</div>
+    </a>
+    <a class="mockup-card" href="E7-S3.html">
+      <div class="story-id">E7-S3</div>
+      <h3>Upload Page</h3>
+      <p>Drag-drop upload zone with file type icons. Progress bar animation. Duplicate detection notification.</p>
+      <div class="route">/upload</div>
+      <div class="endpoints">POST /api/v1/documents/upload</div>
+    </a>
+    <a class="mockup-card" href="E7-S4.html">
+      <div class="story-id">E7-S4</div>
+      <h3>Parse &amp; Edit -- Split View</h3>
+      <p>Document info panel + TipTap-style rich text editor with realistic LPA markdown content.</p>
+      <div class="route">/documents/:id/parse</div>
+      <div class="endpoints">POST /api/v1/parse/:id<br>GET /api/v1/parse/:id/content<br>PUT /api/v1/parse/:id/content</div>
+    </a>
+  </div>
+
+  <div class="section-label">E8 -- Frontend AI &amp; Config</div>
+  <div class="mockup-grid">
+    <a class="mockup-card" href="E8-S1.html">
+      <div class="story-id">E8-S1</div>
+      <h3>Config Management</h3>
+      <p>Two tabs: Categories (card list with CRUD) and Extraction Fields (grouped list with drag-drop reorder, add/edit forms).</p>
+      <div class="route">/config/categories</div>
+      <div class="route">/config/extraction-fields</div>
+      <div class="endpoints">GET/POST/PUT/DELETE /api/v1/config/categories<br>GET/POST/PUT/DELETE /api/v1/config/extraction-fields</div>
+    </a>
+    <a class="mockup-card" href="E8-S2.html">
+      <div class="story-id">E8-S2</div>
+      <h3>Classification</h3>
+      <p>Detected category with confidence, reasoning text, category override dropdown, and accept/proceed flow.</p>
+      <div class="route">/documents/:id/classify</div>
+      <div class="endpoints">POST /api/v1/classify/:id</div>
+    </a>
+    <a class="mockup-card" href="E8-S3.html">
+      <div class="story-id">E8-S3</div>
+      <h3>Extraction Results</h3>
+      <p>3-column table with confidence badges, inline editing, review gate preventing progression on low-confidence fields.</p>
+      <div class="route">/documents/:id/extract</div>
+      <div class="endpoints">POST /api/v1/extract/:id<br>GET /api/v1/extract/:id/results<br>PUT /api/v1/extract/:id/results</div>
+    </a>
+    <a class="mockup-card" href="E8-S4.html">
+      <div class="story-id">E8-S4</div>
+      <h3>Summary</h3>
+      <p>AI-generated summary with key topic chips. Generate/regenerate controls. Proceed to ingest and chat.</p>
+      <div class="route">/documents/:id/summary</div>
+      <div class="endpoints">POST /api/v1/summarize/:id<br>GET /api/v1/summarize/:id<br>POST /api/v1/ingest/:id</div>
+    </a>
+    <a class="mockup-card" href="E8-S5.html">
+      <div class="story-id">E8-S5</div>
+      <h3>RAG Chat</h3>
+      <p>Conversation interface with scope selector, search mode toggle, expandable citation cards with relevance scores.</p>
+      <div class="route">/documents/:id/chat</div>
+      <div class="endpoints">POST /api/v1/rag/query</div>
+    </a>
+  </div>
+
+  <div class="section-label">E9 -- Bulk Processing</div>
+  <div class="mockup-grid">
+    <a class="mockup-card" href="E9-S3.html">
+      <div class="story-id">E9-S3</div>
+      <h3>Bulk Processing Dashboard</h3>
+      <p>Job list with progress bars, multi-file upload zone, expandable per-document status with error messages.</p>
+      <div class="route">/bulk</div>
+      <div class="endpoints">GET /api/v1/bulk/jobs<br>POST /api/v1/bulk/jobs</div>
+    </a>
+  </div>
+</div>
+</body>
+</html>

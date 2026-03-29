@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E7-S1: App Shell with Sidebar Navigation</title>
+<style>
+  :root {
+    --primary-50: #eff6ff; --primary-100: #dbeafe; --primary-200: #bfdbfe;
+    --primary-300: #93c5fd; --primary-400: #60a5fa; --primary-500: #0c8ce9;
+    --primary-600: #0a75c2; --primary-700: #085d9b; --primary-800: #064674;
+    --primary-900: #042e4d;
+    --success-50: #f0fdf4; --success-500: #22c55e; --success-600: #16a34a;
+    --warning-50: #fffbeb; --warning-500: #f59e0b; --warning-600: #d97706;
+    --error-50: #fef2f2; --error-500: #ef4444; --error-600: #dc2626;
+    --gray-50: #f9fafb; --gray-100: #f3f4f6; --gray-200: #e5e7eb;
+    --gray-300: #d1d5db; --gray-400: #9ca3af; --gray-500: #6b7280;
+    --gray-600: #4b5563; --gray-700: #374151; --gray-800: #1f2937;
+    --gray-900: #111827;
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --font-heading: 'Poppins', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    --shadow-sm: 0 1px 2px 0 rgba(0,0,0,.05);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -2px rgba(0,0,0,.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -4px rgba(0,0,0,.1);
+    --radius-sm: 6px; --radius-md: 8px; --radius-lg: 12px; --radius-xl: 16px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: var(--font-sans); background: var(--gray-50); color: var(--gray-800); min-height:100vh; display:flex; flex-direction:column; }
+
+  /* Header */
+  .header { height:56px; background:#fff; border-bottom:1px solid var(--gray-200); display:flex; align-items:center; padding:0 24px; position:fixed; top:0; left:0; right:0; z-index:50; box-shadow: var(--shadow-sm); }
+  .header-brand { display:flex; align-items:center; gap:10px; }
+  .header-brand svg { width:28px; height:28px; color: var(--primary-500); }
+  .header-brand h1 { font-family: var(--font-heading); font-size:18px; font-weight:700; color: var(--gray-900); }
+  .header-right { margin-left:auto; display:flex; align-items:center; gap:16px; }
+  .header-right .status-dot { width:8px; height:8px; border-radius:50%; background: var(--success-500); }
+  .header-right span { font-size:13px; color: var(--gray-500); }
+
+  /* Sidebar */
+  .sidebar { width:240px; background:#fff; border-right:1px solid var(--gray-200); position:fixed; top:56px; left:0; bottom:0; overflow-y:auto; z-index:40; transition: transform .2s ease; }
+  .sidebar-section { padding:16px 12px 8px; }
+  .sidebar-section-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.05em; color: var(--gray-400); padding:0 8px; margin-bottom:4px; }
+  .sidebar-link { display:flex; align-items:center; gap:10px; padding:8px 12px; border-radius: var(--radius-md); font-size:14px; font-weight:500; color: var(--gray-600); text-decoration:none; cursor:pointer; transition: all .15s ease; }
+  .sidebar-link:hover { background: var(--gray-100); color: var(--gray-800); }
+  .sidebar-link.active { background: var(--primary-50); color: var(--primary-500); font-weight:600; }
+  .sidebar-link.active svg { color: var(--primary-500); }
+  .sidebar-link svg { width:18px; height:18px; color: var(--gray-400); flex-shrink:0; }
+
+  /* Main content */
+  .main { margin-left:240px; margin-top:56px; padding:32px; min-height: calc(100vh - 56px); }
+  .page-title { font-family: var(--font-heading); font-size:24px; font-weight:700; color: var(--gray-900); margin-bottom:8px; }
+  .page-subtitle { font-size:14px; color: var(--gray-500); margin-bottom:32px; }
+
+  /* Design Token Showcase */
+  .token-section { margin-bottom:32px; }
+  .token-section h3 { font-family: var(--font-heading); font-size:16px; font-weight:600; color: var(--gray-800); margin-bottom:16px; }
+  .color-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px; }
+  .color-card { background:#fff; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow:hidden; border:1px solid var(--gray-200); }
+  .color-swatch { height:64px; }
+  .color-info { padding:12px; }
+  .color-info .name { font-weight:600; font-size:13px; color: var(--gray-800); }
+  .color-info .hex { font-size:12px; color: var(--gray-400); font-family: monospace; }
+
+  .font-sample { background:#fff; border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); padding:24px; border:1px solid var(--gray-200); margin-bottom:16px; }
+  .font-sample .label { font-size:11px; text-transform:uppercase; letter-spacing:.05em; color: var(--gray-400); margin-bottom:8px; }
+  .font-sample-heading { font-family: var(--font-heading); }
+  .font-sample-body { font-family: var(--font-sans); }
+
+  .shadow-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap:16px; }
+  .shadow-card { background:#fff; border-radius: var(--radius-lg); padding:24px; text-align:center; }
+  .shadow-card .label { font-size:12px; color: var(--gray-500); margin-top:8px; }
+  .shadow-sm-demo { box-shadow: var(--shadow-sm); }
+  .shadow-md-demo { box-shadow: var(--shadow-md); }
+  .shadow-lg-demo { box-shadow: var(--shadow-lg); }
+
+  .radius-grid { display:flex; gap:16px; flex-wrap:wrap; }
+  .radius-card { background:#fff; border:2px solid var(--primary-200); display:flex; align-items:center; justify-content:center; width:80px; height:80px; }
+  .radius-card .label { font-size:11px; color: var(--gray-500); }
+
+  .badge { display:inline-flex; align-items:center; padding:2px 10px; border-radius:9999px; font-size:12px; font-weight:600; }
+  .badge-primary { background: var(--primary-50); color: var(--primary-500); }
+  .badge-success { background: var(--success-50); color: var(--success-600); }
+  .badge-warning { background: var(--warning-50); color: var(--warning-600); }
+  .badge-error { background: var(--error-50); color: var(--error-600); }
+
+  .btn { display:inline-flex; align-items:center; gap:6px; padding:8px 16px; border-radius: var(--radius-md); font-size:14px; font-weight:600; border:none; cursor:pointer; transition: all .15s ease; font-family: var(--font-sans); }
+  .btn-primary { background: var(--primary-500); color:#fff; }
+  .btn-primary:hover { background: var(--primary-600); }
+  .btn-success { background: var(--success-500); color:#fff; }
+  .btn-success:hover { background: var(--success-600); }
+  .btn-warning { background: var(--warning-500); color:#fff; }
+  .btn-warning:hover { background: var(--warning-600); }
+  .btn-error { background: var(--error-500); color:#fff; }
+  .btn-error:hover { background: var(--error-600); }
+  .btn-outline { background: transparent; color: var(--gray-600); border: 1px solid var(--gray-300); }
+  .btn-outline:hover { background: var(--gray-50); border-color: var(--gray-400); }
+
+  .component-grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap:16px; margin-top:16px; }
+  .badge-row { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:16px; }
+  .btn-row { display:flex; gap:8px; flex-wrap:wrap; }
+
+  /* Mobile toggle */
+  .mobile-toggle { display:none; background:none; border:none; cursor:pointer; padding:4px; }
+  .mobile-toggle svg { width:24px; height:24px; color: var(--gray-600); }
+  .sidebar-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,.3); z-index:35; }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-overlay.open { display:block; }
+    .main { margin-left:0; }
+    .mobile-toggle { display:block; }
+    .color-grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header class="header">
+  <button class="mobile-toggle" onclick="toggleSidebar()" aria-label="Toggle navigation">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+  </button>
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <span>System Online</span>
+  </div>
+</header>
+
+<!-- Sidebar Overlay (mobile) -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+
+<!-- Sidebar -->
+<nav class="sidebar" id="sidebar" aria-label="Main navigation">
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Main</div>
+    <a class="sidebar-link active" data-route="/" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>
+      Dashboard
+    </a>
+    <a class="sidebar-link" data-route="/upload" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+      Upload
+    </a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Configuration</div>
+    <a class="sidebar-link" data-route="/config/categories" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+      Categories
+    </a>
+    <a class="sidebar-link" data-route="/config/extraction-fields" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+      Extraction Fields
+    </a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Processing</div>
+    <a class="sidebar-link" data-route="/bulk" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+      Bulk Processing
+    </a>
+  </div>
+  <div class="sidebar-section">
+    <div class="sidebar-section-label">Document Flow</div>
+    <a class="sidebar-link" data-route="/documents/:id/parse" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      Parse &amp; Edit
+    </a>
+    <a class="sidebar-link" data-route="/documents/:id/classify" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+      Classify
+    </a>
+    <a class="sidebar-link" data-route="/documents/:id/extract" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm4 2h8m-8 4h5"/></svg>
+      Extract
+    </a>
+    <a class="sidebar-link" data-route="/documents/:id/summary" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      Summary
+    </a>
+    <a class="sidebar-link" data-route="/documents/:id/chat" onclick="setActive(this)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+      RAG Chat
+    </a>
+  </div>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+  <h2 class="page-title">Design Token System</h2>
+  <p class="page-subtitle">Visual reference for the PE Document Intelligence platform design language</p>
+
+  <!-- Colors -->
+  <div class="token-section">
+    <h3>Color Palette</h3>
+    <div class="color-grid">
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--primary-500)"></div>
+        <div class="color-info"><div class="name">Primary Blue</div><div class="hex">#0c8ce9</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--primary-700)"></div>
+        <div class="color-info"><div class="name">Primary Dark</div><div class="hex">#085d9b</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--primary-100)"></div>
+        <div class="color-info"><div class="name">Primary Light</div><div class="hex">#dbeafe</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--success-500)"></div>
+        <div class="color-info"><div class="name">Success Green</div><div class="hex">#22c55e</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--warning-500)"></div>
+        <div class="color-info"><div class="name">Warning Amber</div><div class="hex">#f59e0b</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--error-500)"></div>
+        <div class="color-info"><div class="name">Error Red</div><div class="hex">#ef4444</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--gray-800)"></div>
+        <div class="color-info"><div class="name">Text Primary</div><div class="hex">#1f2937</div></div>
+      </div>
+      <div class="color-card">
+        <div class="color-swatch" style="background: var(--gray-500)"></div>
+        <div class="color-info"><div class="name">Text Secondary</div><div class="hex">#6b7280</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Typography -->
+  <div class="token-section">
+    <h3>Typography</h3>
+    <div class="font-sample font-sample-heading">
+      <div class="label">Heading Font -- Poppins (system fallback)</div>
+      <div style="font-size:32px; font-weight:700; margin-bottom:4px;">Horizon Equity Partners IV</div>
+      <div style="font-size:24px; font-weight:600; margin-bottom:4px;">Limited Partnership Agreement</div>
+      <div style="font-size:18px; font-weight:600;">Document Intelligence Platform</div>
+    </div>
+    <div class="font-sample font-sample-body">
+      <div class="label">Body Font -- Inter (system fallback)</div>
+      <div style="font-size:16px; margin-bottom:4px;">The Fund shall have a term of ten (10) years from the Initial Closing Date, subject to extension.</div>
+      <div style="font-size:14px; margin-bottom:4px; color: var(--gray-600);">Management fee of 2.00% per annum on committed capital during the Investment Period.</div>
+      <div style="font-size:12px; color: var(--gray-400);">Carried interest of 20% above an 8% preferred return hurdle rate.</div>
+    </div>
+  </div>
+
+  <!-- Shadows -->
+  <div class="token-section">
+    <h3>Elevation / Shadows</h3>
+    <div class="shadow-grid">
+      <div class="shadow-card shadow-sm-demo">
+        <div style="font-size:14px; font-weight:600;">sm</div>
+        <div class="label">Cards, inputs</div>
+      </div>
+      <div class="shadow-card shadow-md-demo">
+        <div style="font-size:14px; font-weight:600;">md</div>
+        <div class="label">Dropdowns, popovers</div>
+      </div>
+      <div class="shadow-card shadow-lg-demo">
+        <div style="font-size:14px; font-weight:600;">lg</div>
+        <div class="label">Modals, dialogs</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Border Radius -->
+  <div class="token-section">
+    <h3>Border Radius</h3>
+    <div class="radius-grid">
+      <div>
+        <div class="radius-card" style="border-radius: var(--radius-sm)"><div class="label">6px</div></div>
+        <div style="font-size:12px; color:var(--gray-500); text-align:center; margin-top:4px;">sm</div>
+      </div>
+      <div>
+        <div class="radius-card" style="border-radius: var(--radius-md)"><div class="label">8px</div></div>
+        <div style="font-size:12px; color:var(--gray-500); text-align:center; margin-top:4px;">md</div>
+      </div>
+      <div>
+        <div class="radius-card" style="border-radius: var(--radius-lg)"><div class="label">12px</div></div>
+        <div style="font-size:12px; color:var(--gray-500); text-align:center; margin-top:4px;">lg</div>
+      </div>
+      <div>
+        <div class="radius-card" style="border-radius: var(--radius-xl)"><div class="label">16px</div></div>
+        <div style="font-size:12px; color:var(--gray-500); text-align:center; margin-top:4px;">xl</div>
+      </div>
+      <div>
+        <div class="radius-card" style="border-radius: 9999px"><div class="label">full</div></div>
+        <div style="font-size:12px; color:var(--gray-500); text-align:center; margin-top:4px;">pill</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Components -->
+  <div class="token-section">
+    <h3>Components</h3>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:600; color:var(--gray-600); margin-bottom:8px;">Status Badges</div>
+      <div class="badge-row">
+        <span class="badge" style="background:#f3f4f6; color:#6b7280;">uploaded</span>
+        <span class="badge" style="background:var(--primary-50); color:var(--primary-500);">parsed</span>
+        <span class="badge" style="background:#fef9c3; color:#a16207;">classified</span>
+        <span class="badge" style="background:#fff7ed; color:#c2410c;">extracted</span>
+        <span class="badge" style="background:#faf5ff; color:#7c3aed;">summarized</span>
+        <span class="badge" style="background:var(--success-50); color:var(--success-600);">ingested</span>
+      </div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <div style="font-size:13px; font-weight:600; color:var(--gray-600); margin-bottom:8px;">Buttons</div>
+      <div class="btn-row">
+        <button class="btn btn-primary">Primary Action</button>
+        <button class="btn btn-success">Success</button>
+        <button class="btn btn-warning">Warning</button>
+        <button class="btn btn-error">Danger</button>
+        <button class="btn btn-outline">Secondary</button>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:13px; font-weight:600; color:var(--gray-600); margin-bottom:8px;">Confidence Badges</div>
+      <div class="badge-row">
+        <span class="badge badge-success">High Confidence</span>
+        <span class="badge badge-warning">Medium Confidence</span>
+        <span class="badge badge-error">Low Confidence</span>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+function setActive(el) {
+  document.querySelectorAll('.sidebar-link').forEach(function(link) { link.classList.remove('active'); });
+  el.classList.add('active');
+}
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarOverlay').classList.toggle('open');
+}
+</script>
+</body>
+</html>

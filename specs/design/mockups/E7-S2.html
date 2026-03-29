@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E7-S2: Dashboard - Document List with Status</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;--success-600:#16a34a;
+    --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+    --error-50:#fef2f2;--error-500:#ef4444;--error-600:#dc2626;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+  .header{height:56px;background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:50;box-shadow:var(--shadow-sm);}
+  .header-brand{display:flex;align-items:center;gap:10px;}
+  .header-brand svg{width:28px;height:28px;color:var(--primary-500);}
+  .header-brand h1{font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--gray-900);}
+  .sidebar{width:240px;background:#fff;border-right:1px solid var(--gray-200);position:fixed;top:56px;left:0;bottom:0;overflow-y:auto;z-index:40;padding:16px 12px;}
+  .sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);padding:0 8px;margin-bottom:4px;margin-top:16px;}
+  .sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--gray-600);text-decoration:none;cursor:pointer;transition:all .15s ease;}
+  .sidebar-link:hover{background:var(--gray-100);color:var(--gray-800);}
+  .sidebar-link.active{background:var(--primary-50);color:var(--primary-500);font-weight:600;}
+  .sidebar-link svg{width:18px;height:18px;color:var(--gray-400);flex-shrink:0;}
+  .sidebar-link.active svg{color:var(--primary-500);}
+
+  .main{margin-left:240px;margin-top:56px;padding:32px;}
+  .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+  .page-title{font-family:var(--font-heading);font-size:24px;font-weight:700;color:var(--gray-900);}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-md);font-size:14px;font-weight:600;border:none;cursor:pointer;transition:all .15s;font-family:var(--font-sans);}
+  .btn-primary{background:var(--primary-500);color:#fff;}
+  .btn-primary:hover{background:var(--primary-600);}
+  .btn-outline{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);}
+  .btn-outline:hover{background:var(--gray-50);}
+  .btn svg{width:16px;height:16px;}
+
+  /* Stats row */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  .stat-card{background:#fff;border-radius:var(--radius-lg);padding:20px;border:1px solid var(--gray-200);box-shadow:var(--shadow-sm);}
+  .stat-label{font-size:13px;color:var(--gray-500);margin-bottom:4px;}
+  .stat-value{font-size:28px;font-weight:700;font-family:var(--font-heading);color:var(--gray-900);}
+
+  /* Table */
+  .table-card{background:#fff;border-radius:var(--radius-lg);border:1px solid var(--gray-200);box-shadow:var(--shadow-sm);overflow:hidden;}
+  .table-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--gray-200);}
+  .table-header h3{font-size:16px;font-weight:600;}
+  .table-header span{font-size:13px;color:var(--gray-400);}
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:left;padding:12px 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);background:var(--gray-50);border-bottom:1px solid var(--gray-200);}
+  tbody td{padding:12px 16px;font-size:14px;border-bottom:1px solid var(--gray-100);}
+  tbody tr{transition:background .1s;}
+  tbody tr:hover{background:var(--gray-50);}
+  tbody tr:last-child td{border-bottom:none;}
+  .file-name{font-weight:600;color:var(--primary-500);cursor:pointer;}
+  .file-name:hover{text-decoration:underline;}
+  .badge{display:inline-flex;align-items:center;padding:2px 10px;border-radius:9999px;font-size:12px;font-weight:600;}
+  .badge-uploaded{background:#f3f4f6;color:#6b7280;}
+  .badge-parsed{background:var(--primary-50);color:var(--primary-500);}
+  .badge-edited{background:var(--primary-50);color:var(--primary-500);}
+  .badge-classified{background:#fef9c3;color:#a16207;}
+  .badge-extracted{background:#fff7ed;color:#c2410c;}
+  .badge-summarized{background:#faf5ff;color:#7c3aed;}
+  .badge-ingested{background:var(--success-50);color:var(--success-600);}
+  .category-badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:var(--radius-md);font-size:12px;font-weight:500;background:var(--gray-100);color:var(--gray-600);}
+  .text-muted{color:var(--gray-400);font-size:13px;}
+  .action-link{color:var(--primary-500);font-weight:500;font-size:13px;text-decoration:none;cursor:pointer;}
+  .action-link:hover{text-decoration:underline;}
+
+  /* Empty state */
+  .empty-state{display:none;flex-direction:column;align-items:center;justify-content:center;padding:80px 32px;text-align:center;}
+  .empty-state svg{width:64px;height:64px;color:var(--gray-300);margin-bottom:16px;}
+  .empty-state h3{font-family:var(--font-heading);font-size:20px;font-weight:600;color:var(--gray-700);margin-bottom:8px;}
+  .empty-state p{font-size:14px;color:var(--gray-400);margin-bottom:24px;max-width:400px;}
+
+  /* Toggle */
+  .view-toggle{display:flex;align-items:center;gap:8px;margin-bottom:16px;}
+  .toggle-btn{padding:6px 14px;border-radius:var(--radius-md);font-size:13px;font-weight:500;border:1px solid var(--gray-300);background:#fff;color:var(--gray-500);cursor:pointer;transition:all .15s;}
+  .toggle-btn.active{background:var(--primary-500);color:#fff;border-color:var(--primary-500);}
+
+  @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}.stats-row{grid-template-columns:repeat(2,1fr);}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+</header>
+
+<nav class="sidebar">
+  <div class="sidebar-section-label">Main</div>
+  <a class="sidebar-link active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>Dashboard</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Upload</a>
+  <div class="sidebar-section-label">Configuration</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>Categories</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Extraction Fields</a>
+  <div class="sidebar-section-label">Processing</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>Bulk Processing</a>
+</nav>
+
+<main class="main">
+  <div class="page-header">
+    <h2 class="page-title">Dashboard</h2>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-outline" onclick="toggleView()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        Toggle Empty State
+      </button>
+      <a class="btn btn-primary" href="E7-S3.html">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Upload Document
+      </a>
+    </div>
+  </div>
+
+  <!-- API: GET /api/v1/documents  |  Auto-refresh: 30s -->
+
+  <!-- Stats -->
+  <div class="stats-row" id="statsRow">
+    <div class="stat-card"><div class="stat-label">Total Documents</div><div class="stat-value">6</div></div>
+    <div class="stat-card"><div class="stat-label">Processing</div><div class="stat-value" style="color:var(--primary-500);">2</div></div>
+    <div class="stat-card"><div class="stat-label">Completed</div><div class="stat-value" style="color:var(--success-500);">3</div></div>
+    <div class="stat-card"><div class="stat-label">Needs Review</div><div class="stat-value" style="color:var(--warning-500);">1</div></div>
+  </div>
+
+  <!-- Data Table -->
+  <div class="table-card" id="tableView">
+    <div class="table-header">
+      <h3>Documents</h3>
+      <span>Showing 6 documents</span>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>File Name</th>
+          <th>Status</th>
+          <th>Category</th>
+          <th>Type</th>
+          <th>Size</th>
+          <th>Uploaded</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="file-name">Horizon_Equity_Partners_IV_LPA.pdf</span></td>
+          <td><span class="badge badge-ingested">ingested</span></td>
+          <td><span class="category-badge">LPA</span></td>
+          <td class="text-muted">PDF</td>
+          <td class="text-muted">2.4 MB</td>
+          <td class="text-muted">Mar 15, 2026</td>
+          <td><a class="action-link" title="GET /api/v1/documents/1">Chat</a></td>
+        </tr>
+        <tr>
+          <td><span class="file-name">Meridian_Growth_Fund_III_LPA.pdf</span></td>
+          <td><span class="badge badge-summarized">summarized</span></td>
+          <td><span class="category-badge">LPA</span></td>
+          <td class="text-muted">PDF</td>
+          <td class="text-muted">3.1 MB</td>
+          <td class="text-muted">Mar 18, 2026</td>
+          <td><a class="action-link" title="POST /api/v1/ingest/2">Ingest</a></td>
+        </tr>
+        <tr>
+          <td><span class="file-name">Atlas_Capital_Sub_Agreement.docx</span></td>
+          <td><span class="badge badge-extracted">extracted</span></td>
+          <td><span class="category-badge">Subscription Agreement</span></td>
+          <td class="text-muted">DOCX</td>
+          <td class="text-muted">1.8 MB</td>
+          <td class="text-muted">Mar 20, 2026</td>
+          <td><a class="action-link" title="GET /api/v1/extract/3/results">Review Extraction</a></td>
+        </tr>
+        <tr>
+          <td><span class="file-name">Pinnacle_Ventures_II_LPA.pdf</span></td>
+          <td><span class="badge badge-classified">classified</span></td>
+          <td><span class="category-badge">LPA</span></td>
+          <td class="text-muted">PDF</td>
+          <td class="text-muted">4.2 MB</td>
+          <td class="text-muted">Mar 22, 2026</td>
+          <td><a class="action-link" title="POST /api/v1/extract/4">Extract</a></td>
+        </tr>
+        <tr>
+          <td><span class="file-name">Summit_PE_Fund_V_LPA.pdf</span></td>
+          <td><span class="badge badge-parsed">parsed</span></td>
+          <td><span class="category-badge">--</span></td>
+          <td class="text-muted">PDF</td>
+          <td class="text-muted">2.9 MB</td>
+          <td class="text-muted">Mar 25, 2026</td>
+          <td><a class="action-link" title="POST /api/v1/classify/5">Classify</a></td>
+        </tr>
+        <tr>
+          <td><span class="file-name">Vanguard_Buyout_VII_Sub_Docs.xlsx</span></td>
+          <td><span class="badge badge-uploaded">uploaded</span></td>
+          <td><span class="category-badge">--</span></td>
+          <td class="text-muted">XLSX</td>
+          <td class="text-muted">856 KB</td>
+          <td class="text-muted">Mar 27, 2026</td>
+          <td><a class="action-link" title="POST /api/v1/parse/6">Parse</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty State -->
+  <div class="table-card" id="emptyView" style="display:none;">
+    <div class="empty-state" style="display:flex;">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+      <h3>No documents yet</h3>
+      <p>Upload your first document to get started with automated parsing, classification, and extraction.</p>
+      <a class="btn btn-primary" href="E7-S3.html">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Upload Your First Document
+      </a>
+    </div>
+  </div>
+</main>
+
+<script>
+var showEmpty = false;
+function toggleView() {
+  showEmpty = !showEmpty;
+  document.getElementById('tableView').style.display = showEmpty ? 'none' : 'block';
+  document.getElementById('emptyView').style.display = showEmpty ? 'block' : 'none';
+  document.getElementById('statsRow').style.display = showEmpty ? 'none' : 'grid';
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,2076 @@
+[
+  {
+    "id": "F001",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "SQLAlchemy ORM models exist for all 8 core tables: documents, document_categories, extraction_schemas, extraction_fields, extracted_values, document_summaries, bulk_jobs, bulk_job_documents",
+    "steps": [
+      "Import all models from src/db/models.py",
+      "Assert 8 core model classes are defined with correct table names",
+      "Assert each model has an id column of UUID type"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F002",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Memory models defined: conversation_summaries and memory_entries tables",
+    "steps": [
+      "Import ConversationSummaryModel and MemoryEntryModel from src/db/models.py",
+      "Assert both models have correct table names",
+      "Assert conversation_summaries has session_id, agent_type, summary columns"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F003",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "DocumentStatus enum includes all 7 states: uploaded, parsed, edited, classified, extracted, summarized, ingested",
+    "steps": [
+      "Import DocumentStatus enum from src/db/models.py",
+      "Assert enum has exactly 7 members",
+      "Assert each expected state name is present in the enum"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F004",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "All ORM models use UUID primary keys with server-side defaults",
+    "steps": [
+      "Inspect each model's id column",
+      "Assert column type is UUID",
+      "Assert server_default or default is set for UUID generation"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F005",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "All ORM models include created_at and updated_at timestamp columns",
+    "steps": [
+      "Inspect each model class",
+      "Assert created_at column exists with TIMESTAMP type",
+      "Assert updated_at column exists with TIMESTAMP type and onupdate trigger"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F006",
+    "category": "functional",
+    "story": "E1-S1",
+    "group": "A",
+    "description": "Foreign key relationships defined between all related tables",
+    "steps": [
+      "Inspect documents model for document_category_id FK to document_categories",
+      "Inspect extraction_schemas for category_id FK to document_categories",
+      "Inspect extraction_fields for schema_id FK to extraction_schemas",
+      "Inspect extracted_values for document_id FK and field_id FK",
+      "Inspect bulk_job_documents for job_id FK and document_id FK"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F007",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "config.yml loaded with storage paths, chunking params, bulk concurrency, and RAG defaults",
+    "steps": [
+      "Load config from config.yml",
+      "Assert storage.upload_dir, storage.parsed_dir, storage.schemas_dir are present",
+      "Assert chunking.max_tokens=512 and chunking.overlap_tokens=100 defaults",
+      "Assert bulk.concurrent_documents and rag.default_alpha values are present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F008",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": ".env loaded with required API keys and database URL",
+    "steps": [
+      "Set OPENAI_API_KEY, REDUCTO_API_KEY, DATABASE_URL, WEAVIATE_URL, OPENAI_MODEL in environment",
+      "Load settings",
+      "Assert all values are accessible from the settings object"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F009",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Configuration accessible as typed Pydantic settings objects",
+    "steps": [
+      "Import settings class from src/config.py",
+      "Assert it inherits from pydantic BaseSettings or BaseModel",
+      "Assert type annotations are present for all config fields"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F010",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Missing required environment variables raise clear error at startup",
+    "steps": [
+      "Unset OPENAI_API_KEY from environment",
+      "Attempt to load settings",
+      "Assert a ValidationError is raised mentioning the missing variable name"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F011",
+    "category": "functional",
+    "story": "E1-S2",
+    "group": "A",
+    "description": "Default values provided for non-secret config fields",
+    "steps": [
+      "Load settings with minimal env vars (only secrets set)",
+      "Assert upload_dir defaults to './data/upload'",
+      "Assert max_tokens defaults to 512 and overlap_tokens defaults to 100"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F012",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "A",
+    "description": "Async SQLAlchemy engine created with asyncpg driver",
+    "steps": [
+      "Import engine from src/db/connection.py",
+      "Assert engine dialect name is 'postgresql'",
+      "Assert engine driver is 'asyncpg'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F013",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "A",
+    "description": "Async session factory configured with connection pooling",
+    "steps": [
+      "Import session factory from src/db/connection.py",
+      "Assert pool_size=5 and max_overflow=10 on the engine",
+      "Create a session and verify it is an AsyncSession instance"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F014",
+    "category": "integration",
+    "story": "E1-S3",
+    "group": "A",
+    "description": "Alembic configured and initial migration creates all tables",
+    "steps": [
+      "Run alembic upgrade head against a clean database",
+      "Query information_schema.tables",
+      "Assert all 10 tables exist (8 core + 2 memory)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F015",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "A",
+    "description": "FastAPI app created with CORS middleware",
+    "steps": [
+      "Import create_app from src/api/app.py",
+      "Create app instance",
+      "Assert CORSMiddleware is in the middleware stack"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F016",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "A",
+    "description": "GET /api/v1/health returns 200 with healthy status when DB is reachable",
+    "steps": [
+      "Start test client with database running",
+      "GET /api/v1/health",
+      "Assert status 200 and body contains {\"status\": \"healthy\"}"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F017",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "A",
+    "description": "Health endpoint returns 503 when database is unreachable",
+    "steps": [
+      "Start test client with database connection blocked",
+      "GET /api/v1/health",
+      "Assert status 503 and body contains {\"status\": \"unhealthy\"}"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F018",
+    "category": "functional",
+    "story": "E1-S4",
+    "group": "A",
+    "description": "Lifespan handler manages database pool startup and shutdown",
+    "steps": [
+      "Create app and trigger lifespan startup",
+      "Assert database engine is initialized",
+      "Trigger lifespan shutdown and assert engine is disposed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F019",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "Document repository provides async CRUD operations",
+    "steps": [
+      "Call document_repository.create() with valid document data",
+      "Call document_repository.get_by_id() and assert document returned",
+      "Call document_repository.list_all() and assert list contains the document",
+      "Call document_repository.delete() and verify document is removed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F020",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "POST /api/v1/documents/upload accepts file and creates document with status=uploaded",
+    "steps": [
+      "POST /api/v1/documents/upload with a PDF file as multipart form data",
+      "Assert response status is 201",
+      "Assert response body contains document id, file_name, status='uploaded'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F021",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "SHA-256 dedup returns existing document for duplicate file upload",
+    "steps": [
+      "Upload a file via POST /api/v1/documents/upload",
+      "Upload the same file again",
+      "Assert second response returns the same document id as the first"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F022",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "GET /api/v1/documents returns list of all documents",
+    "steps": [
+      "Upload two documents",
+      "GET /api/v1/documents",
+      "Assert response contains 2 documents with id, file_name, status, file_type, file_size, created_at"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F023",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "GET /api/v1/documents/:id returns full document details",
+    "steps": [
+      "Upload a document and capture the id",
+      "GET /api/v1/documents/{id}",
+      "Assert response contains all document fields including file_hash and parsed_path"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F024",
+    "category": "functional",
+    "story": "E2-S1",
+    "group": "B",
+    "description": "DELETE /api/v1/documents/:id removes document and files",
+    "steps": [
+      "Upload a document",
+      "DELETE /api/v1/documents/{id}",
+      "Assert response status is 204",
+      "GET /api/v1/documents/{id} returns 404"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F025",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "State machine enforces valid transitions between document states",
+    "steps": [
+      "Create document with status=uploaded",
+      "Transition to parsed — assert success",
+      "Transition to classified — assert success",
+      "Transition to extracted — assert success"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F026",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "Invalid state transition returns 400 with descriptive error",
+    "steps": [
+      "Create document with status=uploaded",
+      "Attempt transition to classified (skipping parsed)",
+      "Assert 400 response with message indicating required prior state"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F027",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "State transition updates status and updated_at atomically",
+    "steps": [
+      "Create document and note updated_at",
+      "Perform valid state transition",
+      "Assert status is updated and updated_at is newer than before"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F028",
+    "category": "functional",
+    "story": "E2-S2",
+    "group": "C",
+    "description": "get_available_actions returns valid next transitions for current status",
+    "steps": [
+      "Create document with status=parsed",
+      "Call get_available_actions()",
+      "Assert returned list contains 'classify' and 'edit'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F029",
+    "category": "integration",
+    "story": "E2-S3",
+    "group": "C",
+    "description": "Reducto client parses document and returns markdown",
+    "steps": [
+      "Send a test PDF to Reducto client",
+      "Assert returned content is non-empty markdown string",
+      "Assert markdown preserves table structures"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F030",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "C",
+    "description": "Parsed markdown saved to filesystem and document record updated",
+    "steps": [
+      "Parse a document via Reducto client",
+      "Assert file exists at parsed_dir/{document_id}.md",
+      "Assert document.parsed_path is updated in database"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F031",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "C",
+    "description": "POST /api/v1/parse/:id triggers parsing and transitions status to parsed",
+    "steps": [
+      "Upload a document",
+      "POST /api/v1/parse/{id}",
+      "Assert response contains parsed markdown content",
+      "GET /api/v1/documents/{id} and assert status is 'parsed'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F032",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "C",
+    "description": "GET /api/v1/parse/:id/content returns parsed markdown",
+    "steps": [
+      "Parse a document",
+      "GET /api/v1/parse/{id}/content",
+      "Assert response status 200 with non-empty markdown content"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F033",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "C",
+    "description": "PUT /api/v1/parse/:id/content saves edited content and transitions to edited",
+    "steps": [
+      "Parse a document",
+      "PUT /api/v1/parse/{id}/content with modified markdown",
+      "Assert response status 200",
+      "GET document and assert status is 'edited'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F034",
+    "category": "functional",
+    "story": "E2-S3",
+    "group": "C",
+    "description": "Parsing skipped for unchanged file hash with existing parsed content",
+    "steps": [
+      "Parse a document",
+      "POST /api/v1/parse/{id} again without changing the file",
+      "Assert response returns existing parsed content with 200 (no Reducto call made)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F035",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "B",
+    "description": "DeepAgent orchestrator created with openai:gpt-5.4-mini model",
+    "steps": [
+      "Import orchestrator from agent factory",
+      "Assert agent is initialized with model 'openai:gpt-5.4-mini'",
+      "Assert agent instance is not None"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F036",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "B",
+    "description": "Subagent registry has 5 named slots: classifier, extractor, judge, summarizer, rag_retriever",
+    "steps": [
+      "Get orchestrator subagent registry",
+      "Assert 5 subagents are registered",
+      "Assert names match: classifier, extractor, judge, summarizer, rag_retriever"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F037",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "B",
+    "description": "Middleware stack includes FilesystemMiddleware, SubAgentMiddleware, SummarizationMiddleware",
+    "steps": [
+      "Inspect orchestrator middleware configuration",
+      "Assert FilesystemMiddleware is present",
+      "Assert SubAgentMiddleware is present",
+      "Assert SummarizationMiddleware is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F038",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "B",
+    "description": "Agent factory provides thread-safe singleton access",
+    "steps": [
+      "Call get_orchestrator() twice concurrently",
+      "Assert both calls return the same instance",
+      "Assert async lock is used for initialization"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F039",
+    "category": "functional",
+    "story": "E3-S1",
+    "group": "B",
+    "description": "Orchestrator initializes and responds to a basic prompt",
+    "steps": [
+      "Initialize orchestrator",
+      "Send a basic health-check prompt",
+      "Assert a non-empty response is returned without errors"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F040",
+    "category": "security",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "PII middleware registered as DeepAgents pre-model callback",
+    "steps": [
+      "Inspect orchestrator middleware stack",
+      "Assert PII middleware is registered as pre-model callback",
+      "Assert it executes before LLM calls"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F041",
+    "category": "security",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "PII middleware detects and redacts SSN, phone, email, bank accounts, addresses",
+    "steps": [
+      "Pass content containing SSN '123-45-6789', phone '(555) 123-4567', email 'john@example.com'",
+      "Assert each is replaced with typed placeholder: [REDACTED_SSN], [REDACTED_PHONE], [REDACTED_EMAIL]",
+      "Pass content with bank account and address, assert [REDACTED_ACCOUNT] and [REDACTED_ADDRESS]"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F042",
+    "category": "security",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "Fund names and financial terms pass through PII middleware unredacted",
+    "steps": [
+      "Pass content containing 'Horizon Equity Partners IV', 'management fee of 2%', 'carried interest of 20%'",
+      "Assert all financial terms remain unchanged in output",
+      "Assert 'preferred return' and 'fund term' pass through unredacted"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F043",
+    "category": "security",
+    "story": "E3-S2",
+    "group": "C",
+    "description": "Original unredacted content is never sent to LLM",
+    "steps": [
+      "Configure PII middleware on agent",
+      "Send content with PII through agent",
+      "Intercept LLM call and assert the content passed contains [REDACTED_*] placeholders, not original PII"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F044",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "C",
+    "description": "ShortTermMemory provides per-session message storage with configurable max",
+    "steps": [
+      "Create ShortTermMemory(max_messages=20)",
+      "Add 5 messages to session 'test-1'",
+      "Assert get_messages('test-1') returns 5 messages",
+      "Assert get_messages('test-2') returns empty list"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F045",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "C",
+    "description": "Messages automatically trimmed when exceeding max_messages",
+    "steps": [
+      "Create ShortTermMemory(max_messages=5)",
+      "Add a system message and 6 user/ai messages",
+      "Assert total messages is 5",
+      "Assert system message is preserved as first message"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F046",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "C",
+    "description": "Session operations: add messages, clear, delete, count",
+    "steps": [
+      "Add messages to two sessions",
+      "Assert get_session_count() returns 2",
+      "Call clear_session('s1') and assert messages are empty but session exists",
+      "Call delete_session('s1') and assert get_session_count() returns 1"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F047",
+    "category": "functional",
+    "story": "E3-S3",
+    "group": "C",
+    "description": "get_conversation_summary returns last 6 messages formatted as text",
+    "steps": [
+      "Add 10 messages to a session",
+      "Call get_conversation_summary(session_id)",
+      "Assert returned string contains content from the last 6 messages"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F048",
+    "category": "integration",
+    "story": "E3-S4",
+    "group": "B",
+    "description": "Alembic migration creates conversation_summaries and memory_entries tables",
+    "steps": [
+      "Run alembic upgrade head",
+      "Query information_schema.tables for conversation_summaries",
+      "Query information_schema.tables for memory_entries",
+      "Assert both tables exist"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F049",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "B",
+    "description": "save and get conversation summary with upsert semantics",
+    "steps": [
+      "Call save_conversation_summary() with test data",
+      "Call get_conversation_summary(session_id) and assert data matches",
+      "Call save_conversation_summary() again with updated summary",
+      "Assert get returns the updated summary (upsert, not duplicate)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F050",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "B",
+    "description": "Generic key-value store: put, get, delete, search operations",
+    "steps": [
+      "Call put('ns1', 'key1', {'value': 'test'})",
+      "Call get('ns1', 'key1') and assert data matches",
+      "Call search('ns1') and assert result contains the entry",
+      "Call delete('ns1', 'key1') and assert get returns None"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F051",
+    "category": "functional",
+    "story": "E3-S4",
+    "group": "B",
+    "description": "Long-term memory operations use retry logic for transient errors",
+    "steps": [
+      "Mock database to raise a transient OperationalError on first call",
+      "Call save_conversation_summary()",
+      "Assert operation succeeds after retry (no exception raised)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F052",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "GET /api/v1/config/categories returns all categories",
+    "steps": [
+      "Seed two categories in database",
+      "GET /api/v1/config/categories",
+      "Assert response contains 2 categories with name, description, classification_criteria"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F053",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "POST /api/v1/config/categories creates a new category",
+    "steps": [
+      "POST /api/v1/config/categories with name='LPA', description, classification_criteria",
+      "Assert response status 201 with created category including id",
+      "GET /api/v1/config/categories and assert new category is in list"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F054",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "PUT /api/v1/config/categories/:id updates category",
+    "steps": [
+      "Create a category",
+      "PUT /api/v1/config/categories/{id} with updated name",
+      "Assert response contains updated name"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F055",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "DELETE /api/v1/config/categories/:id returns 400 if documents assigned",
+    "steps": [
+      "Create category and assign a document to it",
+      "DELETE /api/v1/config/categories/{id}",
+      "Assert response status 400 with message about assigned documents"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F056",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "GET /api/v1/config/categories/:id/fields returns extraction fields ordered by sort_order",
+    "steps": [
+      "Create category with 3 extraction fields at sort_order 1, 2, 3",
+      "GET /api/v1/config/categories/{id}/fields",
+      "Assert fields returned in sort_order sequence"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F057",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "POST /api/v1/config/categories/:id/fields creates extraction fields",
+    "steps": [
+      "Create a category",
+      "POST /api/v1/config/categories/{id}/fields with list of field definitions",
+      "Assert fields are created with field_name, display_name, data_type, required, sort_order"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F058",
+    "category": "functional",
+    "story": "E4-S1",
+    "group": "B",
+    "description": "Default Other/Unclassified category seeded on startup",
+    "steps": [
+      "Start application with empty database",
+      "GET /api/v1/config/categories",
+      "Assert at least one category exists with name 'Other' or 'Unclassified'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F059",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "C",
+    "description": "Classifier subagent returns ClassificationResult with category and reasoning",
+    "steps": [
+      "Provide parsed LPA document content and categories to classifier",
+      "Assert response is ClassificationResult with category_id (UUID), category_name (str), reasoning (str)",
+      "Assert category_id matches an existing category in database"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F060",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "C",
+    "description": "Classifier has get_categories and get_parsed_content tools",
+    "steps": [
+      "Inspect classifier subagent tools",
+      "Assert get_categories tool is registered",
+      "Assert get_parsed_content tool is registered"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F061",
+    "category": "functional",
+    "story": "E4-S2",
+    "group": "C",
+    "description": "Classifier returns Other/Unclassified when no category matches",
+    "steps": [
+      "Provide a document that does not match any defined categories",
+      "Assert classifier returns the 'Other/Unclassified' category_id",
+      "Assert reasoning explains why no category matched"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F062",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "D",
+    "description": "POST /api/v1/classify/:id triggers classification and transitions to classified",
+    "steps": [
+      "Upload and parse a document",
+      "POST /api/v1/classify/{id}",
+      "Assert response contains category_id, category_name, reasoning",
+      "GET document and assert status is 'classified' and document_category_id is set"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F063",
+    "category": "functional",
+    "story": "E4-S3",
+    "group": "D",
+    "description": "Classification API returns 400 if document is not parsed or edited",
+    "steps": [
+      "Upload a document (status=uploaded, not yet parsed)",
+      "POST /api/v1/classify/{id}",
+      "Assert response status 400 with message about required status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F064",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Extractor builds dynamic Pydantic model from extraction fields",
+    "steps": [
+      "Create category with fields: fund_name (string), management_fee (percentage), fund_term (number)",
+      "Invoke extractor for a classified document",
+      "Assert dynamic Pydantic model has matching attributes with correct types"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F065",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Extractor returns ExtractionResult with field_name, extracted_value, source_text per field",
+    "steps": [
+      "Run extractor on a parsed LPA document with defined extraction schema",
+      "Assert response contains list of ExtractedField objects",
+      "Assert each field has non-empty field_name, extracted_value, and source_text"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F066",
+    "category": "functional",
+    "story": "E5-S1",
+    "group": "C",
+    "description": "Extractor uses DeepAgent response_format for structured output",
+    "steps": [
+      "Inspect extractor subagent configuration",
+      "Assert response_format is set to the dynamic Pydantic model",
+      "Assert structured_response key is used in the agent response"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F067",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Judge returns confidence rating (high/medium/low) with reasoning per field",
+    "steps": [
+      "Provide extracted values with source texts to judge subagent",
+      "Assert response is JudgeResult with list of FieldEvaluation",
+      "Assert each evaluation has field_name, confidence in ['high','medium','low'], and non-empty reasoning"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F068",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Judge is a separate subagent independent from extractor",
+    "steps": [
+      "Inspect agent registry",
+      "Assert judge and extractor are distinct subagent instances",
+      "Assert judge makes a separate LLM call (not shared with extractor)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F069",
+    "category": "functional",
+    "story": "E5-S2",
+    "group": "C",
+    "description": "Judge confidence criteria: high=explicit, medium=implied, low=vague/contradictory",
+    "steps": [
+      "Provide extraction with clear source text — assert high confidence",
+      "Provide extraction with interpretive source — assert medium confidence",
+      "Provide extraction with vague/contradictory source — assert low confidence"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F070",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "D",
+    "description": "POST /api/v1/extract/:id runs extractor then judge and saves results",
+    "steps": [
+      "Upload, parse, classify a document",
+      "POST /api/v1/extract/{id}",
+      "Assert response contains extraction results with confidence scores",
+      "Query extracted_values table and assert results are persisted"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F071",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "D",
+    "description": "GET /api/v1/extract/:id/results returns full extraction results",
+    "steps": [
+      "Extract a document",
+      "GET /api/v1/extract/{id}/results",
+      "Assert response contains list with field_name, display_name, extracted_value, source_text, confidence, requires_review, reviewed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F072",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "D",
+    "description": "PUT /api/v1/extract/:id/results updates values and marks as reviewed",
+    "steps": [
+      "Extract a document with low-confidence fields",
+      "PUT /api/v1/extract/{id}/results with updated value for a field",
+      "GET results and assert the field has reviewed=true and updated value"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F073",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "D",
+    "description": "Hard review gate blocks status transition if unreviewed low-confidence fields exist",
+    "steps": [
+      "Extract a document producing low-confidence fields",
+      "Attempt to transition status to extracted without reviewing",
+      "Assert 400 response with list of unreviewed field names"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F074",
+    "category": "functional",
+    "story": "E5-S3",
+    "group": "D",
+    "description": "Status transitions to extracted after all low-confidence fields reviewed",
+    "steps": [
+      "Extract document, review all low-confidence fields via PUT",
+      "Transition status to extracted",
+      "Assert success and document status is 'extracted'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F075",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "C",
+    "description": "Summarizer subagent returns SummaryResult with summary and key_topics",
+    "steps": [
+      "Provide parsed document content to summarizer",
+      "Assert response is SummaryResult with non-empty summary (str) and key_topics (list[str])"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F076",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "C",
+    "description": "POST /api/v1/summarize/:id generates summary and transitions to summarized",
+    "steps": [
+      "Prepare an extracted document",
+      "POST /api/v1/summarize/{id}",
+      "Assert response contains summary text and key_topics",
+      "GET document and assert status is 'summarized'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F077",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "C",
+    "description": "GET /api/v1/summarize/:id returns existing summary",
+    "steps": [
+      "Summarize a document",
+      "GET /api/v1/summarize/{id}",
+      "Assert response contains summary and key_topics matching what was generated"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F078",
+    "category": "functional",
+    "story": "E6-S1",
+    "group": "C",
+    "description": "Summarizer regenerates when content hash differs",
+    "steps": [
+      "Summarize a document",
+      "Edit the parsed content (changing content hash)",
+      "POST /api/v1/summarize/{id} again",
+      "Assert a new summary is generated (not cached)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F079",
+    "category": "integration",
+    "story": "E6-S2",
+    "group": "C",
+    "description": "Weaviate client connects and DocumentChunks collection created",
+    "steps": [
+      "Initialize Weaviate client with WEAVIATE_URL",
+      "Assert client is connected",
+      "Assert DocumentChunks collection exists with text2vec-openai vectorizer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F080",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "C",
+    "description": "SemanticChunker splits markdown with fallback to token-based chunking",
+    "steps": [
+      "Chunk a long markdown document using SemanticChunker",
+      "Assert output is a list of chunks, each <= 512 tokens",
+      "Assert chunks have proper overlap (~100 tokens)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F081",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "C",
+    "description": "POST /api/v1/ingest/:id chunks and upserts to Weaviate with metadata",
+    "steps": [
+      "Prepare a summarized document",
+      "POST /api/v1/ingest/{id}",
+      "Query Weaviate for chunks with document_id filter",
+      "Assert chunks exist with metadata: document_id, document_name, document_category, chunk_index"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F082",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "C",
+    "description": "Re-ingestion deletes existing chunks before inserting new ones",
+    "steps": [
+      "Ingest a document",
+      "Count chunks in Weaviate for that document_id",
+      "Re-ingest the same document",
+      "Assert chunk count is the same (old deleted, new inserted)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F083",
+    "category": "functional",
+    "story": "E6-S2",
+    "group": "C",
+    "description": "Document status transitions to ingested after successful ingestion",
+    "steps": [
+      "Ingest a document via POST /api/v1/ingest/{id}",
+      "GET /api/v1/documents/{id}",
+      "Assert status is 'ingested'"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F084",
+    "category": "functional",
+    "story": "E6-S3",
+    "group": "D",
+    "description": "RAG retriever performs hybrid search with configurable alpha",
+    "steps": [
+      "Ingest a document into Weaviate",
+      "Query with alpha=0.0 (pure keyword) and assert results returned",
+      "Query with alpha=1.0 (pure semantic) and assert results returned",
+      "Query with alpha=0.5 (hybrid default) and assert results returned"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F085",
+    "category": "functional",
+    "story": "E6-S3",
+    "group": "D",
+    "description": "POST /api/v1/rag/query returns answer with citations",
+    "steps": [
+      "Ingest a document",
+      "POST /api/v1/rag/query with query='What is the fund name?', scope='single_document', scope_id={doc_id}",
+      "Assert response contains answer (str) and citations (list with chunk_text, document_name, relevance_score)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F086",
+    "category": "functional",
+    "story": "E6-S3",
+    "group": "D",
+    "description": "Scope filters applied correctly: single doc, all, by category",
+    "steps": [
+      "Ingest two documents in different categories",
+      "Query with scope='single_document' — assert only matching doc chunks returned",
+      "Query with scope='all' — assert chunks from both documents",
+      "Query with scope='by_category' — assert only matching category chunks"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F087",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "B",
+    "description": "React + Vite + TypeScript project with Tailwind CSS scaffolded in frontend/",
+    "steps": [
+      "Check frontend/package.json exists with react, vite, typescript, tailwindcss dependencies",
+      "Run npm run build and assert it succeeds",
+      "Assert tailwind.config.ts exists"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F088",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "B",
+    "description": "React Router configured with all 10 application routes",
+    "steps": [
+      "Inspect router configuration",
+      "Assert routes exist for: /, /upload, /documents/:id/parse, /documents/:id/classify, /documents/:id/extract, /documents/:id/summary, /documents/:id/chat, /config/categories, /config/extraction-fields, /bulk"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F089",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "B",
+    "description": "Axios API client with baseURL and case transformers configured",
+    "steps": [
+      "Import apiClient from frontend lib",
+      "Assert baseURL is http://localhost:8000/api/v1",
+      "Assert request interceptor converts camelCase to snake_case",
+      "Assert response interceptor converts snake_case to camelCase"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F090",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "B",
+    "description": "TanStack Query provider with staleTime and retry config",
+    "steps": [
+      "Inspect QueryClient configuration",
+      "Assert staleTime is 300000 (5 minutes)",
+      "Assert retry does not retry on 404, 401, 403 status codes"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F091",
+    "category": "ui",
+    "story": "E7-S1",
+    "group": "B",
+    "description": "Design token system in tailwind.config.ts with color palettes and fonts",
+    "steps": [
+      "Read tailwind.config.ts",
+      "Assert primary, success, warning, error color palettes are defined",
+      "Assert fontFamily includes Inter and Poppins"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F092",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "C",
+    "description": "Dashboard at / renders document table with status badges",
+    "steps": [
+      "Navigate to /",
+      "Assert table renders with columns: file_name, status, category, file_type, file_size, created_at",
+      "Assert DocumentStatusBadge renders with correct colors per status"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F093",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "C",
+    "description": "Document rows link to next action based on status",
+    "steps": [
+      "Render dashboard with document in status=uploaded",
+      "Assert row links to /documents/:id/parse",
+      "Render with status=classified, assert row links to /documents/:id/extract"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F094",
+    "category": "ui",
+    "story": "E7-S2",
+    "group": "C",
+    "description": "Empty state shown with link to upload when no documents exist",
+    "steps": [
+      "Render dashboard with empty document list",
+      "Assert empty state message is displayed",
+      "Assert link to /upload is present"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F095",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "C",
+    "description": "Upload page renders drag-drop zone accepting PDF, DOCX, XLSX, images",
+    "steps": [
+      "Navigate to /upload",
+      "Assert drag-drop zone is rendered",
+      "Drop a PDF file and assert it is accepted",
+      "Drop a .exe file and assert it is rejected"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F096",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "C",
+    "description": "Upload shows progress and navigates to parse page on success",
+    "steps": [
+      "Upload a file via the upload page",
+      "Assert progress indicator is shown during upload",
+      "Assert navigation to /documents/:id/parse after successful upload"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F097",
+    "category": "ui",
+    "story": "E7-S3",
+    "group": "C",
+    "description": "Duplicate file upload shows notification with link to existing document",
+    "steps": [
+      "Upload a file that already exists (API returns existing document)",
+      "Assert notification displayed: 'File already exists'",
+      "Assert link to existing document is shown"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F098",
+    "category": "ui",
+    "story": "E7-S4",
+    "group": "D",
+    "description": "Parse page renders split view with document info and TipTap editor",
+    "steps": [
+      "Navigate to /documents/:id/parse for a parsed document",
+      "Assert left panel shows document info (filename, status, size)",
+      "Assert right panel renders TipTap editor with parsed markdown content"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F099",
+    "category": "ui",
+    "story": "E7-S4",
+    "group": "D",
+    "description": "Parse and Save buttons trigger correct API calls",
+    "steps": [
+      "Click 'Parse Document' button and assert POST /api/v1/parse/:id is called with loading spinner",
+      "Edit content in TipTap editor",
+      "Click 'Save Edits' and assert PUT /api/v1/parse/:id/content is called"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F100",
+    "category": "ui",
+    "story": "E7-S4",
+    "group": "D",
+    "description": "Proceed to Classify button visible for parsed/edited documents",
+    "steps": [
+      "Render parse page for document with status=parsed",
+      "Assert 'Proceed to Classify' button is visible",
+      "Click button and assert navigation to /documents/:id/classify"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F101",
+    "category": "ui",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "Category manager at /config/categories displays categories with CRUD actions",
+    "steps": [
+      "Navigate to /config/categories",
+      "Assert categories displayed as cards with name, description, edit/delete buttons",
+      "Click 'Add Category' and assert modal opens with name, description, criteria fields"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F102",
+    "category": "ui",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "Extraction field editor shows fields grouped by category with drag-drop reorder",
+    "steps": [
+      "Navigate to /config/extraction-fields",
+      "Assert fields displayed grouped by category",
+      "Drag a field to reorder and assert sort_order updates"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F103",
+    "category": "ui",
+    "story": "E8-S1",
+    "group": "C",
+    "description": "Field form includes all required inputs with correct types",
+    "steps": [
+      "Open add field form",
+      "Assert inputs: field_name, display_name, description, examples (textarea), data_type (dropdown), required (checkbox)",
+      "Assert data_type dropdown options: string, number, date, currency, percentage"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F104",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "E",
+    "description": "Classification page displays detected category with reasoning",
+    "steps": [
+      "Navigate to /documents/:id/classify for a parsed document",
+      "Click 'Classify' button",
+      "Assert detected category name and reasoning text are displayed"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F105",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "E",
+    "description": "Category override dropdown allows manual category selection",
+    "steps": [
+      "On classification page, open category override dropdown",
+      "Assert all categories are listed",
+      "Select a different category and assert it updates"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F106",
+    "category": "ui",
+    "story": "E8-S2",
+    "group": "E",
+    "description": "Accept & Proceed saves classification and navigates to extract page",
+    "steps": [
+      "Classify a document",
+      "Click 'Accept & Proceed'",
+      "Assert navigation to /documents/:id/extract"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F107",
+    "category": "ui",
+    "story": "E8-S3",
+    "group": "E",
+    "description": "Extraction page renders 3-column table with confidence badges",
+    "steps": [
+      "Navigate to /documents/:id/extract for an extracted document",
+      "Assert 3-column table: Field Name, Extracted Value, Source Text",
+      "Assert confidence badges: green (high), yellow (medium), red (low)"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F108",
+    "category": "ui",
+    "story": "E8-S3",
+    "group": "E",
+    "description": "Low-confidence rows highlighted with Requires Review label and inline edit",
+    "steps": [
+      "Render extraction page with low-confidence fields",
+      "Assert low-confidence rows have amber background and 'Requires Review' label",
+      "Click 'Edit' and assert inline input appears for the field value"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F109",
+    "category": "ui",
+    "story": "E8-S3",
+    "group": "E",
+    "description": "Save & Proceed button disabled until all flagged fields are reviewed",
+    "steps": [
+      "Render extraction page with unreviewed low-confidence fields",
+      "Assert 'Save & Proceed' button is disabled with message 'Review all flagged fields first'",
+      "Review all flagged fields",
+      "Assert button becomes enabled"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F110",
+    "category": "ui",
+    "story": "E8-S4",
+    "group": "D",
+    "description": "Summary page displays summary text and key topics as tags",
+    "steps": [
+      "Navigate to /documents/:id/summary for a summarized document",
+      "Assert summary text is displayed",
+      "Assert key topics rendered as styled tag chips"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F111",
+    "category": "ui",
+    "story": "E8-S4",
+    "group": "D",
+    "description": "Generate and Regenerate buttons trigger summarization API",
+    "steps": [
+      "Click 'Generate Summary' and assert POST /api/v1/summarize/:id called with loading state",
+      "Assert summary appears after generation",
+      "Click 'Regenerate' and assert new summary replaces old"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F112",
+    "category": "ui",
+    "story": "E8-S4",
+    "group": "D",
+    "description": "Proceed to Ingest & Chat button triggers ingestion and navigates to chat",
+    "steps": [
+      "Click 'Proceed to Ingest & Chat' on summary page",
+      "Assert POST /api/v1/ingest/:id is called",
+      "Assert navigation to /documents/:id/chat"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F113",
+    "category": "ui",
+    "story": "E8-S5",
+    "group": "E",
+    "description": "Chat page renders message interface with scope and search mode controls",
+    "steps": [
+      "Navigate to /documents/:id/chat",
+      "Assert message input field is present",
+      "Assert scope selector with options: This Document, All Documents, By Category",
+      "Assert search mode toggle: Semantic, Keyword, Hybrid"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F114",
+    "category": "ui",
+    "story": "E8-S5",
+    "group": "E",
+    "description": "Query submission renders AI response with expandable citation cards",
+    "steps": [
+      "Submit a query in the chat input",
+      "Assert AI response message appears with answer text",
+      "Assert citation cards are rendered with chunk_text, document_name, relevance_score",
+      "Click a citation card and assert it expands to show full chunk text"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F115",
+    "category": "ui",
+    "story": "E8-S5",
+    "group": "E",
+    "description": "Chat history maintained in session for multi-turn display",
+    "steps": [
+      "Submit two queries sequentially",
+      "Assert both user messages and AI responses are displayed in order",
+      "Assert conversation thread is maintained visually"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F116",
+    "category": "functional",
+    "story": "E9-S1",
+    "group": "D",
+    "description": "LangGraph StateGraph with 7 pipeline nodes",
+    "steps": [
+      "Inspect the bulk StateGraph definition",
+      "Assert 7 nodes: parse_node, classify_node, extract_node, judge_node, summarize_node, ingest_node, finalize_node",
+      "Assert nodes are connected in sequence"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F117",
+    "category": "functional",
+    "story": "E9-S1",
+    "group": "D",
+    "description": "DocumentState TypedDict carries document through pipeline",
+    "steps": [
+      "Inspect DocumentState definition",
+      "Assert fields: document_id, status, parsed_content, classification_result, extraction_results, summary, error, timing metrics"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F118",
+    "category": "functional",
+    "story": "E9-S1",
+    "group": "D",
+    "description": "Per-document error handling: failures don't block other documents",
+    "steps": [
+      "Submit 3 documents where document 2 will fail at classify_node",
+      "Run pipeline",
+      "Assert documents 1 and 3 complete successfully",
+      "Assert document 2 has error captured in DocumentState.error"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F119",
+    "category": "performance",
+    "story": "E9-S1",
+    "group": "D",
+    "description": "Concurrent processing of up to 10 documents per run",
+    "steps": [
+      "Submit 10 documents to the bulk pipeline",
+      "Assert all 10 are processed concurrently (not sequentially)",
+      "Assert total time is significantly less than 10x single-document time"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F120",
+    "category": "functional",
+    "story": "E9-S1",
+    "group": "D",
+    "description": "MemorySaver checkpointing enabled for pipeline resumability",
+    "steps": [
+      "Inspect StateGraph compile configuration",
+      "Assert MemorySaver is configured as the checkpointer"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F121",
+    "category": "functional",
+    "story": "E9-S2",
+    "group": "E",
+    "description": "POST /api/v1/bulk/upload creates bulk job and starts processing",
+    "steps": [
+      "POST /api/v1/bulk/upload with 3 files",
+      "Assert response contains job_id with status=pending",
+      "Assert 3 bulk_job_documents records created"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F122",
+    "category": "functional",
+    "story": "E9-S2",
+    "group": "E",
+    "description": "GET /api/v1/bulk/jobs returns list with status summary",
+    "steps": [
+      "Create a bulk job",
+      "GET /api/v1/bulk/jobs",
+      "Assert response contains job with id, status, total_documents, processed_count, failed_count"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F123",
+    "category": "functional",
+    "story": "E9-S2",
+    "group": "E",
+    "description": "GET /api/v1/bulk/jobs/:id returns per-document breakdown",
+    "steps": [
+      "Create and process a bulk job",
+      "GET /api/v1/bulk/jobs/{id}",
+      "Assert response includes per-document details: document_id, file_name, status, error_message, processing_time_ms"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F124",
+    "category": "functional",
+    "story": "E9-S2",
+    "group": "E",
+    "description": "Failed documents have error_message populated",
+    "steps": [
+      "Submit a bulk job with a corrupted file that fails parsing",
+      "GET /api/v1/bulk/jobs/{id}",
+      "Assert failed document has status='failed' and non-empty error_message"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F125",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "F",
+    "description": "Bulk dashboard at /bulk displays jobs with progress bars",
+    "steps": [
+      "Navigate to /bulk",
+      "Assert bulk jobs listed with status badge and progress bar (processed/total)",
+      "Assert timestamps shown for each job"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F126",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "F",
+    "description": "Multi-file drag-drop upload zone for new bulk jobs",
+    "steps": [
+      "Navigate to /bulk",
+      "Assert 'New Bulk Job' section with drag-drop zone",
+      "Drop multiple files and assert they are queued for upload"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F127",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "F",
+    "description": "Per-document progress view with status indicators and error details",
+    "steps": [
+      "Expand a bulk job row",
+      "Assert each document shows status indicator (pending=gray, processing=blue, completed=green, failed=red)",
+      "Assert failed documents display error_message text"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  },
+  {
+    "id": "F128",
+    "category": "ui",
+    "story": "E9-S3",
+    "group": "F",
+    "description": "Job list auto-refreshes with 5-second polling while processing",
+    "steps": [
+      "Create a bulk job (status=processing)",
+      "Assert TanStack Query refetchInterval is 5000ms",
+      "Wait for job to complete",
+      "Assert polling stops when no jobs have status=processing"
+    ],
+    "passes": false,
+    "last_evaluated": null,
+    "failure_reason": null,
+    "failure_layer": null
+  }
+]

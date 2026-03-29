@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E8-S2: Classification Page with Override</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-100:#dbeafe;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;--success-600:#16a34a;
+    --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+    --error-50:#fef2f2;--error-500:#ef4444;--error-600:#dc2626;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+  .header{height:56px;background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:50;box-shadow:var(--shadow-sm);}
+  .header-brand{display:flex;align-items:center;gap:10px;}
+  .header-brand svg{width:28px;height:28px;color:var(--primary-500);}
+  .header-brand h1{font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--gray-900);}
+  .sidebar{width:240px;background:#fff;border-right:1px solid var(--gray-200);position:fixed;top:56px;left:0;bottom:0;padding:16px 12px;}
+  .sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);padding:0 8px;margin-bottom:4px;margin-top:16px;}
+  .sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--gray-600);text-decoration:none;cursor:pointer;}
+  .sidebar-link:hover{background:var(--gray-100);}
+  .sidebar-link.active{background:var(--primary-50);color:var(--primary-500);font-weight:600;}
+  .sidebar-link svg{width:18px;height:18px;color:var(--gray-400);}
+  .sidebar-link.active svg{color:var(--primary-500);}
+
+  .main{margin-left:240px;margin-top:56px;padding:32px;max-width:800px;}
+  .page-title{font-family:var(--font-heading);font-size:24px;font-weight:700;color:var(--gray-900);margin-bottom:4px;}
+  .page-subtitle{font-size:14px;color:var(--gray-500);margin-bottom:24px;}
+  .breadcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-400);margin-bottom:16px;}
+  .breadcrumb a{color:var(--primary-500);text-decoration:none;}
+  .breadcrumb a:hover{text-decoration:underline;}
+
+  /* Classification result card */
+  .result-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:28px;margin-bottom:24px;}
+  .result-card h3{font-family:var(--font-heading);font-size:16px;font-weight:600;color:var(--gray-700);margin-bottom:16px;}
+  .detected-category{display:flex;align-items:center;gap:16px;padding:20px;background:var(--primary-50);border:1px solid var(--primary-100);border-radius:var(--radius-md);margin-bottom:20px;}
+  .detected-icon{width:48px;height:48px;border-radius:var(--radius-md);background:var(--primary-500);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+  .detected-icon svg{width:24px;height:24px;color:#fff;}
+  .detected-info h4{font-family:var(--font-heading);font-size:20px;font-weight:700;color:var(--primary-600);margin-bottom:2px;}
+  .detected-info span{font-size:13px;color:var(--primary-500);font-weight:500;}
+  .confidence-bar{display:flex;align-items:center;gap:10px;margin-top:6px;}
+  .confidence-bar-fill{height:6px;border-radius:3px;background:var(--success-500);flex-shrink:0;}
+  .confidence-bar-track{height:6px;border-radius:3px;background:var(--gray-100);width:120px;overflow:hidden;}
+  .confidence-label{font-size:12px;font-weight:600;color:var(--success-600);}
+
+  .reasoning-box{background:var(--gray-50);border-radius:var(--radius-md);padding:16px;margin-bottom:20px;}
+  .reasoning-box h4{font-size:13px;font-weight:600;color:var(--gray-600);margin-bottom:8px;}
+  .reasoning-box p{font-size:14px;color:var(--gray-600);line-height:1.6;}
+  .reasoning-box ul{margin:8px 0 0 20px;font-size:13px;color:var(--gray-500);line-height:1.8;}
+
+  /* Override section */
+  .override-section{border-top:1px solid var(--gray-200);padding-top:20px;margin-top:8px;}
+  .override-section h4{font-size:14px;font-weight:600;color:var(--gray-700);margin-bottom:12px;}
+  .form-select{width:100%;max-width:400px;padding:10px 14px;border:1px solid var(--gray-300);border-radius:8px;font-size:14px;font-family:var(--font-sans);color:var(--gray-800);background:#fff;appearance:auto;}
+  .form-select:focus{outline:none;border-color:var(--primary-500);box-shadow:0 0 0 3px rgba(12,140,233,.1);}
+  .form-hint{font-size:12px;color:var(--gray-400);margin-top:6px;}
+
+  /* Action bar */
+  .action-bar{display:flex;align-items:center;justify-content:space-between;padding:20px 0;}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:10px 20px;border-radius:var(--radius-md);font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:var(--font-sans);transition:all .15s;}
+  .btn-primary{background:var(--primary-500);color:#fff;}
+  .btn-primary:hover{background:var(--primary-600);}
+  .btn-outline{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);}
+  .btn-outline:hover{background:var(--gray-50);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn svg{width:16px;height:16px;}
+
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin 1s linear infinite;display:none;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .view-toggle{margin-bottom:24px;}
+  .toggle-btn{padding:6px 14px;border-radius:var(--radius-md);font-size:13px;font-weight:500;border:1px solid var(--gray-300);background:#fff;color:var(--gray-500);cursor:pointer;margin-right:6px;}
+  .toggle-btn.active{background:var(--primary-500);color:#fff;border-color:var(--primary-500);}
+
+  /* Pre-classification empty state */
+  .empty-state{display:none;text-align:center;padding:48px 32px;}
+  .empty-state svg{width:56px;height:56px;color:var(--gray-300);margin-bottom:16px;}
+  .empty-state h3{font-family:var(--font-heading);font-size:18px;font-weight:600;color:var(--gray-700);margin-bottom:8px;}
+  .empty-state p{font-size:14px;color:var(--gray-400);margin-bottom:24px;}
+
+  @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+</header>
+
+<nav class="sidebar">
+  <div class="sidebar-section-label">Main</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>Dashboard</a>
+  <div class="sidebar-section-label">Document Flow</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Parse &amp; Edit</a>
+  <a class="sidebar-link active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>Classify</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm4 2h8m-8 4h5"/></svg>Extract</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>Summary</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>Chat</a>
+</nav>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="E7-S2.html">Dashboard</a>
+    <span>/</span>
+    <span>Horizon_Equity_Partners_IV_LPA.pdf</span>
+    <span>/</span>
+    <span>Classify</span>
+  </div>
+
+  <h2 class="page-title">Document Classification</h2>
+  <p class="page-subtitle">AI-detected document category with reasoning. Override if needed.</p>
+
+  <div class="view-toggle">
+    <button class="toggle-btn active" onclick="showClassified(this)">Classified State</button>
+    <button class="toggle-btn" onclick="showPreClassify(this)">Pre-Classification State</button>
+  </div>
+
+  <!-- Classified result -->
+  <div id="classifiedView">
+    <div class="result-card">
+      <h3>Detected Category</h3>
+      <div class="detected-category">
+        <div class="detected-icon">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>
+        </div>
+        <div class="detected-info">
+          <h4>Limited Partnership Agreement (LPA)</h4>
+          <span>Detected with high confidence</span>
+          <div class="confidence-bar">
+            <div class="confidence-bar-track"><div class="confidence-bar-fill" style="width:94%"></div></div>
+            <span class="confidence-label">94%</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="reasoning-box">
+        <h4>Classification Reasoning</h4>
+        <p>This document was classified as a Limited Partnership Agreement based on the following indicators:</p>
+        <ul>
+          <li>Document title explicitly states "Limited Partnership Agreement" in the header</li>
+          <li>Contains references to "General Partner" (Horizon Equity GP IV, LLC) and "Limited Partners"</li>
+          <li>Includes standard LPA provisions: management fee schedule (2.00% per annum), carried interest terms (20%), and preferred return (8%)</li>
+          <li>Specifies capital commitment limits ($850M) and fund term (10 years)</li>
+          <li>Structured with articles covering Formation, Purpose, Capital Commitments, Fee Terms, and Fund Duration -- consistent with standard LPA format</li>
+          <li>References Delaware Revised Uniform Limited Partnership Act as governing law</li>
+        </ul>
+      </div>
+
+      <!-- Override -->
+      <!-- PUT /api/v1/documents/:id (document_category_id) -->
+      <div class="override-section">
+        <h4>Override Category</h4>
+        <select class="form-select" id="categorySelect">
+          <option selected>Limited Partnership Agreement (LPA)</option>
+          <option>Subscription Agreement</option>
+          <option>Side Letter</option>
+        </select>
+        <div class="form-hint">Select a different category if the AI classification is incorrect.</div>
+      </div>
+    </div>
+
+    <!-- POST /api/v1/classify/:id -->
+    <div class="action-bar">
+      <button class="btn btn-outline" onclick="window.location.href='E7-S4.html'">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Back to Parse
+      </button>
+      <button class="btn btn-primary" onclick="window.location.href='E8-S3.html'">
+        Accept &amp; Proceed to Extract
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pre-classification state -->
+  <div id="preClassifyView" style="display:none;">
+    <div class="result-card">
+      <div class="empty-state" style="display:block;">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>
+        <h3>Document Not Yet Classified</h3>
+        <p>Run the AI classifier to detect the document category and view reasoning.</p>
+        <button class="btn btn-primary" id="classifyBtn" onclick="simulateClassify()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Classify Document
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+function showClassified(btn) {
+  document.querySelectorAll('.toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('classifiedView').style.display = 'block';
+  document.getElementById('preClassifyView').style.display = 'none';
+}
+function showPreClassify(btn) {
+  document.querySelectorAll('.toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('classifiedView').style.display = 'none';
+  document.getElementById('preClassifyView').style.display = 'block';
+}
+function simulateClassify() {
+  var btn = document.getElementById('classifyBtn');
+  btn.disabled = true;
+  btn.textContent = 'Classifying...';
+  setTimeout(function(){
+    showClassified(document.querySelectorAll('.toggle-btn')[0]);
+  }, 2000);
+}
+</script>
+</body>
+</html>

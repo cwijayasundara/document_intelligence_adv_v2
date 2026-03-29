@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E8-S4: Summary Page with Regenerate</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-100:#dbeafe;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;--success-600:#16a34a;
+    --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+    --error-50:#fef2f2;--error-500:#ef4444;--error-600:#dc2626;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+  .header{height:56px;background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:50;box-shadow:var(--shadow-sm);}
+  .header-brand{display:flex;align-items:center;gap:10px;}
+  .header-brand svg{width:28px;height:28px;color:var(--primary-500);}
+  .header-brand h1{font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--gray-900);}
+  .sidebar{width:240px;background:#fff;border-right:1px solid var(--gray-200);position:fixed;top:56px;left:0;bottom:0;padding:16px 12px;}
+  .sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);padding:0 8px;margin-bottom:4px;margin-top:16px;}
+  .sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--gray-600);text-decoration:none;cursor:pointer;}
+  .sidebar-link:hover{background:var(--gray-100);}
+  .sidebar-link.active{background:var(--primary-50);color:var(--primary-500);font-weight:600;}
+  .sidebar-link svg{width:18px;height:18px;color:var(--gray-400);}
+  .sidebar-link.active svg{color:var(--primary-500);}
+
+  .main{margin-left:240px;margin-top:56px;padding:32px;max-width:860px;}
+  .breadcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-400);margin-bottom:16px;}
+  .breadcrumb a{color:var(--primary-500);text-decoration:none;}
+  .breadcrumb a:hover{text-decoration:underline;}
+  .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .page-title{font-family:var(--font-heading);font-size:24px;font-weight:700;color:var(--gray-900);}
+  .page-subtitle{font-size:14px;color:var(--gray-500);margin-bottom:24px;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-md);font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:var(--font-sans);transition:all .15s;}
+  .btn-primary{background:var(--primary-500);color:#fff;}
+  .btn-primary:hover{background:var(--primary-600);}
+  .btn-outline{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);}
+  .btn-outline:hover{background:var(--gray-50);}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn svg{width:16px;height:16px;}
+
+  .summary-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);padding:28px;margin-bottom:24px;}
+  .summary-card h3{font-family:var(--font-heading);font-size:16px;font-weight:600;color:var(--gray-700);margin-bottom:16px;}
+  .summary-text{font-size:15px;line-height:1.8;color:var(--gray-700);}
+  .summary-text p{margin-bottom:14px;}
+
+  .topics-section{margin-top:24px;padding-top:20px;border-top:1px solid var(--gray-200);}
+  .topics-section h4{font-size:13px;font-weight:600;color:var(--gray-500);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+  .topic-chips{display:flex;gap:8px;flex-wrap:wrap;}
+  .topic-chip{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:9999px;font-size:13px;font-weight:500;background:var(--primary-50);color:var(--primary-600);border:1px solid var(--primary-100);}
+  .topic-chip svg{width:14px;height:14px;}
+
+  .btn-row{display:flex;gap:8px;margin-bottom:16px;}
+
+  .action-bar{display:flex;align-items:center;justify-content:space-between;margin-top:24px;}
+
+  /* Empty/loading state */
+  .empty-state{text-align:center;padding:48px 32px;}
+  .empty-state svg{width:56px;height:56px;color:var(--gray-300);margin-bottom:16px;}
+  .empty-state h3{font-family:var(--font-heading);font-size:18px;font-weight:600;color:var(--gray-700);margin-bottom:8px;}
+  .empty-state p{font-size:14px;color:var(--gray-400);margin-bottom:24px;}
+
+  .loading{display:none;text-align:center;padding:32px;}
+  .spinner{width:32px;height:32px;border:3px solid var(--gray-200);border-top-color:var(--primary-500);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 12px;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+
+  .view-toggle{margin-bottom:24px;}
+  .toggle-btn{padding:6px 14px;border-radius:var(--radius-md);font-size:13px;font-weight:500;border:1px solid var(--gray-300);background:#fff;color:var(--gray-500);cursor:pointer;margin-right:6px;}
+  .toggle-btn.active{background:var(--primary-500);color:#fff;border-color:var(--primary-500);}
+
+  @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+</header>
+
+<nav class="sidebar">
+  <div class="sidebar-section-label">Main</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>Dashboard</a>
+  <div class="sidebar-section-label">Document Flow</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Parse &amp; Edit</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>Classify</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm4 2h8m-8 4h5"/></svg>Extract</a>
+  <a class="sidebar-link active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>Summary</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>Chat</a>
+</nav>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="E7-S2.html">Dashboard</a><span>/</span>
+    <span>Horizon_Equity_Partners_IV_LPA.pdf</span><span>/</span>
+    <span>Summary</span>
+  </div>
+
+  <h2 class="page-title">Document Summary</h2>
+  <p class="page-subtitle">AI-generated summary and key topics for this document.</p>
+
+  <div class="view-toggle">
+    <button class="toggle-btn active" onclick="showView('summary',this)">Summary View</button>
+    <button class="toggle-btn" onclick="showView('empty',this)">Pre-Summary State</button>
+  </div>
+
+  <!-- Summary View -->
+  <div id="summaryView">
+    <div class="btn-row">
+      <!-- POST /api/v1/summarize/:id -->
+      <button class="btn btn-outline" onclick="simulateRegenerate()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Regenerate Summary
+      </button>
+    </div>
+
+    <!-- GET /api/v1/summarize/:id -->
+    <div class="summary-card" id="summaryCard">
+      <h3>Summary</h3>
+      <div class="summary-text">
+        <p>This Limited Partnership Agreement establishes <strong>Horizon Equity Partners IV, L.P.</strong>, a Delaware limited partnership managed by Horizon Equity GP IV, LLC. The fund targets equity and equity-related investments in middle-market companies across North America, with sector focus on healthcare services, technology-enabled business services, and industrial technology.</p>
+        <p>The fund has a maximum aggregate capital commitment of <strong>$850 million</strong>, with a total term of <strong>10 years</strong> from the Initial Closing Date, subject to up to two one-year extensions approved by the Advisory Committee. The five-year Investment Period begins at closing, after which the General Partner will focus on harvesting remaining portfolio investments.</p>
+        <p>Fee terms include a <strong>2.00% per annum management fee</strong> on committed capital during the Investment Period, stepping down to 1.50% on invested capital post-Investment Period. The General Partner receives a <strong>20% carried interest</strong> on net profits exceeding an <strong>8% preferred return</strong> hurdle (compounded annually). The GP has committed to contribute 2% of aggregate commitments to the fund.</p>
+        <p>The agreement includes standard LP protections including Advisory Committee oversight for fund extensions and capital commitment increases, as well as defined distribution waterfall provisions consistent with institutional private equity fund structures.</p>
+      </div>
+
+      <div class="topics-section">
+        <h4>Key Topics</h4>
+        <div class="topic-chips">
+          <span class="topic-chip">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+            Fund Structure
+          </span>
+          <span class="topic-chip">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Fee Terms
+          </span>
+          <span class="topic-chip">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+            Governance
+          </span>
+          <span class="topic-chip">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+            Duration &amp; Extensions
+          </span>
+          <span class="topic-chip">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+            Investment Strategy
+          </span>
+          <span class="topic-chip">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z"/></svg>
+            Capital Commitments
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Loading state for regeneration -->
+    <div class="loading" id="loadingState">
+      <div class="spinner"></div>
+      <div style="font-size:14px;color:var(--gray-500);">Regenerating summary...</div>
+    </div>
+
+    <div class="action-bar">
+      <button class="btn btn-outline" onclick="window.location.href='E8-S3.html'">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Back to Extraction
+      </button>
+      <!-- POST /api/v1/ingest/:id then navigate to chat -->
+      <button class="btn btn-primary" onclick="window.location.href='E8-S5.html'">
+        Proceed to Ingest &amp; Chat
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- Pre-summary empty state -->
+  <div id="emptyView" style="display:none;">
+    <div class="summary-card">
+      <div class="empty-state">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        <h3>No Summary Generated</h3>
+        <p>Generate an AI-powered summary of this document's key terms and provisions.</p>
+        <!-- POST /api/v1/summarize/:id -->
+        <button class="btn btn-primary" onclick="simulateGenerate()">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          Generate Summary
+        </button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+function showView(view, btn) {
+  document.querySelectorAll('.toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  document.getElementById('summaryView').style.display = view === 'summary' ? 'block' : 'none';
+  document.getElementById('emptyView').style.display = view === 'empty' ? 'block' : 'none';
+}
+
+function simulateRegenerate() {
+  document.getElementById('summaryCard').style.display = 'none';
+  document.getElementById('loadingState').style.display = 'block';
+  setTimeout(function(){
+    document.getElementById('loadingState').style.display = 'none';
+    document.getElementById('summaryCard').style.display = 'block';
+  }, 2000);
+}
+
+function simulateGenerate() {
+  showView('summary', document.querySelectorAll('.toggle-btn')[0]);
+}
+</script>
+</body>
+</html>

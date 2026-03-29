@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E8-S3: Extraction Results 3-Column View</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-100:#dbeafe;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;--success-600:#16a34a;
+    --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+    --error-50:#fef2f2;--error-500:#ef4444;--error-600:#dc2626;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+  .header{height:56px;background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:50;box-shadow:var(--shadow-sm);}
+  .header-brand{display:flex;align-items:center;gap:10px;}
+  .header-brand svg{width:28px;height:28px;color:var(--primary-500);}
+  .header-brand h1{font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--gray-900);}
+  .sidebar{width:240px;background:#fff;border-right:1px solid var(--gray-200);position:fixed;top:56px;left:0;bottom:0;padding:16px 12px;}
+  .sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);padding:0 8px;margin-bottom:4px;margin-top:16px;}
+  .sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--gray-600);text-decoration:none;cursor:pointer;}
+  .sidebar-link:hover{background:var(--gray-100);}
+  .sidebar-link.active{background:var(--primary-50);color:var(--primary-500);font-weight:600;}
+  .sidebar-link svg{width:18px;height:18px;color:var(--gray-400);}
+  .sidebar-link.active svg{color:var(--primary-500);}
+
+  .main{margin-left:240px;margin-top:56px;padding:32px;}
+  .page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+  .page-title{font-family:var(--font-heading);font-size:24px;font-weight:700;color:var(--gray-900);}
+  .breadcrumb{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--gray-400);margin-bottom:16px;}
+  .breadcrumb a{color:var(--primary-500);text-decoration:none;}
+  .breadcrumb a:hover{text-decoration:underline;}
+  .page-subtitle{font-size:14px;color:var(--gray-500);margin-bottom:24px;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-md);font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:var(--font-sans);transition:all .15s;}
+  .btn-primary{background:var(--primary-500);color:#fff;}
+  .btn-primary:hover{background:var(--primary-600);}
+  .btn-outline{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);}
+  .btn-outline:hover{background:var(--gray-50);}
+  .btn-sm{padding:4px 10px;font-size:12px;}
+  .btn:disabled{opacity:.5;cursor:not-allowed;}
+  .btn svg{width:16px;height:16px;}
+
+  /* Extraction table */
+  .extract-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);overflow:hidden;}
+  .extract-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--gray-200);}
+  .extract-header h3{font-size:16px;font-weight:600;}
+  .extract-stats{display:flex;gap:16px;font-size:13px;}
+  .extract-stats span{display:flex;align-items:center;gap:4px;}
+  .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .dot-green{background:var(--success-500);}
+  .dot-yellow{background:var(--warning-500);}
+  .dot-red{background:var(--error-500);}
+
+  table{width:100%;border-collapse:collapse;}
+  thead th{text-align:left;padding:12px 16px;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);background:var(--gray-50);border-bottom:1px solid var(--gray-200);}
+  tbody td{padding:14px 16px;font-size:14px;border-bottom:1px solid var(--gray-100);vertical-align:top;}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr.row-warning{background:var(--warning-50);}
+
+  .field-cell{display:flex;flex-direction:column;gap:6px;}
+  .field-name{font-weight:600;color:var(--gray-800);}
+  .badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:600;width:fit-content;}
+  .badge-high{background:var(--success-50);color:var(--success-600);}
+  .badge-medium{background:var(--warning-50);color:var(--warning-600);}
+  .badge-low{background:var(--error-50);color:var(--error-600);}
+  .review-label{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--error-500);}
+  .review-label svg{width:14px;height:14px;}
+  .reviewed-label{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--success-600);}
+
+  .value-cell{font-weight:500;color:var(--gray-800);}
+  .source-cell{font-size:13px;color:var(--gray-500);font-style:italic;line-height:1.5;}
+
+  /* Inline edit */
+  .edit-input{width:100%;padding:6px 10px;border:1px solid var(--primary-500);border-radius:6px;font-size:14px;font-family:var(--font-sans);outline:none;box-shadow:0 0 0 3px rgba(12,140,233,.1);}
+  .edit-actions{display:flex;gap:4px;margin-top:6px;}
+
+  /* Tooltip */
+  .tooltip-trigger{position:relative;cursor:help;}
+  .tooltip-trigger .tooltip{display:none;position:absolute;bottom:100%;left:50%;transform:translateX(-50%);background:var(--gray-900);color:#fff;padding:8px 12px;border-radius:6px;font-size:12px;white-space:nowrap;z-index:10;margin-bottom:6px;}
+  .tooltip-trigger:hover .tooltip{display:block;}
+
+  .action-bar{display:flex;align-items:center;justify-content:space-between;margin-top:24px;}
+  .gate-message{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--warning-600);background:var(--warning-50);padding:8px 14px;border-radius:var(--radius-md);border:1px solid var(--warning-500);}
+  .gate-message svg{width:16px;height:16px;flex-shrink:0;}
+
+  @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;padding:16px;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+</header>
+
+<nav class="sidebar">
+  <div class="sidebar-section-label">Main</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>Dashboard</a>
+  <div class="sidebar-section-label">Document Flow</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>Parse &amp; Edit</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/></svg>Classify</a>
+  <a class="sidebar-link active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2 1 3 3 3h10c2 0 3-1 3-3V7c0-2-1-3-3-3H7C5 4 4 5 4 7zm4 2h8m-8 4h5"/></svg>Extract</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>Summary</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>Chat</a>
+</nav>
+
+<main class="main">
+  <div class="breadcrumb">
+    <a href="E7-S2.html">Dashboard</a><span>/</span>
+    <span>Horizon_Equity_Partners_IV_LPA.pdf</span><span>/</span>
+    <span>Extraction</span>
+  </div>
+
+  <div class="page-header">
+    <h2 class="page-title">Extraction Results</h2>
+    <!-- POST /api/v1/extract/:id -->
+    <button class="btn btn-outline" onclick="alert('POST /api/v1/extract/:id -- triggers extraction')">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Re-Extract
+    </button>
+  </div>
+  <p class="page-subtitle">Review extracted fields. Low-confidence fields must be reviewed before proceeding.</p>
+
+  <!-- GET /api/v1/extract/:id/results -->
+  <div class="extract-card">
+    <div class="extract-header">
+      <h3>Horizon Equity Partners IV LPA</h3>
+      <div class="extract-stats">
+        <span><div class="dot dot-green"></div> 3 High</span>
+        <span><div class="dot dot-yellow"></div> 2 Medium</span>
+        <span><div class="dot dot-red"></div> 2 Low</span>
+      </div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th style="width:25%;">Field Name</th>
+          <th style="width:30%;">Extracted Value</th>
+          <th style="width:45%;">Source Text</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- HIGH confidence rows -->
+        <tr>
+          <td>
+            <div class="field-cell">
+              <span class="field-name">fund_name</span>
+              <span class="badge badge-high tooltip-trigger">
+                High
+                <span class="tooltip">Exact match found in document header</span>
+              </span>
+            </div>
+          </td>
+          <td class="value-cell">Horizon Equity Partners IV, L.P.</td>
+          <td class="source-cell">"This Limited Partnership Agreement...is entered into...by and among Horizon Equity GP IV, LLC...The name of the Partnership shall be 'Horizon Equity Partners IV, L.P.'"</td>
+        </tr>
+        <tr>
+          <td>
+            <div class="field-cell">
+              <span class="field-name">management_fee</span>
+              <span class="badge badge-high tooltip-trigger">
+                High
+                <span class="tooltip">Clearly stated in fee schedule table</span>
+              </span>
+            </div>
+          </td>
+          <td class="value-cell">2.00% per annum</td>
+          <td class="source-cell">"Management Fee (Investment Period): 2.00% per annum on Committed Capital"</td>
+        </tr>
+        <tr>
+          <td>
+            <div class="field-cell">
+              <span class="field-name">fund_size</span>
+              <span class="badge badge-high tooltip-trigger">
+                High
+                <span class="tooltip">Explicit dollar amount in Article 3</span>
+              </span>
+            </div>
+          </td>
+          <td class="value-cell">$850,000,000</td>
+          <td class="source-cell">"The aggregate Capital Commitments to the Partnership shall not exceed $850,000,000 (Eight Hundred Fifty Million Dollars)"</td>
+        </tr>
+
+        <!-- MEDIUM confidence rows -->
+        <tr>
+          <td>
+            <div class="field-cell">
+              <span class="field-name">carried_interest</span>
+              <span class="badge badge-medium tooltip-trigger">
+                Medium
+                <span class="tooltip">Value found but multiple references with slightly different context</span>
+              </span>
+            </div>
+          </td>
+          <td class="value-cell">20%</td>
+          <td class="source-cell">"Carried Interest: 20% of Net Profits above Preferred Return" -- also referenced in Section 7.2 distribution waterfall</td>
+        </tr>
+        <tr>
+          <td>
+            <div class="field-cell">
+              <span class="field-name">preferred_return</span>
+              <span class="badge badge-medium tooltip-trigger">
+                Medium
+                <span class="tooltip">Compounding basis ambiguous -- annual vs. quarterly not explicitly stated everywhere</span>
+              </span>
+            </div>
+          </td>
+          <td class="value-cell">8% per annum</td>
+          <td class="source-cell">"Preferred Return: 8% per annum, Compounded Annually" -- Section 4 table; also mentioned as "8% hurdle" in distribution waterfall provisions</td>
+        </tr>
+
+        <!-- LOW confidence rows -->
+        <tr class="row-warning">
+          <td>
+            <div class="field-cell">
+              <span class="field-name">fund_term</span>
+              <span class="badge badge-low tooltip-trigger">
+                Low
+                <span class="tooltip">Multiple extension provisions create ambiguity in effective term length</span>
+              </span>
+              <span class="review-label" id="review-fund_term">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Requires Review
+              </span>
+            </div>
+          </td>
+          <td>
+            <div id="value-fund_term">
+              <span class="value-cell">10 years</span>
+              <div style="margin-top:6px;">
+                <!-- PUT /api/v1/extract/:id/results -->
+                <button class="btn btn-sm btn-outline" onclick="startEdit('fund_term')">Edit</button>
+              </div>
+            </div>
+            <div id="edit-fund_term" style="display:none;">
+              <input class="edit-input" id="input-fund_term" type="text" value="10 years (with up to two 1-year extensions)">
+              <div class="edit-actions">
+                <button class="btn btn-sm btn-primary" onclick="saveEdit('fund_term')">Save</button>
+                <button class="btn btn-sm btn-outline" onclick="cancelEdit('fund_term')">Cancel</button>
+              </div>
+            </div>
+          </td>
+          <td class="source-cell">"The Partnership shall have a term of ten (10) years from the Initial Closing Date, subject to up to two (2) one-year extensions at the discretion of the General Partner"</td>
+        </tr>
+        <tr class="row-warning">
+          <td>
+            <div class="field-cell">
+              <span class="field-name">gp_commitment</span>
+              <span class="badge badge-low tooltip-trigger">
+                Low
+                <span class="tooltip">Percentage stated but dollar equivalent not calculable from document alone</span>
+              </span>
+              <span class="review-label" id="review-gp_commitment">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                Requires Review
+              </span>
+            </div>
+          </td>
+          <td>
+            <div id="value-gp_commitment">
+              <span class="value-cell">2% of aggregate commitments</span>
+              <div style="margin-top:6px;">
+                <button class="btn btn-sm btn-outline" onclick="startEdit('gp_commitment')">Edit</button>
+              </div>
+            </div>
+            <div id="edit-gp_commitment" style="display:none;">
+              <input class="edit-input" id="input-gp_commitment" type="text" value="2% of aggregate commitments (~$17M)">
+              <div class="edit-actions">
+                <button class="btn btn-sm btn-primary" onclick="saveEdit('gp_commitment')">Save</button>
+                <button class="btn btn-sm btn-outline" onclick="cancelEdit('gp_commitment')">Cancel</button>
+              </div>
+            </div>
+          </td>
+          <td class="source-cell">"GP Commitment: 2% of aggregate commitments" -- Article 4 table; no explicit dollar amount provided</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="action-bar">
+    <button class="btn btn-outline" onclick="window.location.href='E8-S2.html'">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+      Back to Classify
+    </button>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <div class="gate-message" id="gateMessage">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        Review all flagged fields first (2 remaining)
+      </div>
+      <button class="btn btn-primary" id="proceedBtn" disabled>
+        Save &amp; Proceed to Summary
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </button>
+    </div>
+  </div>
+</main>
+
+<script>
+var reviewed = { fund_term: false, gp_commitment: false };
+
+function startEdit(field) {
+  document.getElementById('value-' + field).style.display = 'none';
+  document.getElementById('edit-' + field).style.display = 'block';
+  document.getElementById('input-' + field).focus();
+}
+
+function cancelEdit(field) {
+  document.getElementById('value-' + field).style.display = 'block';
+  document.getElementById('edit-' + field).style.display = 'none';
+}
+
+function saveEdit(field) {
+  var newVal = document.getElementById('input-' + field).value;
+  var valueDiv = document.getElementById('value-' + field);
+  var valSpan = valueDiv.querySelector('.value-cell');
+  valSpan.textContent = newVal;
+
+  // Remove Edit button, show reviewed label
+  var editBtn = valueDiv.querySelector('.btn');
+  if (editBtn) editBtn.remove();
+
+  document.getElementById('edit-' + field).style.display = 'none';
+  valueDiv.style.display = 'block';
+
+  // Mark as reviewed
+  reviewed[field] = true;
+  var reviewLabel = document.getElementById('review-' + field);
+  reviewLabel.className = 'reviewed-label';
+  reviewLabel.textContent = 'Reviewed';
+
+  checkGate();
+}
+
+function checkGate() {
+  var remaining = 0;
+  for (var k in reviewed) { if (!reviewed[k]) remaining++; }
+  var gateMsg = document.getElementById('gateMessage');
+  var proceedBtn = document.getElementById('proceedBtn');
+  if (remaining === 0) {
+    gateMsg.style.display = 'none';
+    proceedBtn.disabled = false;
+  } else {
+    gateMsg.style.display = 'flex';
+    gateMsg.querySelector('svg').nextSibling.textContent = 'Review all flagged fields first (' + remaining + ' remaining)';
+  }
+}
+</script>
+</body>
+</html>

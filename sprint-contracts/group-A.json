@@ -1,0 +1,318 @@
+{
+  "contract_id": "group-A",
+  "group_name": "Foundation Infrastructure",
+  "stories": ["E1-S1", "E1-S2", "E1-S3", "E1-S4"],
+  "acceptance_criteria": [
+    {
+      "id": "AC-E1S1-01",
+      "story": "E1-S1",
+      "criterion": "SQLAlchemy ORM models defined for all 8 core tables: documents, document_categories, extraction_schemas, extraction_fields, extracted_values, document_summaries, bulk_jobs, bulk_job_documents"
+    },
+    {
+      "id": "AC-E1S1-02",
+      "story": "E1-S1",
+      "criterion": "Memory models defined: conversation_summaries, memory_entries"
+    },
+    {
+      "id": "AC-E1S1-03",
+      "story": "E1-S1",
+      "criterion": "DocumentStatus enum includes all 7 states: uploaded, parsed, edited, classified, extracted, summarized, ingested"
+    },
+    {
+      "id": "AC-E1S1-04",
+      "story": "E1-S1",
+      "criterion": "All models use UUID primary keys with server-side defaults"
+    },
+    {
+      "id": "AC-E1S1-05",
+      "story": "E1-S1",
+      "criterion": "All models include created_at and updated_at timestamp columns"
+    },
+    {
+      "id": "AC-E1S1-06",
+      "story": "E1-S1",
+      "criterion": "Foreign key relationships defined: documents<->categories, extraction_schemas<->categories, extraction_fields<->schemas, extracted_values<->documents+fields, document_summaries<->documents, bulk_job_documents<->bulk_jobs+documents"
+    },
+    {
+      "id": "AC-E1S2-01",
+      "story": "E1-S2",
+      "criterion": "config.yml loaded with storage paths (upload_dir, parsed_dir, schemas_dir), chunking parameters (max_tokens, overlap_tokens), bulk concurrency setting, and RAG defaults (default_search_mode, default_alpha, top_k)"
+    },
+    {
+      "id": "AC-E1S2-02",
+      "story": "E1-S2",
+      "criterion": ".env loaded with OPENAI_API_KEY, REDUCTO_API_KEY, DATABASE_URL, WEAVIATE_URL, OPENAI_MODEL"
+    },
+    {
+      "id": "AC-E1S2-03",
+      "story": "E1-S2",
+      "criterion": "Configuration accessible as typed Pydantic settings objects with validation"
+    },
+    {
+      "id": "AC-E1S2-04",
+      "story": "E1-S2",
+      "criterion": "Missing required environment variables raise a clear error message at startup with the variable name"
+    },
+    {
+      "id": "AC-E1S2-05",
+      "story": "E1-S2",
+      "criterion": "Default values provided for non-secret config: upload_dir=\"./data/upload\", parsed_dir=\"./data/parsed\", max_tokens=512, overlap_tokens=100"
+    },
+    {
+      "id": "AC-E1S3-01",
+      "story": "E1-S3",
+      "criterion": "Async SQLAlchemy engine created with asyncpg driver using DATABASE_URL from config"
+    },
+    {
+      "id": "AC-E1S3-02",
+      "story": "E1-S3",
+      "criterion": "Async session factory configured with connection pooling (pool_size=5, max_overflow=10)"
+    },
+    {
+      "id": "AC-E1S3-03",
+      "story": "E1-S3",
+      "criterion": "Alembic configured for async migrations with proper env.py setup"
+    },
+    {
+      "id": "AC-E1S3-04",
+      "story": "E1-S3",
+      "criterion": "Initial migration creates all 10 tables (8 core + 2 memory) matching ORM models"
+    },
+    {
+      "id": "AC-E1S3-05",
+      "story": "E1-S3",
+      "criterion": "alembic upgrade head runs successfully against an empty PostgreSQL 16 database"
+    },
+    {
+      "id": "AC-E1S4-01",
+      "story": "E1-S4",
+      "criterion": "FastAPI app created via factory function with CORS middleware allowing localhost origins"
+    },
+    {
+      "id": "AC-E1S4-02",
+      "story": "E1-S4",
+      "criterion": "GET /api/v1/health returns 200 with {\"status\": \"healthy\"} when database is reachable"
+    },
+    {
+      "id": "AC-E1S4-03",
+      "story": "E1-S4",
+      "criterion": "Health endpoint returns 503 with {\"status\": \"unhealthy\", \"detail\": \"...\"} when database is unreachable"
+    },
+    {
+      "id": "AC-E1S4-04",
+      "story": "E1-S4",
+      "criterion": "All API routes use /api/v1 prefix"
+    },
+    {
+      "id": "AC-E1S4-05",
+      "story": "E1-S4",
+      "criterion": "Lifespan handler initializes database connection pool on startup and closes on shutdown"
+    }
+  ],
+  "api_checks": [
+    {
+      "id": "API-01",
+      "traces_to": "AC-E1S4-02",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "expected_status": 200,
+      "expected_body_contains": {
+        "status": "healthy"
+      },
+      "description": "Health endpoint returns 200 with status healthy when database is reachable"
+    },
+    {
+      "id": "API-02",
+      "traces_to": "AC-E1S4-03",
+      "method": "GET",
+      "path": "/api/v1/health",
+      "expected_status": 503,
+      "expected_body_contains": {
+        "status": "unhealthy"
+      },
+      "condition": "database_unreachable",
+      "description": "Health endpoint returns 503 with status unhealthy and detail field when database is unreachable"
+    },
+    {
+      "id": "API-03",
+      "traces_to": "AC-E1S4-04",
+      "method": "GET",
+      "path": "/health",
+      "expected_status": 404,
+      "description": "Non-prefixed health path returns 404, confirming all routes use /api/v1 prefix"
+    },
+    {
+      "id": "API-04",
+      "traces_to": "AC-E1S4-01",
+      "method": "OPTIONS",
+      "path": "/api/v1/health",
+      "headers": {
+        "Origin": "http://localhost:5173",
+        "Access-Control-Request-Method": "GET"
+      },
+      "expected_status": 200,
+      "expected_headers": {
+        "access-control-allow-origin": "http://localhost:5173"
+      },
+      "description": "CORS preflight returns allow-origin header for localhost origin"
+    }
+  ],
+  "architecture_checks": {
+    "files_must_exist": [
+      "backend/src/db/models.py",
+      "backend/src/db/enums.py",
+      "backend/src/db/__init__.py",
+      "backend/src/config/__init__.py",
+      "backend/src/config/settings.py",
+      "backend/config.yml",
+      "backend/.env.example",
+      "backend/src/db/connection.py",
+      "backend/alembic.ini",
+      "backend/alembic/env.py",
+      "backend/alembic/versions/001_initial_schema.py",
+      "backend/src/api/app.py",
+      "backend/src/api/__init__.py",
+      "backend/src/api/dependencies.py",
+      "backend/src/api/routers/health.py",
+      "backend/src/api/routers/__init__.py",
+      "backend/src/api/schemas/common.py",
+      "backend/src/api/schemas/__init__.py",
+      "backend/src/main.py",
+      "backend/src/__init__.py",
+      "docker-compose.yml"
+    ],
+    "code_inspections": [
+      {
+        "id": "ARCH-01",
+        "traces_to": "AC-E1S1-01",
+        "file": "backend/src/db/models.py",
+        "check": "File defines classes for all 8 core tables: documents, document_categories, extraction_schemas, extraction_fields, extracted_values, document_summaries, bulk_jobs, bulk_job_documents"
+      },
+      {
+        "id": "ARCH-02",
+        "traces_to": "AC-E1S1-02",
+        "file": "backend/src/db/models.py",
+        "check": "File defines memory models: conversation_summaries, memory_entries"
+      },
+      {
+        "id": "ARCH-03",
+        "traces_to": "AC-E1S1-03",
+        "file": "backend/src/db/enums.py",
+        "check": "DocumentStatus enum includes all 7 states: uploaded, parsed, edited, classified, extracted, summarized, ingested"
+      },
+      {
+        "id": "ARCH-04",
+        "traces_to": "AC-E1S1-04",
+        "file": "backend/src/db/models.py",
+        "check": "All model primary keys are UUID type with server_default=gen_random_uuid() or uuid4"
+      },
+      {
+        "id": "ARCH-05",
+        "traces_to": "AC-E1S1-05",
+        "file": "backend/src/db/models.py",
+        "check": "All models include created_at and updated_at columns with appropriate defaults"
+      },
+      {
+        "id": "ARCH-06",
+        "traces_to": "AC-E1S1-06",
+        "file": "backend/src/db/models.py",
+        "check": "ForeignKey constraints defined for: documents->categories, extraction_schemas->categories, extraction_fields->schemas, extracted_values->documents+fields, document_summaries->documents, bulk_job_documents->bulk_jobs+documents"
+      },
+      {
+        "id": "ARCH-07",
+        "traces_to": "AC-E1S2-01",
+        "file": "backend/config.yml",
+        "check": "YAML file contains keys for storage.upload_dir, storage.parsed_dir, storage.schemas_dir, chunking.max_tokens, chunking.overlap_tokens, bulk.concurrency, rag.default_search_mode, rag.default_alpha, rag.top_k"
+      },
+      {
+        "id": "ARCH-08",
+        "traces_to": "AC-E1S2-02",
+        "file": "backend/.env.example",
+        "check": "Example env file lists OPENAI_API_KEY, REDUCTO_API_KEY, DATABASE_URL, WEAVIATE_URL, OPENAI_MODEL"
+      },
+      {
+        "id": "ARCH-09",
+        "traces_to": "AC-E1S2-03",
+        "file": "backend/src/config/settings.py",
+        "check": "Settings classes inherit from pydantic BaseSettings or pydantic_settings BaseSettings with typed fields"
+      },
+      {
+        "id": "ARCH-10",
+        "traces_to": "AC-E1S2-04",
+        "file": "backend/src/config/settings.py",
+        "check": "Required env vars (secrets) have no default value so Pydantic raises ValidationError with field name on missing"
+      },
+      {
+        "id": "ARCH-11",
+        "traces_to": "AC-E1S2-05",
+        "file": "backend/src/config/settings.py",
+        "check": "Default values set: upload_dir='./data/upload', parsed_dir='./data/parsed', max_tokens=512, overlap_tokens=100"
+      },
+      {
+        "id": "ARCH-12",
+        "traces_to": "AC-E1S3-01",
+        "file": "backend/src/db/connection.py",
+        "check": "create_async_engine called with postgresql+asyncpg URL from config"
+      },
+      {
+        "id": "ARCH-13",
+        "traces_to": "AC-E1S3-02",
+        "file": "backend/src/db/connection.py",
+        "check": "async_sessionmaker or AsyncSession factory created with pool_size=5 and max_overflow=10"
+      },
+      {
+        "id": "ARCH-14",
+        "traces_to": "AC-E1S3-03",
+        "file": "backend/alembic/env.py",
+        "check": "env.py uses run_async_migrations or connectable.run_sync pattern for async Alembic"
+      },
+      {
+        "id": "ARCH-15",
+        "traces_to": "AC-E1S3-04",
+        "file": "backend/alembic/versions/001_initial_schema.py",
+        "check": "Migration upgrade() creates all 10 tables: documents, document_categories, extraction_schemas, extraction_fields, extracted_values, document_summaries, bulk_jobs, bulk_job_documents, conversation_summaries, memory_entries"
+      },
+      {
+        "id": "ARCH-16",
+        "traces_to": "AC-E1S4-01",
+        "file": "backend/src/api/app.py",
+        "check": "App factory function adds CORSMiddleware with allowed origins including localhost"
+      },
+      {
+        "id": "ARCH-17",
+        "traces_to": "AC-E1S4-04",
+        "file": "backend/src/api/app.py",
+        "check": "Router included with prefix='/api/v1' or app mounted at /api/v1"
+      },
+      {
+        "id": "ARCH-18",
+        "traces_to": "AC-E1S4-05",
+        "file": "backend/src/api/app.py",
+        "check": "Lifespan context manager or startup/shutdown events initialize and dispose the database engine"
+      }
+    ]
+  },
+  "features": [
+    "F001",
+    "F002",
+    "F003",
+    "F004",
+    "F005",
+    "F006",
+    "F007",
+    "F008",
+    "F009",
+    "F010",
+    "F011",
+    "F012",
+    "F013",
+    "F014",
+    "F015",
+    "F016",
+    "F017",
+    "F018"
+  ],
+  "dependencies": [],
+  "estimated_complexity": "medium",
+  "approved": true
+}

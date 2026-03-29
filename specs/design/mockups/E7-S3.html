@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E7-S3: Upload Page with Drag-Drop</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-100:#dbeafe;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;--success-600:#16a34a;
+    --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+    --error-50:#fef2f2;--error-500:#ef4444;--error-600:#dc2626;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;--radius-xl:16px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+  .header{height:56px;background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:50;box-shadow:var(--shadow-sm);}
+  .header-brand{display:flex;align-items:center;gap:10px;}
+  .header-brand svg{width:28px;height:28px;color:var(--primary-500);}
+  .header-brand h1{font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--gray-900);}
+  .sidebar{width:240px;background:#fff;border-right:1px solid var(--gray-200);position:fixed;top:56px;left:0;bottom:0;padding:16px 12px;}
+  .sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);padding:0 8px;margin-bottom:4px;margin-top:16px;}
+  .sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--gray-600);text-decoration:none;cursor:pointer;}
+  .sidebar-link:hover{background:var(--gray-100);}
+  .sidebar-link.active{background:var(--primary-50);color:var(--primary-500);font-weight:600;}
+  .sidebar-link svg{width:18px;height:18px;color:var(--gray-400);}
+  .sidebar-link.active svg{color:var(--primary-500);}
+
+  .main{margin-left:240px;margin-top:56px;padding:32px;max-width:900px;}
+  .page-title{font-family:var(--font-heading);font-size:24px;font-weight:700;color:var(--gray-900);margin-bottom:8px;}
+  .page-subtitle{font-size:14px;color:var(--gray-500);margin-bottom:32px;}
+
+  /* Dropzone */
+  .dropzone{border:2px dashed var(--gray-300);border-radius:var(--radius-xl);padding:48px 32px;text-align:center;cursor:pointer;transition:all .2s;background:#fff;}
+  .dropzone:hover,.dropzone.drag-over{border-color:var(--primary-500);background:var(--primary-50);}
+  .dropzone svg{width:48px;height:48px;color:var(--gray-300);margin:0 auto 16px;}
+  .dropzone:hover svg,.dropzone.drag-over svg{color:var(--primary-500);}
+  .dropzone h3{font-family:var(--font-heading);font-size:18px;font-weight:600;color:var(--gray-700);margin-bottom:8px;}
+  .dropzone p{font-size:14px;color:var(--gray-400);margin-bottom:16px;}
+  .dropzone .browse-btn{display:inline-flex;padding:8px 20px;background:var(--primary-500);color:#fff;border-radius:var(--radius-md);font-weight:600;font-size:14px;transition:background .15s;}
+  .dropzone:hover .browse-btn{background:var(--primary-600);}
+
+  /* File type icons */
+  .file-types{display:flex;gap:16px;justify-content:center;margin-top:20px;flex-wrap:wrap;}
+  .file-type-item{display:flex;flex-direction:column;align-items:center;gap:4px;}
+  .file-type-icon{width:40px;height:48px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;}
+  .file-type-icon.pdf{background:#ef4444;}
+  .file-type-icon.docx{background:#0c8ce9;}
+  .file-type-icon.xlsx{background:#22c55e;}
+  .file-type-icon.png{background:#8b5cf6;}
+  .file-type-icon.jpg{background:#f59e0b;}
+  .file-type-icon.tiff{background:#6b7280;}
+  .file-type-label{font-size:11px;color:var(--gray-400);}
+
+  /* Upload progress area */
+  .upload-area{margin-top:24px;}
+  .upload-item{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:16px;margin-bottom:12px;box-shadow:var(--shadow-sm);}
+  .upload-item-header{display:flex;align-items:center;gap:12px;margin-bottom:10px;}
+  .upload-item-icon{width:36px;height:36px;border-radius:var(--radius-md);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0;}
+  .upload-item-info{flex:1;min-width:0;}
+  .upload-item-name{font-weight:600;font-size:14px;color:var(--gray-800);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .upload-item-meta{font-size:12px;color:var(--gray-400);}
+  .upload-item-status{font-size:12px;font-weight:600;}
+  .progress-bar{height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden;}
+  .progress-fill{height:100%;border-radius:3px;transition:width .3s ease;}
+  .progress-fill.uploading{background:var(--primary-500);}
+  .progress-fill.complete{background:var(--success-500);}
+  .progress-fill.error{background:var(--error-500);}
+
+  /* Duplicate notification */
+  .notification{display:none;align-items:center;gap:12px;padding:12px 16px;border-radius:var(--radius-md);font-size:14px;margin-top:16px;}
+  .notification.warning{background:var(--warning-50);border:1px solid var(--warning-500);color:var(--warning-600);display:flex;}
+  .notification svg{width:20px;height:20px;flex-shrink:0;}
+  .notification a{color:var(--primary-500);font-weight:600;text-decoration:none;}
+  .notification a:hover{text-decoration:underline;}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-md);font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:var(--font-sans);}
+  .btn-outline{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);}
+  .view-toggle{margin-bottom:24px;}
+  .toggle-btn{padding:6px 14px;border-radius:var(--radius-md);font-size:13px;font-weight:500;border:1px solid var(--gray-300);background:#fff;color:var(--gray-500);cursor:pointer;margin-right:6px;}
+  .toggle-btn.active{background:var(--primary-500);color:#fff;border-color:var(--primary-500);}
+
+  @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+</header>
+
+<nav class="sidebar">
+  <div class="sidebar-section-label">Main</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>Dashboard</a>
+  <a class="sidebar-link active"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Upload</a>
+  <div class="sidebar-section-label">Configuration</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>Categories</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Extraction Fields</a>
+  <div class="sidebar-section-label">Processing</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>Bulk Processing</a>
+</nav>
+
+<main class="main">
+  <h2 class="page-title">Upload Document</h2>
+  <p class="page-subtitle">Drag and drop files or browse to upload. Supported formats: PDF, DOCX, XLSX, PNG, JPG, TIFF.</p>
+
+  <!-- View Toggle -->
+  <div class="view-toggle">
+    <button class="toggle-btn active" onclick="showState('idle',this)">Idle State</button>
+    <button class="toggle-btn" onclick="showState('uploading',this)">Uploading State</button>
+    <button class="toggle-btn" onclick="showState('duplicate',this)">Duplicate Detection</button>
+  </div>
+
+  <!-- POST /api/v1/documents/upload -->
+
+  <!-- Dropzone -->
+  <div class="dropzone" id="dropzone"
+    ondragover="event.preventDefault();this.classList.add('drag-over')"
+    ondragleave="this.classList.remove('drag-over')"
+    ondrop="event.preventDefault();this.classList.remove('drag-over');simulateUpload();"
+    onclick="simulateUpload()">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>
+    <h3>Drop files here to upload</h3>
+    <p>or click to browse your files</p>
+    <span class="browse-btn">Browse Files</span>
+    <div class="file-types">
+      <div class="file-type-item"><div class="file-type-icon pdf">PDF</div><div class="file-type-label">.pdf</div></div>
+      <div class="file-type-item"><div class="file-type-icon docx">DOC</div><div class="file-type-label">.docx</div></div>
+      <div class="file-type-item"><div class="file-type-icon xlsx">XLS</div><div class="file-type-label">.xlsx</div></div>
+      <div class="file-type-item"><div class="file-type-icon png">PNG</div><div class="file-type-label">.png</div></div>
+      <div class="file-type-item"><div class="file-type-icon jpg">JPG</div><div class="file-type-label">.jpg</div></div>
+      <div class="file-type-item"><div class="file-type-icon tiff">TIF</div><div class="file-type-label">.tiff</div></div>
+    </div>
+  </div>
+
+  <!-- Upload progress -->
+  <div class="upload-area" id="uploadArea" style="display:none;">
+    <div class="upload-item" id="uploadItem1">
+      <div class="upload-item-header">
+        <div class="upload-item-icon" style="background:#ef4444;">PDF</div>
+        <div class="upload-item-info">
+          <div class="upload-item-name">Horizon_Equity_Partners_IV_LPA.pdf</div>
+          <div class="upload-item-meta">2.4 MB</div>
+        </div>
+        <div class="upload-item-status" id="status1" style="color:var(--primary-500);">Uploading... 67%</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill uploading" id="progress1" style="width:67%"></div></div>
+    </div>
+    <div class="upload-item" id="uploadItem2">
+      <div class="upload-item-header">
+        <div class="upload-item-icon" style="background:#0c8ce9;">DOC</div>
+        <div class="upload-item-info">
+          <div class="upload-item-name">Atlas_Capital_Sub_Agreement.docx</div>
+          <div class="upload-item-meta">1.8 MB</div>
+        </div>
+        <div class="upload-item-status" id="status2" style="color:var(--success-500);">Complete</div>
+      </div>
+      <div class="progress-bar"><div class="progress-fill complete" id="progress2" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Duplicate notification -->
+  <div class="notification warning" id="duplicateNotif" style="display:none;">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+    <div>
+      <strong>Duplicate detected:</strong> "Horizon_Equity_Partners_IV_LPA.pdf" already exists (SHA-256 match).
+      <a href="E7-S4.html">View existing document</a>
+    </div>
+  </div>
+</main>
+
+<script>
+function showState(state, btn) {
+  document.querySelectorAll('.toggle-btn').forEach(function(b){b.classList.remove('active');});
+  btn.classList.add('active');
+  var uploadArea = document.getElementById('uploadArea');
+  var duplicateNotif = document.getElementById('duplicateNotif');
+  if (state === 'idle') {
+    uploadArea.style.display = 'none';
+    duplicateNotif.style.display = 'none';
+  } else if (state === 'uploading') {
+    uploadArea.style.display = 'block';
+    duplicateNotif.style.display = 'none';
+    animateUpload();
+  } else if (state === 'duplicate') {
+    uploadArea.style.display = 'block';
+    duplicateNotif.style.display = 'flex';
+  }
+}
+
+function simulateUpload() {
+  showState('uploading', document.querySelectorAll('.toggle-btn')[1]);
+  document.querySelectorAll('.toggle-btn').forEach(function(b){b.classList.remove('active');});
+  document.querySelectorAll('.toggle-btn')[1].classList.add('active');
+  animateUpload();
+}
+
+function animateUpload() {
+  var progress = document.getElementById('progress1');
+  var status = document.getElementById('status1');
+  var pct = 0;
+  progress.style.width = '0%';
+  progress.className = 'progress-fill uploading';
+  status.style.color = 'var(--primary-500)';
+  var interval = setInterval(function(){
+    pct += Math.random() * 15;
+    if (pct >= 100) {
+      pct = 100;
+      clearInterval(interval);
+      progress.className = 'progress-fill complete';
+      status.textContent = 'Complete';
+      status.style.color = 'var(--success-500)';
+    } else {
+      status.textContent = 'Uploading... ' + Math.round(pct) + '%';
+    }
+    progress.style.width = pct + '%';
+  }, 300);
+}
+</script>
+</body>
+</html>

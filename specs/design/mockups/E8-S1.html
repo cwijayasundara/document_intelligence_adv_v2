@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>E8-S1: Config Management - Categories and Extraction Fields</title>
+<style>
+  :root {
+    --primary-50:#eff6ff;--primary-100:#dbeafe;--primary-500:#0c8ce9;--primary-600:#0a75c2;
+    --success-50:#f0fdf4;--success-500:#22c55e;--success-600:#16a34a;
+    --warning-50:#fffbeb;--warning-500:#f59e0b;--warning-600:#d97706;
+    --error-50:#fef2f2;--error-500:#ef4444;--error-600:#dc2626;
+    --gray-50:#f9fafb;--gray-100:#f3f4f6;--gray-200:#e5e7eb;--gray-300:#d1d5db;
+    --gray-400:#9ca3af;--gray-500:#6b7280;--gray-600:#4b5563;--gray-700:#374151;
+    --gray-800:#1f2937;--gray-900:#111827;
+    --font-sans:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
+    --font-heading:'Poppins','Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+    --shadow-sm:0 1px 2px 0 rgba(0,0,0,.05);--shadow-md:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);
+    --shadow-lg:0 10px 15px -3px rgba(0,0,0,.1),0 4px 6px -4px rgba(0,0,0,.1);
+    --radius-md:8px;--radius-lg:12px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{font-family:var(--font-sans);background:var(--gray-50);color:var(--gray-800);min-height:100vh;}
+  .header{height:56px;background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 24px;position:fixed;top:0;left:0;right:0;z-index:50;box-shadow:var(--shadow-sm);}
+  .header-brand{display:flex;align-items:center;gap:10px;}
+  .header-brand svg{width:28px;height:28px;color:var(--primary-500);}
+  .header-brand h1{font-family:var(--font-heading);font-size:18px;font-weight:700;color:var(--gray-900);}
+  .sidebar{width:240px;background:#fff;border-right:1px solid var(--gray-200);position:fixed;top:56px;left:0;bottom:0;padding:16px 12px;}
+  .sidebar-section-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:var(--gray-400);padding:0 8px;margin-bottom:4px;margin-top:16px;}
+  .sidebar-link{display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:var(--radius-md);font-size:14px;font-weight:500;color:var(--gray-600);text-decoration:none;cursor:pointer;}
+  .sidebar-link:hover{background:var(--gray-100);}
+  .sidebar-link.active{background:var(--primary-50);color:var(--primary-500);font-weight:600;}
+  .sidebar-link svg{width:18px;height:18px;color:var(--gray-400);}
+  .sidebar-link.active svg{color:var(--primary-500);}
+
+  .main{margin-left:240px;margin-top:56px;padding:32px;}
+  .page-title{font-family:var(--font-heading);font-size:24px;font-weight:700;color:var(--gray-900);margin-bottom:8px;}
+  .page-subtitle{font-size:14px;color:var(--gray-500);margin-bottom:24px;}
+
+  /* Tabs */
+  .tabs{display:flex;border-bottom:2px solid var(--gray-200);margin-bottom:24px;}
+  .tab{padding:10px 20px;font-size:14px;font-weight:600;color:var(--gray-400);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;}
+  .tab:hover{color:var(--gray-600);}
+  .tab.active{color:var(--primary-500);border-bottom-color:var(--primary-500);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* Cards */
+  .card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px;}
+  .card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-sm);transition:box-shadow .15s;}
+  .card:hover{box-shadow:var(--shadow-md);}
+  .card-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px;}
+  .card-title{font-family:var(--font-heading);font-size:16px;font-weight:600;color:var(--gray-900);}
+  .card-desc{font-size:13px;color:var(--gray-500);line-height:1.5;margin-bottom:12px;}
+  .card-criteria{font-size:12px;color:var(--gray-400);background:var(--gray-50);border-radius:6px;padding:10px;line-height:1.5;margin-bottom:12px;}
+  .card-criteria strong{color:var(--gray-600);}
+  .card-meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--gray-400);}
+  .card-actions{display:flex;gap:4px;}
+  .icon-btn{width:32px;height:32px;border:1px solid var(--gray-200);background:#fff;border-radius:6px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--gray-400);transition:all .1s;}
+  .icon-btn:hover{background:var(--gray-50);color:var(--gray-600);border-color:var(--gray-300);}
+  .icon-btn.danger:hover{background:var(--error-50);color:var(--error-500);border-color:var(--error-500);}
+
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--radius-md);font-size:14px;font-weight:600;border:none;cursor:pointer;font-family:var(--font-sans);transition:all .15s;}
+  .btn-primary{background:var(--primary-500);color:#fff;}
+  .btn-primary:hover{background:var(--primary-600);}
+  .btn-outline{background:transparent;color:var(--gray-600);border:1px solid var(--gray-300);}
+  .btn-outline:hover{background:var(--gray-50);}
+  .btn svg{width:16px;height:16px;}
+
+  /* Fields tab */
+  .field-group{margin-bottom:32px;}
+  .field-group-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;}
+  .field-group-title{font-family:var(--font-heading);font-size:16px;font-weight:600;color:var(--gray-800);}
+  .field-list{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius-lg);overflow:hidden;}
+  .field-item{display:grid;grid-template-columns:24px 1fr 100px 80px 60px 80px;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-100);font-size:13px;transition:background .1s;}
+  .field-item:last-child{border-bottom:none;}
+  .field-item:hover{background:var(--gray-50);}
+  .field-item-drag{color:var(--gray-300);cursor:grab;display:flex;align-items:center;}
+  .field-item-name{font-weight:600;color:var(--gray-800);}
+  .field-item-name small{font-weight:400;color:var(--gray-400);display:block;font-size:11px;}
+  .field-item-type{font-size:12px;background:var(--gray-100);color:var(--gray-500);padding:2px 8px;border-radius:4px;text-align:center;}
+  .field-item-required{font-size:12px;text-align:center;}
+  .required-yes{color:var(--primary-500);font-weight:600;}
+  .required-no{color:var(--gray-300);}
+
+  /* Modal */
+  .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:100;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:#fff;border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);width:520px;max-width:90vw;max-height:85vh;overflow-y:auto;}
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--gray-200);}
+  .modal-header h3{font-family:var(--font-heading);font-size:18px;font-weight:600;}
+  .modal-close{width:32px;height:32px;border:none;background:transparent;cursor:pointer;color:var(--gray-400);border-radius:6px;display:flex;align-items:center;justify-content:center;}
+  .modal-close:hover{background:var(--gray-100);color:var(--gray-600);}
+  .modal-body{padding:24px;}
+  .modal-footer{display:flex;justify-content:flex-end;gap:8px;padding:16px 24px;border-top:1px solid var(--gray-200);}
+
+  .form-group{margin-bottom:16px;}
+  .form-label{display:block;font-size:13px;font-weight:600;color:var(--gray-700);margin-bottom:6px;}
+  .form-input,.form-textarea,.form-select{width:100%;padding:8px 12px;border:1px solid var(--gray-300);border-radius:6px;font-size:14px;font-family:var(--font-sans);color:var(--gray-800);transition:border-color .15s;}
+  .form-input:focus,.form-textarea:focus,.form-select:focus{outline:none;border-color:var(--primary-500);box-shadow:0 0 0 3px rgba(12,140,233,.1);}
+  .form-textarea{min-height:80px;resize:vertical;}
+  .form-hint{font-size:11px;color:var(--gray-400);margin-top:4px;}
+  .form-checkbox{display:flex;align-items:center;gap:8px;}
+  .form-checkbox input{width:16px;height:16px;accent-color:var(--primary-500);}
+
+  @media(max-width:768px){.sidebar{display:none;}.main{margin-left:0;}.card-grid{grid-template-columns:1fr;}.field-item{grid-template-columns:1fr;gap:4px;}}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <div class="header-brand">
+    <svg viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 12h8v1H8zm0 3h8v1H8zm0 3h5v1H8z"/></svg>
+    <h1>PE Document Intelligence</h1>
+  </div>
+</header>
+
+<nav class="sidebar">
+  <div class="sidebar-section-label">Main</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1"/></svg>Dashboard</a>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/></svg>Upload</a>
+  <div class="sidebar-section-label">Configuration</div>
+  <a class="sidebar-link active" id="catNav"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A2 2 0 013 12V7a4 4 0 014-4z"/></svg>Categories</a>
+  <a class="sidebar-link" id="fieldNav"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Extraction Fields</a>
+  <div class="sidebar-section-label">Processing</div>
+  <a class="sidebar-link"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>Bulk Processing</a>
+</nav>
+
+<main class="main">
+  <h2 class="page-title">Configuration</h2>
+  <p class="page-subtitle">Manage document categories and extraction field schemas.</p>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('categories',this)">Categories</div>
+    <div class="tab" onclick="switchTab('fields',this)">Extraction Fields</div>
+  </div>
+
+  <!-- Categories Tab -->
+  <!-- GET /api/v1/config/categories -->
+  <div class="tab-panel active" id="panel-categories">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:16px;">
+      <button class="btn btn-primary" onclick="openModal('categoryModal')">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        Add Category
+      </button>
+    </div>
+    <div class="card-grid">
+      <!-- Category: LPA -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Limited Partnership Agreement (LPA)</div>
+          <div class="card-actions">
+            <button class="icon-btn" title="Edit" onclick="openModal('categoryModal')">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button class="icon-btn danger" title="Delete (3 documents assigned)">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="card-desc">Legal agreement establishing the terms of a limited partnership fund, including management fees, carried interest, fund term, and governance provisions.</div>
+        <div class="card-criteria"><strong>Classification Criteria:</strong> Document contains references to "Limited Partnership Agreement", "General Partner", "Limited Partners", management fee schedules, carried interest provisions, capital commitment terms, and fund term specifications.</div>
+        <div class="card-meta">
+          <span>3 documents</span>
+          <span>|</span>
+          <span>12 extraction fields</span>
+        </div>
+      </div>
+
+      <!-- Category: Subscription Agreement -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Subscription Agreement</div>
+          <div class="card-actions">
+            <button class="icon-btn" title="Edit" onclick="openModal('categoryModal')">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button class="icon-btn danger" title="Delete">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="card-desc">Agreement by which a limited partner subscribes to invest in a fund, including investor representations, capital commitment amount, and suitability declarations.</div>
+        <div class="card-criteria"><strong>Classification Criteria:</strong> Document contains "Subscription Agreement", investor representation sections, capital commitment declarations, accredited investor certifications, and anti-money laundering attestations.</div>
+        <div class="card-meta">
+          <span>1 document</span>
+          <span>|</span>
+          <span>8 extraction fields</span>
+        </div>
+      </div>
+
+      <!-- Category: Side Letter -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">Side Letter</div>
+          <div class="card-actions">
+            <button class="icon-btn" title="Edit" onclick="openModal('categoryModal')">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+            </button>
+            <button class="icon-btn danger" title="Delete">
+              <svg width="14" height="14" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </div>
+        <div class="card-desc">Supplemental agreement modifying or amending terms of the LPA for a specific limited partner, including fee discounts, co-investment rights, and reporting requirements.</div>
+        <div class="card-criteria"><strong>Classification Criteria:</strong> Document references "Side Letter", specific LP names, modifications to standard LPA terms, fee reductions, most-favored-nation provisions, and bespoke reporting obligations.</div>
+        <div class="card-meta">
+          <span>0 documents</span>
+          <span>|</span>
+          <span>6 extraction fields</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Extraction Fields Tab -->
+  <!-- GET /api/v1/config/extraction-fields -->
+  <div class="tab-panel" id="panel-fields">
+    <!-- LPA Fields -->
+    <div class="field-group">
+      <div class="field-group-header">
+        <div class="field-group-title">LPA Fields</div>
+        <button class="btn btn-outline" onclick="openModal('fieldModal')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Field
+        </button>
+      </div>
+      <div class="field-list">
+        <div class="field-item" style="background:var(--gray-50);font-weight:600;font-size:12px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;">
+          <div></div><div>Field</div><div>Data Type</div><div>Required</div><div>Order</div><div>Actions</div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">fund_name<small>Fund Name</small></div>
+          <div><span class="field-item-type">string</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">1</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">management_fee<small>Management Fee</small></div>
+          <div><span class="field-item-type">percentage</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">2</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">carried_interest<small>Carried Interest</small></div>
+          <div><span class="field-item-type">percentage</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">3</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">preferred_return<small>Preferred Return</small></div>
+          <div><span class="field-item-type">percentage</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">4</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">fund_term<small>Fund Term</small></div>
+          <div><span class="field-item-type">string</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">5</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">fund_size<small>Fund Size</small></div>
+          <div><span class="field-item-type">currency</span></div>
+          <div class="field-item-required required-no">No</div>
+          <div style="color:var(--gray-400);font-size:12px;">6</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">gp_commitment<small>GP Commitment</small></div>
+          <div><span class="field-item-type">percentage</span></div>
+          <div class="field-item-required required-no">No</div>
+          <div style="color:var(--gray-400);font-size:12px;">7</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit" onclick="openModal('fieldModal')"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Subscription Agreement Fields -->
+    <div class="field-group">
+      <div class="field-group-header">
+        <div class="field-group-title">Subscription Agreement Fields</div>
+        <button class="btn btn-outline" onclick="openModal('fieldModal')">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add Field
+        </button>
+      </div>
+      <div class="field-list">
+        <div class="field-item" style="background:var(--gray-50);font-weight:600;font-size:12px;color:var(--gray-400);text-transform:uppercase;letter-spacing:.05em;">
+          <div></div><div>Field</div><div>Data Type</div><div>Required</div><div>Order</div><div>Actions</div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">investor_name<small>Investor Name</small></div>
+          <div><span class="field-item-type">string</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">1</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">commitment_amount<small>Commitment Amount</small></div>
+          <div><span class="field-item-type">currency</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">2</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">subscription_date<small>Subscription Date</small></div>
+          <div><span class="field-item-type">date</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">3</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+        <div class="field-item">
+          <div class="field-item-drag"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.5"/><circle cx="15" cy="6" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="18" r="1.5"/><circle cx="15" cy="18" r="1.5"/></svg></div>
+          <div class="field-item-name">accredited_investor<small>Accredited Investor Status</small></div>
+          <div><span class="field-item-type">string</span></div>
+          <div class="field-item-required required-yes">Yes</div>
+          <div style="color:var(--gray-400);font-size:12px;">4</div>
+          <div class="card-actions"><button class="icon-btn" title="Edit"><svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg></button></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- Category Modal -->
+<!-- POST /api/v1/config/categories | PUT /api/v1/config/categories/:id -->
+<div class="modal-overlay" id="categoryModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Category</h3>
+      <button class="modal-close" onclick="closeModal('categoryModal')"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Category Name *</label>
+        <input class="form-input" type="text" placeholder="e.g., Limited Partnership Agreement">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" placeholder="Brief description of this document category..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Classification Criteria</label>
+        <textarea class="form-textarea" rows="4" placeholder="Keywords, phrases, and structural patterns the classifier should look for..."></textarea>
+        <div class="form-hint">Used by the AI classifier to match documents to this category.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('categoryModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('categoryModal')">Save Category</button>
+    </div>
+  </div>
+</div>
+
+<!-- Field Modal -->
+<!-- POST /api/v1/config/extraction-fields | PUT /api/v1/config/extraction-fields/:id -->
+<div class="modal-overlay" id="fieldModal">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>Add Extraction Field</h3>
+      <button class="modal-close" onclick="closeModal('fieldModal')"><svg width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Field Name *</label>
+        <input class="form-input" type="text" placeholder="e.g., management_fee">
+        <div class="form-hint">Snake_case identifier used in extraction results.</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Display Name *</label>
+        <input class="form-input" type="text" placeholder="e.g., Management Fee">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Description</label>
+        <textarea class="form-textarea" placeholder="What this field represents and where to find it in the document..."></textarea>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Examples</label>
+        <textarea class="form-textarea" placeholder="Example values, one per line. e.g.:&#10;2.00% per annum&#10;1.50% of committed capital"></textarea>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div class="form-group">
+          <label class="form-label">Data Type</label>
+          <select class="form-select">
+            <option>string</option>
+            <option>number</option>
+            <option>date</option>
+            <option>currency</option>
+            <option selected>percentage</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select class="form-select">
+            <option>LPA</option>
+            <option>Subscription Agreement</option>
+            <option>Side Letter</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-checkbox">
+          <input type="checkbox" checked>
+          <span style="font-size:14px;color:var(--gray-700);">Required field</span>
+        </label>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal('fieldModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="closeModal('fieldModal')">Save Field</button>
+    </div>
+  </div>
+</div>
+
+<script>
+function switchTab(tab, el) {
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelectorAll('.tab-panel').forEach(function(p){p.classList.remove('active');});
+  el.classList.add('active');
+  document.getElementById('panel-'+tab).classList.add('active');
+  if (tab === 'categories') {
+    document.getElementById('catNav').classList.add('active');
+    document.getElementById('fieldNav').classList.remove('active');
+  } else {
+    document.getElementById('fieldNav').classList.add('active');
+    document.getElementById('catNav').classList.remove('active');
+  }
+}
+function openModal(id) { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+</script>
+</body>
+</html>
