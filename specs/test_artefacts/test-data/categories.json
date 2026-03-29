@@ -1,0 +1,26 @@
+[
+  {
+    "id": "cat_001",
+    "name": "Limited Partnership Agreement",
+    "description": "Governs the formation and operation of a limited partnership fund, including capital commitments, fee structures, distribution waterfalls, and governance provisions.",
+    "classification_criteria": "Document contains sections on: partnership formation, capital commitments, management fees, carried interest, distribution waterfall, key person provisions, investment period, fund term, LP/GP rights and obligations."
+  },
+  {
+    "id": "cat_002",
+    "name": "Subscription Agreement",
+    "description": "Agreement by which a limited partner commits capital to a fund, including representations, warranties, and investor qualification details.",
+    "classification_criteria": "Document contains: capital commitment amount, investor representations and warranties, accredited investor qualification, tax identification, subscription terms, side letter references, anti-money laundering certifications."
+  },
+  {
+    "id": "cat_003",
+    "name": "Side Letter",
+    "description": "Supplemental agreement between a GP and a specific LP granting preferential terms, fee discounts, co-investment rights, or reporting obligations.",
+    "classification_criteria": "Document references a main LPA, is addressed to a specific LP, and contains: fee discount or waiver provisions, most-favored-nation clauses, co-investment rights, enhanced reporting requirements, excuse/exclusion rights, transfer restrictions modifications."
+  },
+  {
+    "id": "cat_004",
+    "name": "Other/Unclassified",
+    "description": "Documents that do not match any defined PE document category. Includes amendments, board minutes, investor correspondence, and other ancillary materials.",
+    "classification_criteria": "Default category for documents that do not match LPA, Subscription Agreement, or Side Letter criteria with sufficient confidence."
+  }
+]

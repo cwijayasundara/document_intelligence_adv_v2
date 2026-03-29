@@ -1,0 +1,67 @@
+[
+  {
+    "id": "doc_001",
+    "file_name": "Horizon_Equity_Partners_IV_LPA.pdf",
+    "file_type": "application/pdf",
+    "file_size": 2458624,
+    "file_hash": "a3f1c9b7e2d4f6a8b0c1d3e5f7a9b1c3d5e7f9a1b3c5d7e9f0a2b4c6d8e0f2",
+    "status": "ingested",
+    "document_category_id": "cat_001",
+    "upload_path": "./data/upload/doc_001/Horizon_Equity_Partners_IV_LPA.pdf",
+    "parsed_path": "./data/parsed/doc_001.md",
+    "created_at": "2026-03-20T10:30:00Z",
+    "updated_at": "2026-03-20T14:15:00Z"
+  },
+  {
+    "id": "doc_002",
+    "file_name": "Apex_Growth_Equity_Fund_III_Subscription.pdf",
+    "file_type": "application/pdf",
+    "file_size": 1843200,
+    "file_hash": "b4f2d0c8f3e5a7b9c1d2e4f6a8b0c2d4e6f8a0b2c4d6e8f1a3b5c7d9e1f3a5",
+    "status": "extracted",
+    "document_category_id": "cat_002",
+    "upload_path": "./data/upload/doc_002/Apex_Growth_Equity_Fund_III_Subscription.pdf",
+    "parsed_path": "./data/parsed/doc_002.md",
+    "created_at": "2026-03-21T09:00:00Z",
+    "updated_at": "2026-03-21T11:45:00Z"
+  },
+  {
+    "id": "doc_003",
+    "file_name": "Meridian_Capital_Side_Letter_LP42.pdf",
+    "file_type": "application/pdf",
+    "file_size": 524288,
+    "file_hash": "c5a3e1d9f4b6c8d0e2f4a6b8c0d2e4f6a8b0c2d4e6f8a1b3c5d7e9f1a3b5c7",
+    "status": "classified",
+    "document_category_id": "cat_003",
+    "upload_path": "./data/upload/doc_003/Meridian_Capital_Side_Letter_LP42.pdf",
+    "parsed_path": "./data/parsed/doc_003.md",
+    "created_at": "2026-03-22T14:20:00Z",
+    "updated_at": "2026-03-22T15:00:00Z"
+  },
+  {
+    "id": "doc_004",
+    "file_name": "Horizon_EP_IV_Amendment_No2.docx",
+    "file_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "file_size": 389120,
+    "file_hash": "d6b4f2e0a5c7d9e1f3a5b7c9d1e3f5a7b9c1d3e5f7a9b1c3d5e7f9a1b3c5d7",
+    "status": "parsed",
+    "document_category_id": null,
+    "upload_path": "./data/upload/doc_004/Horizon_EP_IV_Amendment_No2.docx",
+    "parsed_path": "./data/parsed/doc_004.md",
+    "created_at": "2026-03-23T08:45:00Z",
+    "updated_at": "2026-03-23T09:10:00Z"
+  },
+  {
+    "id": "doc_005",
+    "file_name": "Summit_Ventures_Board_Minutes_Q1.xlsx",
+    "file_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "file_size": 716800,
+    "file_hash": "e7c5a3f1b6d8e0f2a4b6c8d0e2f4a6b8c0d2e4f6a8b1c3d5e7f9a1b3c5d7e9",
+    "status": "uploaded",
+    "document_category_id": null,
+    "upload_path": "./data/upload/doc_005/Summit_Ventures_Board_Minutes_Q1.xlsx",
+    "parsed_path": null,
+    "created_at": "2026-03-24T16:00:00Z",
+    "updated_at": "2026-03-24T16:00:00Z"
+  }
+]

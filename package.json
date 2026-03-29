@@ -1,0 +1,27 @@
+{
+  "name": "document_intelligence_adv_v2",
+  "version": "1.0.0",
+  "description": "Automates processing of Private Equity LPA and Subscription Agreement documents through a multi-step workflow: upload, parse, edit, classify, extract, summarize, ingest, and retrieve. Replaces manual document review with LLM-powered agents for classification, structured extraction with confidence scoring, and RAG-based retrieval.",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/cwijayasundara/document_intelligence_adv_v2.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/cwijayasundara/document_intelligence_adv_v2/issues"
+  },
+  "homepage": "https://github.com/cwijayasundara/document_intelligence_adv_v2#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.58.2"
+  }
+}

@@ -1,0 +1,73 @@
+[
+  {
+    "id": "bulk_001",
+    "status": "completed",
+    "total_documents": 3,
+    "processed_count": 3,
+    "failed_count": 0,
+    "created_at": "2026-03-25T09:00:00Z",
+    "updated_at": "2026-03-25T09:12:34Z",
+    "documents": [
+      {
+        "document_id": "doc_001",
+        "file_name": "Horizon_Equity_Partners_IV_LPA.pdf",
+        "status": "completed",
+        "error_message": null,
+        "processing_time_ms": 45230
+      },
+      {
+        "document_id": "doc_002",
+        "file_name": "Apex_Growth_Equity_Fund_III_Subscription.pdf",
+        "status": "completed",
+        "error_message": null,
+        "processing_time_ms": 38120
+      },
+      {
+        "document_id": "doc_003",
+        "file_name": "Meridian_Capital_Side_Letter_LP42.pdf",
+        "status": "completed",
+        "error_message": null,
+        "processing_time_ms": 22450
+      }
+    ]
+  },
+  {
+    "id": "bulk_002",
+    "status": "processing",
+    "total_documents": 4,
+    "processed_count": 2,
+    "failed_count": 1,
+    "created_at": "2026-03-26T14:30:00Z",
+    "updated_at": "2026-03-26T14:35:12Z",
+    "documents": [
+      {
+        "document_id": "doc_010",
+        "file_name": "Pinnacle_Fund_V_LPA.pdf",
+        "status": "completed",
+        "error_message": null,
+        "processing_time_ms": 52100
+      },
+      {
+        "document_id": "doc_011",
+        "file_name": "Corrupted_Document.pdf",
+        "status": "failed",
+        "error_message": "Reducto parse error: unable to extract text from corrupted PDF. The file may be damaged or encrypted with an unsupported method.",
+        "processing_time_ms": 3200
+      },
+      {
+        "document_id": "doc_012",
+        "file_name": "Atlas_Ventures_II_Subscription.pdf",
+        "status": "completed",
+        "error_message": null,
+        "processing_time_ms": 41300
+      },
+      {
+        "document_id": "doc_013",
+        "file_name": "Sterling_Capital_Side_Letter_LP7.pdf",
+        "status": "processing",
+        "error_message": null,
+        "processing_time_ms": null
+      }
+    ]
+  }
+]

@@ -1,0 +1,97 @@
+{
+  "document_id": "doc_001",
+  "document_name": "Horizon_Equity_Partners_IV_LPA.pdf",
+  "category_id": "cat_001",
+  "category_name": "Limited Partnership Agreement",
+  "extracted_at": "2026-03-20T12:30:00Z",
+  "values": [
+    {
+      "id": "ev_001",
+      "field_name": "fund_name",
+      "display_name": "Fund Name",
+      "extracted_value": "Horizon Equity Partners IV, L.P.",
+      "source_text": "This Limited Partnership Agreement (\"Agreement\") is entered into for the formation of Horizon Equity Partners IV, L.P. (the \"Partnership\").",
+      "confidence": "high",
+      "confidence_reasoning": "The fund name is explicitly stated in the opening clause of the agreement with unambiguous legal language.",
+      "requires_review": false,
+      "reviewed": false
+    },
+    {
+      "id": "ev_002",
+      "field_name": "general_partner",
+      "display_name": "General Partner",
+      "extracted_value": "Horizon Capital Management IV LLC",
+      "source_text": "Horizon Capital Management IV LLC, a Delaware limited liability company (the \"General Partner\"), shall serve as the general partner of the Partnership.",
+      "confidence": "high",
+      "confidence_reasoning": "The general partner entity is explicitly named and defined in Section 1.1 of the agreement.",
+      "requires_review": false,
+      "reviewed": false
+    },
+    {
+      "id": "ev_003",
+      "field_name": "management_fee_rate",
+      "display_name": "Management Fee Rate",
+      "extracted_value": "1.75%",
+      "source_text": "During the Commitment Period, each Limited Partner shall pay an annual management fee equal to 1.75% of its Capital Commitment. Following the expiration of the Commitment Period, the management fee shall be reduced to 1.50% of invested capital.",
+      "confidence": "high",
+      "confidence_reasoning": "The management fee rate of 1.75% during the commitment period is explicitly stated. The post-commitment rate of 1.50% is also noted in the source text.",
+      "requires_review": false,
+      "reviewed": false
+    },
+    {
+      "id": "ev_004",
+      "field_name": "carried_interest_rate",
+      "display_name": "Carried Interest Rate",
+      "extracted_value": "20%",
+      "source_text": "The General Partner shall be entitled to receive a carried interest allocation equal to twenty percent (20%) of the net profits of the Partnership, subject to the Preferred Return provisions described in Section 7.3.",
+      "confidence": "high",
+      "confidence_reasoning": "The carried interest rate of 20% is explicitly stated in both numeric and written form in the distribution waterfall section.",
+      "requires_review": false,
+      "reviewed": false
+    },
+    {
+      "id": "ev_005",
+      "field_name": "preferred_return",
+      "display_name": "Preferred Return",
+      "extracted_value": "8%",
+      "source_text": "Limited Partners shall receive a preferred return equal to an 8% per annum internal rate of return compounded annually on contributed capital before any carried interest is payable to the General Partner.",
+      "confidence": "high",
+      "confidence_reasoning": "The preferred return rate of 8% is stated clearly with the compounding method and calculation basis.",
+      "requires_review": false,
+      "reviewed": false
+    },
+    {
+      "id": "ev_006",
+      "field_name": "fund_term",
+      "display_name": "Fund Term",
+      "extracted_value": "10 years with two 1-year extensions",
+      "source_text": "The term of the Partnership shall be ten (10) years from the date of the Initial Closing, subject to extension by the General Partner for up to two (2) additional one-year periods.",
+      "confidence": "medium",
+      "confidence_reasoning": "The base term of 10 years is clear. The extension language mentions GP discretion for extensions, but does not clarify whether LP advisory committee consent is needed, which is referenced elsewhere.",
+      "requires_review": true,
+      "reviewed": false
+    },
+    {
+      "id": "ev_007",
+      "field_name": "commitment_period",
+      "display_name": "Commitment Period",
+      "extracted_value": "5 years",
+      "source_text": "The Commitment Period shall commence on the date of the Initial Closing and shall expire on the fifth anniversary thereof, unless earlier terminated by the General Partner upon not less than ninety (90) days written notice.",
+      "confidence": "high",
+      "confidence_reasoning": "The commitment period of 5 years from initial closing is explicitly stated with clear start and end provisions.",
+      "requires_review": false,
+      "reviewed": false
+    },
+    {
+      "id": "ev_008",
+      "field_name": "governing_law",
+      "display_name": "Governing Law",
+      "extracted_value": "Delaware",
+      "source_text": "This Agreement shall be governed by and construed in accordance with the laws of the State of Delaware without regard to its conflict of laws provisions. The Partnership is formed as a Delaware limited partnership.",
+      "confidence": "low",
+      "confidence_reasoning": "While the governing law clause states Delaware, there is a separate arbitration clause in Section 14.2 that references New York arbitration rules, creating potential ambiguity about which jurisdiction controls procedural matters.",
+      "requires_review": true,
+      "reviewed": false
+    }
+  ]
+}

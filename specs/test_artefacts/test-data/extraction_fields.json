@@ -1,0 +1,86 @@
+{
+  "category_id": "cat_001",
+  "category_name": "Limited Partnership Agreement",
+  "fields": [
+    {
+      "id": "field_001",
+      "field_name": "fund_name",
+      "display_name": "Fund Name",
+      "description": "The full legal name of the limited partnership fund as stated in the agreement.",
+      "examples": "Horizon Equity Partners IV, L.P.; Apex Growth Equity Fund III, L.P.",
+      "data_type": "string",
+      "required": true,
+      "sort_order": 1
+    },
+    {
+      "id": "field_002",
+      "field_name": "general_partner",
+      "display_name": "General Partner",
+      "description": "The full legal name of the general partner entity responsible for managing the fund.",
+      "examples": "Horizon Capital Management LLC; Apex Fund Advisors GP, LLC",
+      "data_type": "string",
+      "required": true,
+      "sort_order": 2
+    },
+    {
+      "id": "field_003",
+      "field_name": "management_fee_rate",
+      "display_name": "Management Fee Rate",
+      "description": "Annual management fee rate charged to limited partners during the investment period, expressed as a percentage.",
+      "examples": "1.50%; 2.00%; 1.75%",
+      "data_type": "percentage",
+      "required": true,
+      "sort_order": 3
+    },
+    {
+      "id": "field_004",
+      "field_name": "carried_interest_rate",
+      "display_name": "Carried Interest Rate",
+      "description": "The percentage of net profits allocated to the general partner as performance compensation.",
+      "examples": "20%; 15%; 25%",
+      "data_type": "percentage",
+      "required": true,
+      "sort_order": 4
+    },
+    {
+      "id": "field_005",
+      "field_name": "preferred_return",
+      "display_name": "Preferred Return",
+      "description": "The minimum annualized return rate that must be achieved by limited partners before the general partner participates in profit sharing.",
+      "examples": "8%; 7%; 10%",
+      "data_type": "percentage",
+      "required": true,
+      "sort_order": 5
+    },
+    {
+      "id": "field_006",
+      "field_name": "fund_term",
+      "display_name": "Fund Term",
+      "description": "The total duration of the fund from initial closing to final liquidation, typically expressed in years.",
+      "examples": "10 years; 12 years with two 1-year extensions",
+      "data_type": "string",
+      "required": true,
+      "sort_order": 6
+    },
+    {
+      "id": "field_007",
+      "field_name": "commitment_period",
+      "display_name": "Commitment Period",
+      "description": "The period during which the general partner may call capital from limited partners for new investments.",
+      "examples": "5 years; 4 years from final closing",
+      "data_type": "string",
+      "required": true,
+      "sort_order": 7
+    },
+    {
+      "id": "field_008",
+      "field_name": "governing_law",
+      "display_name": "Governing Law",
+      "description": "The state or jurisdiction whose laws govern the partnership agreement.",
+      "examples": "Delaware; Cayman Islands; State of New York",
+      "data_type": "string",
+      "required": false,
+      "sort_order": 8
+    }
+  ]
+}
