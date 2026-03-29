@@ -8,9 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from deepagents import SubAgent, create_deep_agent
 from pydantic import BaseModel, Field, create_model
 
-from src.agents.deepagents_stub import SubAgentSlot, create_deep_agent
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.extraction import ExtractedField, ExtractionResult
 
@@ -60,6 +60,12 @@ class ExtractorSubagent:
         self._agent = create_deep_agent(
             model="openai:gpt-5.4-mini",
             tools=[self._get_extraction_schema, self._get_parsed_content],
+            system_prompt=(
+                "You are a field extractor for a PE document intelligence system. "
+                "Given a document and a list of fields to extract, find the value "
+                "of each field in the document along with the source text that "
+                "supports the extraction."
+            ),
         )
         self._schema_fields: list[dict[str, Any]] = []
         self._parsed_content: str = ""
@@ -82,11 +88,27 @@ class ExtractorSubagent:
         filtered = self._pii_filter.filter_content(parsed_content)
         self._parsed_content = filtered.redacted_text
 
-        _dynamic_model = build_dynamic_model(extraction_fields)
-        prompt = self._build_prompt(filtered.redacted_text, extraction_fields)
-        _response = await self._agent.run(prompt)
+        if not extraction_fields:
+            return ExtractionResult(fields=[])
 
-        return self._build_result(extraction_fields, filtered.redacted_text)
+        dynamic_model = build_dynamic_model(extraction_fields)
+
+        # Create a per-extraction agent with the dynamic response format
+        extraction_agent = create_deep_agent(
+            model="openai:gpt-5.4-mini",
+            tools=[self._get_extraction_schema, self._get_parsed_content],
+            system_prompt=(
+                "You are a field extractor for a PE document intelligence system. "
+                "Extract the requested fields from the document content. "
+                "Return the extracted values in the structured format."
+            ),
+            response_format=dynamic_model,
+        )
+
+        prompt = self._build_prompt(filtered.redacted_text, extraction_fields)
+        result = await extraction_agent.ainvoke(prompt)
+
+        return self._build_result(result, extraction_fields)
 
     def _build_prompt(self, content: str, fields: list[dict[str, Any]]) -> str:
         """Build the extraction prompt."""
@@ -103,19 +125,36 @@ class ExtractorSubagent:
 
     def _build_result(
         self,
+        result: dict[str, Any],
         fields: list[dict[str, Any]],
-        content: str,
     ) -> ExtractionResult:
-        """Build ExtractionResult from fields (stub implementation)."""
+        """Build ExtractionResult from the LLM response."""
+        structured = result.get("structured_response")
         extracted = []
-        for f in fields:
-            extracted.append(
-                ExtractedField(
-                    field_name=f["field_name"],
-                    extracted_value="",
-                    source_text="",
+
+        if structured is not None:
+            # structured is a Pydantic model instance from the dynamic model
+            for f in fields:
+                field_name = f["field_name"]
+                value = getattr(structured, field_name, None)
+                extracted.append(
+                    ExtractedField(
+                        field_name=field_name,
+                        extracted_value=str(value) if value is not None else "",
+                        source_text="",
+                    )
                 )
-            )
+        else:
+            # Fallback: return empty fields
+            for f in fields:
+                extracted.append(
+                    ExtractedField(
+                        field_name=f["field_name"],
+                        extracted_value="",
+                        source_text="",
+                    )
+                )
+
         return ExtractionResult(fields=extracted)
 
     async def _get_extraction_schema(self) -> list[dict[str, Any]]:
@@ -126,10 +165,12 @@ class ExtractorSubagent:
         """Tool: get parsed document content."""
         return self._parsed_content
 
-    def as_subagent_slot(self) -> SubAgentSlot:
-        """Create a SubAgentSlot for registration with orchestrator."""
-        return SubAgentSlot(
+    def as_subagent_config(self) -> SubAgent:
+        """Create a subagent config dict for registration with orchestrator."""
+        return SubAgent(
             name="extractor",
-            agent=self._agent,
             description="Extracts structured fields from documents",
+            system_prompt="You are a field extractor.",
+            tools=[],
+            model="openai:gpt-5.4-mini",
         )

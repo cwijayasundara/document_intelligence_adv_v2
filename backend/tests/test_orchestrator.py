@@ -1,11 +1,7 @@
-"""Tests for the DeepAgent orchestrator scaffold."""
+"""Tests for the DeepAgent orchestrator."""
 
-from src.agents.deepagents_stub import (
-    DeepAgent,
-    FilesystemMiddleware,
-    SubAgentSlot,
-    create_deep_agent,
-)
+from unittest.mock import MagicMock, patch
+
 from src.agents.orchestrator import (
     SUBAGENT_NAMES,
     _build_orchestrator,
@@ -14,81 +10,96 @@ from src.agents.orchestrator import (
 )
 
 
-async def test_build_orchestrator_returns_deep_agent() -> None:
-    """_build_orchestrator creates a properly configured DeepAgent."""
-    agent = _build_orchestrator()
-    assert isinstance(agent, DeepAgent)
-    assert agent.model == "openai:gpt-5.4-mini"
+@patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
+@patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
+@patch("src.agents.orchestrator.create_deep_agent")
+def test_build_orchestrator_calls_create_deep_agent(mock_create: MagicMock) -> None:
+    """_build_orchestrator calls create_deep_agent with correct args."""
+    mock_agent = MagicMock()
+    mock_create.return_value = mock_agent
+
+    result = _build_orchestrator()
+
+    assert result is mock_agent
+    mock_create.assert_called_once()
+    call_kwargs = mock_create.call_args[1]
+    assert call_kwargs["model"] == "openai:gpt-5.4-mini"
+    assert len(call_kwargs["middleware"]) == 3
+    assert len(call_kwargs["subagents"]) == 5
 
 
-async def test_orchestrator_has_middleware() -> None:
-    """Orchestrator has all three required middleware."""
-    agent = _build_orchestrator()
-    middleware_names = [m.name for m in agent.middleware]
-    assert "filesystem" in middleware_names
-    assert "subagent" in middleware_names
-    assert "summarization" in middleware_names
+@patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
+@patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
+@patch("src.agents.orchestrator.create_deep_agent")
+def test_orchestrator_subagent_names(mock_create: MagicMock) -> None:
+    """Orchestrator passes all five subagent configs."""
+    mock_create.return_value = MagicMock()
+    _build_orchestrator()
 
-
-async def test_orchestrator_has_five_subagent_slots() -> None:
-    """Orchestrator has 5 named subagent slots."""
-    agent = _build_orchestrator()
-    assert len(agent.subagents) == 5
+    call_kwargs = mock_create.call_args[1]
+    subagent_names = [s["name"] for s in call_kwargs["subagents"]]
     for name in SUBAGENT_NAMES:
-        assert name in agent.subagents
-        assert isinstance(agent.subagents[name], SubAgentSlot)
+        assert name in subagent_names
 
 
-async def test_get_orchestrator_singleton() -> None:
+@patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
+@patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
+@patch("src.agents.orchestrator.create_deep_agent")
+def test_orchestrator_subagents_are_dicts(mock_create: MagicMock) -> None:
+    """Subagents are passed as list of dicts (not SubAgentSlot)."""
+    mock_create.return_value = MagicMock()
+    _build_orchestrator()
+
+    call_kwargs = mock_create.call_args[1]
+    for subagent in call_kwargs["subagents"]:
+        assert isinstance(subagent, dict)
+        assert "name" in subagent
+        assert "description" in subagent
+        assert "system_prompt" in subagent
+        assert "tools" in subagent
+        assert "model" in subagent
+
+
+@patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
+@patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
+@patch("src.agents.orchestrator.create_deep_agent")
+async def test_get_orchestrator_singleton(mock_create: MagicMock) -> None:
     """get_orchestrator returns the same instance on multiple calls."""
+    mock_agent = MagicMock()
+    mock_create.return_value = mock_agent
+
     await reset_orchestrator()
     agent1 = await get_orchestrator()
     agent2 = await get_orchestrator()
     assert agent1 is agent2
 
 
-async def test_reset_orchestrator() -> None:
+@patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
+@patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
+@patch("src.agents.orchestrator.create_deep_agent")
+async def test_reset_orchestrator(mock_create: MagicMock) -> None:
     """reset_orchestrator clears the singleton."""
+    mock_create.return_value = MagicMock()
+
     await reset_orchestrator()
     agent1 = await get_orchestrator()
+
+    mock_create.return_value = MagicMock()
     await reset_orchestrator()
     agent2 = await get_orchestrator()
+
     assert agent1 is not agent2
 
 
-async def test_orchestrator_health_check() -> None:
-    """Orchestrator responds to health check without error."""
-    await reset_orchestrator()
-    agent = await get_orchestrator()
-    result = await agent.health_check()
-    assert result["status"] == "healthy"
-    assert result["model"] == "openai:gpt-5.4-mini"
+@patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
+@patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
+@patch("src.agents.orchestrator.create_deep_agent")
+def test_orchestrator_has_filesystem_backend(mock_create: MagicMock) -> None:
+    """Orchestrator passes a FilesystemBackend."""
+    mock_create.return_value = MagicMock()
+    _build_orchestrator()
 
-
-async def test_orchestrator_run_stub() -> None:
-    """Orchestrator run returns a stub response."""
-    await reset_orchestrator()
-    agent = await get_orchestrator()
-    result = await agent.run("test prompt")
-    assert result["status"] == "ok"
-    assert "test prompt" in result["response"]
-
-
-async def test_create_deep_agent_factory() -> None:
-    """create_deep_agent factory function works correctly."""
-    agent = create_deep_agent(
-        model="test:model",
-        middleware=[FilesystemMiddleware()],
-        subagents={"test": SubAgentSlot(name="test")},
-    )
-    assert agent.model == "test:model"
-    assert len(agent.middleware) == 1
-    assert "test" in agent.subagents
-
-
-async def test_subagent_slot_defaults() -> None:
-    """SubAgentSlot has correct defaults."""
-    slot = SubAgentSlot(name="classifier")
-    assert slot.name == "classifier"
-    assert slot.agent is None
-    assert slot.description == ""
+    call_kwargs = mock_create.call_args[1]
+    assert "backend" in call_kwargs
+    # The backend should be a FilesystemBackend instance
+    assert call_kwargs["backend"] is not None

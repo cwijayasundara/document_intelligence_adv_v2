@@ -13,7 +13,7 @@ class TestReductoClient:
     """Tests for ReductoClient."""
 
     def setup_method(self) -> None:
-        self.client = ReductoClient(api_key="test-key", api_url="https://test.reducto.ai/parse")
+        self.client = ReductoClient(api_key="test-key", base_url="https://test.reducto.ai")
 
     @pytest.mark.asyncio
     async def test_parse_file_not_found(self) -> None:
@@ -25,14 +25,19 @@ class TestReductoClient:
         test_file = tmp_path / "test.pdf"
         test_file.write_bytes(b"fake pdf content")
 
-        mock_response = MagicMock()
-        mock_response.status_code = 200
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"result": {"content": "# Parsed markdown"}}
+        upload_response = MagicMock()
+        upload_response.status_code = 200
+        upload_response.raise_for_status = MagicMock()
+        upload_response.json.return_value = {"file_id": "file-123"}
+
+        parse_response = MagicMock()
+        parse_response.status_code = 200
+        parse_response.raise_for_status = MagicMock()
+        parse_response.json.return_value = {"result": {"content": "# Parsed markdown"}}
 
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client.post = AsyncMock(side_effect=[upload_response, parse_response])
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
@@ -60,20 +65,25 @@ class TestReductoClient:
         test_file = tmp_path / "test.pdf"
         test_file.write_bytes(b"fake pdf content")
 
-        mock_response = MagicMock()
-        mock_response.raise_for_status = MagicMock()
-        mock_response.json.return_value = {"result": {"content": "parsed"}}
+        upload_response = MagicMock()
+        upload_response.raise_for_status = MagicMock()
+        upload_response.json.return_value = {"file_id": "file-123"}
+
+        parse_response = MagicMock()
+        parse_response.raise_for_status = MagicMock()
+        parse_response.json.return_value = {"result": {"content": "parsed"}}
 
         with patch("httpx.AsyncClient") as mock_client_cls:
             mock_client = AsyncMock()
-            mock_client.post = AsyncMock(return_value=mock_response)
+            mock_client.post = AsyncMock(side_effect=[upload_response, parse_response])
             mock_client.__aenter__ = AsyncMock(return_value=mock_client)
             mock_client.__aexit__ = AsyncMock(return_value=False)
             mock_client_cls.return_value = mock_client
 
             await self.client.parse(str(test_file))
 
-            call_kwargs = mock_client.post.call_args
+            # First call is upload, check its auth header
+            call_kwargs = mock_client.post.call_args_list[0]
             headers = call_kwargs.kwargs.get("headers", {})
             assert headers.get("Authorization") == "Bearer test-key"
 

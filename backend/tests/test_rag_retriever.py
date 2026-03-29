@@ -1,8 +1,9 @@
 """Tests for RAG retriever subagent and RAG service."""
 
+from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 
-from src.agents.rag_retriever import RAGRetrieverSubagent
 from src.rag.weaviate_client import ChunkData, SearchResult, WeaviateClient
 from src.services.rag_service import SEARCH_MODE_ALPHA, RAGService
 
@@ -28,7 +29,12 @@ class TestRAGRetrieverSubagent:
             ]
         )
 
-        retriever = RAGRetrieverSubagent(weaviate)
+        with patch("src.agents.rag_retriever.create_deep_agent") as mock_create:
+            mock_create.return_value = MagicMock()
+            from src.agents.rag_retriever import RAGRetrieverSubagent
+
+            retriever = RAGRetrieverSubagent(weaviate)
+
         results = await retriever.retrieve(query="management fee", top_k=5, document_id="doc-1")
         assert len(results) == 1
         assert results[0].chunk_text == "Management fee is 2%"
@@ -39,17 +45,35 @@ class TestRAGRetrieverSubagent:
         weaviate = WeaviateClient(url="http://test:8080")
         await weaviate.connect()
 
-        retriever = RAGRetrieverSubagent(weaviate)
+        with patch("src.agents.rag_retriever.create_deep_agent") as mock_create:
+            mock_create.return_value = MagicMock()
+            from src.agents.rag_retriever import RAGRetrieverSubagent
+
+            retriever = RAGRetrieverSubagent(weaviate)
+
         results = await retriever.retrieve(query="test", top_k=5)
         assert results == []
 
     @pytest.mark.asyncio
     async def test_generate_answer(self) -> None:
-        """Test answer generation from chunks."""
+        """Test answer generation from chunks via LLM."""
         weaviate = WeaviateClient(url="http://test:8080")
         await weaviate.connect()
 
-        retriever = RAGRetrieverSubagent(weaviate)
+        from unittest.mock import AsyncMock
+
+        with patch("src.agents.rag_retriever.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "response": "The fee is 2% per annum based on the LPA.",
+                }
+            )
+            mock_create.return_value = mock_agent
+            from src.agents.rag_retriever import RAGRetrieverSubagent
+
+            retriever = RAGRetrieverSubagent(weaviate)
+
         chunks = [
             SearchResult(
                 chunk_text="The fee is 2% per annum",
@@ -82,17 +106,28 @@ class TestRAGRetrieverSubagent:
             ]
         )
 
-        retriever = RAGRetrieverSubagent(weaviate)
+        with patch("src.agents.rag_retriever.create_deep_agent") as mock_create:
+            mock_create.return_value = MagicMock()
+            from src.agents.rag_retriever import RAGRetrieverSubagent
+
+            retriever = RAGRetrieverSubagent(weaviate)
+
         results = await retriever._search_documents("fund term", top_k=3)
         assert len(results) == 1
         assert results[0]["chunk_text"] == "Fund term is 10 years"
 
-    def test_as_subagent_slot(self) -> None:
-        """Test SubAgentSlot creation."""
+    def test_as_subagent_config(self) -> None:
+        """Test subagent config creation."""
         weaviate = WeaviateClient(url="http://test:8080")
-        retriever = RAGRetrieverSubagent(weaviate)
-        slot = retriever.as_subagent_slot()
-        assert slot.name == "rag_retriever"
+        with patch("src.agents.rag_retriever.create_deep_agent") as mock_create:
+            mock_create.return_value = MagicMock()
+            from src.agents.rag_retriever import RAGRetrieverSubagent
+
+            retriever = RAGRetrieverSubagent(weaviate)
+
+        config = retriever.as_subagent_config()
+        assert config["name"] == "rag_retriever"
+        assert isinstance(config, dict)
 
 
 class TestRAGService:
@@ -116,7 +151,10 @@ class TestRAGService:
             ]
         )
 
-        service = RAGService(weaviate_client=weaviate)
+        mock_agent = MagicMock()
+        mock_agent.ainvoke = AsyncMock(return_value={"response": "Commitment period is 5 years."})
+        with patch("src.agents.rag_retriever.create_deep_agent", return_value=mock_agent):
+            service = RAGService(weaviate_client=weaviate)
         result = await service.query(
             query="commitment period",
             scope="single_document",
@@ -136,7 +174,10 @@ class TestRAGService:
         weaviate = WeaviateClient(url="http://test:8080")
         await weaviate.connect()
 
-        service = RAGService(weaviate_client=weaviate)
+        mock_agent = MagicMock()
+        mock_agent.ainvoke = AsyncMock(return_value={"response": "No results."})
+        with patch("src.agents.rag_retriever.create_deep_agent", return_value=mock_agent):
+            service = RAGService(weaviate_client=weaviate)
         result = await service.query(
             query="test query",
             scope="all",

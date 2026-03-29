@@ -1,10 +1,9 @@
 """Tests for judge subagent."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.judge import JudgeSubagent
 from src.agents.schemas.extraction import ExtractedField, JudgeResult
 
 
@@ -12,7 +11,19 @@ class TestJudgeSubagent:
     """Tests for JudgeSubagent."""
 
     def setup_method(self) -> None:
-        self.judge = JudgeSubagent()
+        with patch("src.agents.judge.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "structured_response": None,
+                    "response": "Evaluated",
+                }
+            )
+            mock_create.return_value = mock_agent
+            from src.agents.judge import JudgeSubagent
+
+            self.judge = JudgeSubagent()
+
         self.sample_fields = [
             ExtractedField(
                 field_name="fund_name",
@@ -81,11 +92,27 @@ class TestJudgeSubagent:
             assert len(ev.reasoning) > 0
 
     @pytest.mark.asyncio
-    async def test_evaluate_with_mock_agent(self) -> None:
-        self.judge._agent.run = AsyncMock(return_value={"response": "Evaluated"})
+    async def test_evaluate_with_structured_response(self) -> None:
+        """When structured_response is a JudgeResult, it is returned directly."""
+        from src.agents.schemas.extraction import FieldEvaluation
+
+        expected = JudgeResult(
+            evaluations=[
+                FieldEvaluation(
+                    field_name="fund_name", confidence="high", reasoning="Exact match."
+                ),
+                FieldEvaluation(field_name="fund_term", confidence="medium", reasoning="Inferred."),
+            ]
+        )
+        self.judge._agent.ainvoke = AsyncMock(
+            return_value={
+                "structured_response": expected,
+                "response": "",
+            }
+        )
+
         result = await self.judge.evaluate(self.sample_fields, self.sample_content)
-        assert isinstance(result, JudgeResult)
-        self.judge._agent.run.assert_called_once()
+        assert result is expected
 
     @pytest.mark.asyncio
     async def test_evaluate_empty_fields(self) -> None:
@@ -93,10 +120,11 @@ class TestJudgeSubagent:
         assert isinstance(result, JudgeResult)
         assert len(result.evaluations) == 0
 
-    def test_as_subagent_slot(self) -> None:
-        slot = self.judge.as_subagent_slot()
-        assert slot.name == "judge"
-        assert slot.description
+    def test_as_subagent_config(self) -> None:
+        config = self.judge.as_subagent_config()
+        assert config["name"] == "judge"
+        assert config["description"]
+        assert isinstance(config, dict)
 
     @pytest.mark.asyncio
     async def test_get_extracted_values_tool(self) -> None:

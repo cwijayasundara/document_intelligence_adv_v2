@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.agents.deepagents_stub import SubAgentSlot, create_deep_agent
+from deepagents import SubAgent, create_deep_agent
+
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.extraction import (
     ExtractedField,
@@ -27,6 +28,7 @@ class JudgeSubagent:
 
     Receives extracted values, source texts, and full document content.
     Returns confidence rating (high/medium/low) with reasoning per field.
+    Uses a separate agent instance for objectivity.
     """
 
     def __init__(self) -> None:
@@ -34,6 +36,13 @@ class JudgeSubagent:
         self._agent = create_deep_agent(
             model="openai:gpt-5.4-mini",
             tools=[self._get_extracted_values, self._get_parsed_content],
+            system_prompt=(
+                "You are an extraction quality judge for a PE document intelligence system. "
+                "Given a set of extracted field values and the original document content, "
+                "evaluate the confidence of each extraction as high, medium, or low. "
+                "Provide reasoning for each assessment."
+            ),
+            response_format=JudgeResult,
         )
         self._extracted_fields: list[ExtractedField] = []
         self._parsed_content: str = ""
@@ -56,10 +65,13 @@ class JudgeSubagent:
         filtered = self._pii_filter.filter_content(parsed_content)
         self._parsed_content = filtered.redacted_text
 
-        prompt = self._build_prompt(extracted_fields, filtered.redacted_text)
-        _response = await self._agent.run(prompt)
+        if not extracted_fields:
+            return JudgeResult(evaluations=[])
 
-        return self._build_result(extracted_fields)
+        prompt = self._build_prompt(extracted_fields, filtered.redacted_text)
+        result = await self._agent.ainvoke(prompt)
+
+        return self._parse_result(result, extracted_fields)
 
     def _build_prompt(
         self,
@@ -78,8 +90,25 @@ class JudgeSubagent:
             f"Rate each field as high/medium/low confidence."
         )
 
-    def _build_result(self, fields: list[ExtractedField]) -> JudgeResult:
-        """Build JudgeResult (stub: assigns medium confidence)."""
+    def _parse_result(
+        self,
+        result: dict[str, Any],
+        fields: list[ExtractedField],
+    ) -> JudgeResult:
+        """Parse the LLM result into JudgeResult.
+
+        Uses structured_response from DeepAgents SDK when available.
+        Falls back to heuristic assessment otherwise.
+        """
+        structured = result.get("structured_response")
+        if structured is not None and isinstance(structured, JudgeResult):
+            return structured
+
+        # Fallback: heuristic-based assessment
+        return self._build_heuristic_result(fields)
+
+    def _build_heuristic_result(self, fields: list[ExtractedField]) -> JudgeResult:
+        """Build JudgeResult using heuristic confidence assessment."""
         evaluations = []
         for f in fields:
             confidence = self._assess_confidence(f)
@@ -119,10 +148,12 @@ class JudgeSubagent:
         """Tool: get parsed document content."""
         return self._parsed_content
 
-    def as_subagent_slot(self) -> SubAgentSlot:
-        """Create a SubAgentSlot for registration with orchestrator."""
-        return SubAgentSlot(
+    def as_subagent_config(self) -> SubAgent:
+        """Create a subagent config dict for registration with orchestrator."""
+        return SubAgent(
             name="judge",
-            agent=self._agent,
             description="Evaluates extraction confidence per field",
+            system_prompt="You are an extraction quality judge.",
+            tools=[],
+            model="openai:gpt-5.4-mini",
         )

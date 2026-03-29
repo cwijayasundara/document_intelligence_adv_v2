@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from src.agents.deepagents_stub import SubAgentSlot, create_deep_agent
+from deepagents import SubAgent, create_deep_agent
+
 from src.rag.weaviate_client import SearchResult, WeaviateClient
 
 
@@ -20,6 +21,11 @@ class RAGRetrieverSubagent:
         self._agent = create_deep_agent(
             model="openai:gpt-5.4-mini",
             tools=[self._search_documents],
+            system_prompt=(
+                "You are a RAG retriever for a PE document intelligence system. "
+                "Given a question and relevant document excerpts, generate a concise "
+                "answer with references to the source chunks."
+            ),
         )
 
     async def retrieve(
@@ -58,7 +64,7 @@ class RAGRetrieverSubagent:
         query: str,
         chunks: list[SearchResult],
     ) -> str:
-        """Generate an answer from retrieved chunks.
+        """Generate an answer from retrieved chunks via LLM.
 
         Args:
             query: Original query.
@@ -73,11 +79,11 @@ class RAGRetrieverSubagent:
             f"Question: {query}\n\nContext:\n{context}\n\n"
             f"Provide a concise answer with references to the source."
         )
-        response = await self._agent.run(prompt)
-        return response.get("response", "Unable to generate answer.")
+        result = await self._agent.ainvoke(prompt)
+        return result.get("response", "Unable to generate answer.")
 
     async def _search_documents(self, query: str, top_k: int = 5) -> list[dict[str, Any]]:
-        """Tool: search documents in Weaviate."""
+        """Tool: search documents in Weaviate via hybrid search."""
         results = await self._weaviate.search(query=query, top_k=top_k)
         return [
             {
@@ -90,10 +96,12 @@ class RAGRetrieverSubagent:
             for r in results
         ]
 
-    def as_subagent_slot(self) -> SubAgentSlot:
-        """Create a SubAgentSlot for orchestrator registration."""
-        return SubAgentSlot(
+    def as_subagent_config(self) -> SubAgent:
+        """Create a subagent config dict for orchestrator registration."""
+        return SubAgent(
             name="rag_retriever",
-            agent=self._agent,
             description="Retrieves relevant document chunks via hybrid search",
+            system_prompt="You are a RAG retriever.",
+            tools=[],
+            model="openai:gpt-5.4-mini",
         )

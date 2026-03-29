@@ -41,11 +41,19 @@ class TestExtractHelpers:
     """Tests for extract router helper functions."""
 
     def test_get_extraction_service_singleton(self) -> None:
-        from src.api.routers.extract import _get_extraction_service
+        import src.api.routers.extract as extract_mod
 
-        svc1 = _get_extraction_service()
-        svc2 = _get_extraction_service()
-        assert svc1 is svc2
+        extract_mod._extraction_service = None  # reset singleton
+        with (
+            patch("src.agents.extractor.create_deep_agent", return_value=MagicMock()),
+            patch("src.agents.judge.create_deep_agent", return_value=MagicMock()),
+        ):
+            from src.api.routers.extract import _get_extraction_service
+
+            svc1 = _get_extraction_service()
+            svc2 = _get_extraction_service()
+            assert svc1 is svc2
+        extract_mod._extraction_service = None  # cleanup
 
     @pytest.mark.asyncio
     async def test_load_extraction_fields_no_category(self) -> None:

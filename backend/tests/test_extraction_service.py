@@ -1,7 +1,7 @@
 """Tests for ExtractionService."""
 
 import uuid
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -162,6 +162,10 @@ class TestExtractionService:
     @pytest.mark.asyncio
     async def test_default_constructor(self) -> None:
         """Test default constructor creates real subagents."""
-        service = ExtractionService()
-        assert service._extractor is not None
-        assert service._judge is not None
+        with (
+            patch("src.agents.extractor.create_deep_agent", return_value=MagicMock()),
+            patch("src.agents.judge.create_deep_agent", return_value=MagicMock()),
+        ):
+            service = ExtractionService()
+            assert service._extractor is not None
+            assert service._judge is not None

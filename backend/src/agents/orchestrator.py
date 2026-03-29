@@ -4,19 +4,22 @@ Creates the main orchestrator agent with subagent slots for:
 classifier, extractor, judge, summarizer, rag_retriever.
 """
 
-import asyncio
+from __future__ import annotations
 
-from src.agents.deepagents_stub import (
-    DeepAgent,
+import asyncio
+from typing import Any
+
+from deepagents import (
     FilesystemMiddleware,
+    SubAgent,
     SubAgentMiddleware,
-    SubAgentSlot,
-    SummarizationMiddleware,
     create_deep_agent,
 )
+from deepagents.backends import FilesystemBackend
+from deepagents.middleware.summarization import SummarizationMiddleware
 
 # Singleton state
-_orchestrator: DeepAgent | None = None
+_orchestrator: Any | None = None
 _lock: asyncio.Lock | None = None
 
 SUBAGENT_NAMES = [
@@ -27,6 +30,14 @@ SUBAGENT_NAMES = [
     "rag_retriever",
 ]
 
+SUBAGENT_DESCRIPTIONS = {
+    "classifier": "Classifies documents into user-defined categories",
+    "extractor": "Extracts structured fields from documents",
+    "judge": "Evaluates extraction confidence per field",
+    "summarizer": "Generates document summaries with key topics",
+    "rag_retriever": "Retrieves relevant document chunks via hybrid search",
+}
+
 
 def _get_lock() -> asyncio.Lock:
     """Lazy-init the async lock (must be created inside a running loop)."""
@@ -36,27 +47,36 @@ def _get_lock() -> asyncio.Lock:
     return _lock
 
 
-def _build_orchestrator() -> DeepAgent:
+def _build_orchestrator() -> Any:
     """Build a fresh orchestrator instance with configured middleware."""
-    middleware = [
-        FilesystemMiddleware(),
-        SubAgentMiddleware(),
-        SummarizationMiddleware(),
+    backend = FilesystemBackend(root_dir="./data")
+
+    subagents: list[SubAgent] = [
+        SubAgent(
+            name=name,
+            description=SUBAGENT_DESCRIPTIONS.get(name, f"{name} subagent"),
+            system_prompt=f"You are the {name} subagent for a document intelligence system.",
+            tools=[],
+            model="openai:gpt-5.4-mini",
+        )
+        for name in SUBAGENT_NAMES
     ]
 
-    subagents = {
-        name: SubAgentSlot(name=name, description=f"{name} subagent (stub)")
-        for name in SUBAGENT_NAMES
-    }
+    middleware = [
+        FilesystemMiddleware(),
+        SubAgentMiddleware(backend=backend, subagents=subagents),
+        SummarizationMiddleware(model="openai:gpt-5.4-mini", backend=backend),
+    ]
 
     return create_deep_agent(
         model="openai:gpt-5.4-mini",
         middleware=middleware,
         subagents=subagents,
+        backend=backend,
     )
 
 
-async def get_orchestrator() -> DeepAgent:
+async def get_orchestrator() -> Any:
     """Get or create the singleton orchestrator instance.
 
     Thread-safe via asyncio.Lock.

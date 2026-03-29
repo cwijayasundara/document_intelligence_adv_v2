@@ -6,6 +6,8 @@ from pydantic import BaseModel, Field
 class HealthResponse(BaseModel):
     """Response schema for the health check endpoint."""
 
+    model_config = {"exclude_none": True}
+
     status: str = Field(..., description="Health status: 'healthy' or 'unhealthy'")
     detail: str | None = Field(None, description="Error detail when unhealthy")
 

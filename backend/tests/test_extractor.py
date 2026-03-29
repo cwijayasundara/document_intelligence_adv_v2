@@ -1,10 +1,10 @@
 """Tests for extractor subagent."""
 
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.extractor import ExtractorSubagent, build_dynamic_model
+from src.agents.extractor import build_dynamic_model
 from src.agents.schemas.extraction import ExtractionResult
 
 
@@ -54,7 +54,19 @@ class TestExtractorSubagent:
     """Tests for ExtractorSubagent."""
 
     def setup_method(self) -> None:
-        self.extractor = ExtractorSubagent()
+        with patch("src.agents.extractor.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "structured_response": None,
+                    "response": "Extracted values",
+                }
+            )
+            mock_create.return_value = mock_agent
+            from src.agents.extractor import ExtractorSubagent
+
+            self.extractor = ExtractorSubagent()
+
         self.sample_fields = [
             {
                 "field_name": "fund_name",
@@ -77,29 +89,49 @@ class TestExtractorSubagent:
 
     @pytest.mark.asyncio
     async def test_extract_returns_result(self) -> None:
-        result = await self.extractor.extract(self.sample_content, self.sample_fields)
+        with patch("src.agents.extractor.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "structured_response": None,
+                    "response": "Extracted",
+                }
+            )
+            mock_create.return_value = mock_agent
+            result = await self.extractor.extract(self.sample_content, self.sample_fields)
         assert isinstance(result, ExtractionResult)
         assert len(result.fields) == 2
 
     @pytest.mark.asyncio
     async def test_extract_field_names_match(self) -> None:
-        result = await self.extractor.extract(self.sample_content, self.sample_fields)
+        with patch("src.agents.extractor.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "structured_response": None,
+                    "response": "Extracted",
+                }
+            )
+            mock_create.return_value = mock_agent
+            result = await self.extractor.extract(self.sample_content, self.sample_fields)
         field_names = {f.field_name for f in result.fields}
         expected = {"fund_name", "management_fee"}
         assert field_names == expected
 
     @pytest.mark.asyncio
     async def test_extract_applies_pii_filter(self) -> None:
-        content = "SSN: 123-45-6789\n" + self.sample_content
-        await self.extractor.extract(content, self.sample_fields)
+        with patch("src.agents.extractor.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "structured_response": None,
+                    "response": "Extracted",
+                }
+            )
+            mock_create.return_value = mock_agent
+            content = "SSN: 123-45-6789\n" + self.sample_content
+            await self.extractor.extract(content, self.sample_fields)
         assert "123-45-6789" not in self.extractor._parsed_content
-
-    @pytest.mark.asyncio
-    async def test_extract_with_mock_agent(self) -> None:
-        self.extractor._agent.run = AsyncMock(return_value={"response": "Extracted values"})
-        result = await self.extractor.extract(self.sample_content, self.sample_fields)
-        assert isinstance(result, ExtractionResult)
-        self.extractor._agent.run.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_extract_empty_fields(self) -> None:
@@ -107,10 +139,10 @@ class TestExtractorSubagent:
         assert isinstance(result, ExtractionResult)
         assert len(result.fields) == 0
 
-    def test_as_subagent_slot(self) -> None:
-        slot = self.extractor.as_subagent_slot()
-        assert slot.name == "extractor"
-        assert slot.description
+    def test_as_subagent_config(self) -> None:
+        config = self.extractor.as_subagent_config()
+        assert config["name"] == "extractor"
+        assert config["description"]
 
     @pytest.mark.asyncio
     async def test_get_extraction_schema_tool(self) -> None:

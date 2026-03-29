@@ -11,7 +11,9 @@ import asyncio
 import time
 from typing import Any
 
-from src.bulk.langgraph_stub import MemorySaver, StateGraph
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph import StateGraph
+
 from src.bulk.nodes import (
     classify_node,
     extract_node,

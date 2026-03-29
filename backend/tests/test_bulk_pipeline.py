@@ -1,8 +1,9 @@
 """Tests for the LangGraph bulk processing pipeline."""
 
+from unittest.mock import AsyncMock, patch
+
 import pytest
 
-from src.bulk.langgraph_stub import CompiledGraph, MemorySaver, StateGraph
 from src.bulk.nodes import (
     classify_node,
     extract_node,
@@ -45,65 +46,6 @@ class TestDocumentState:
         assert state["error"] is None
 
 
-class TestLangGraphStub:
-    """Tests for the LangGraph stub implementation."""
-
-    def test_memory_saver(self) -> None:
-        saver = MemorySaver()
-        saver.save("thread-1", {"key": "value"})
-        loaded = saver.load("thread-1")
-        assert loaded == {"key": "value"}
-
-    def test_memory_saver_missing(self) -> None:
-        saver = MemorySaver()
-        assert saver.load("nonexistent") is None
-
-    def test_state_graph_build(self) -> None:
-        graph = StateGraph(DocumentState)
-        graph.add_node("a", parse_node)
-        graph.add_node("b", finalize_node)
-        graph.add_edge("a", "b")
-        graph.set_entry_point("a")
-        graph.set_finish_point("b")
-        compiled = graph.compile()
-        assert isinstance(compiled, CompiledGraph)
-
-    @pytest.mark.asyncio
-    async def test_compiled_graph_invoke(self) -> None:
-        graph = StateGraph(DocumentState)
-        graph.add_node("a", parse_node)
-        graph.add_node("b", finalize_node)
-        graph.add_edge("a", "b")
-        graph.set_entry_point("a")
-        graph.set_finish_point("b")
-
-        compiled = graph.compile()
-        result = await compiled.ainvoke(
-            {"document_id": "test", "status": "pending", "node_timings": {}},
-            config={"configurable": {"thread_id": "test"}},
-        )
-        assert result["status"] == "completed"
-
-    @pytest.mark.asyncio
-    async def test_compiled_graph_error_handling(self) -> None:
-        async def failing_node(state):
-            raise ValueError("Test error")
-
-        graph = StateGraph(DocumentState)
-        graph.add_node("fail", failing_node)
-        graph.add_node("end", finalize_node)
-        graph.add_edge("fail", "end")
-        graph.set_entry_point("fail")
-        graph.set_finish_point("end")
-
-        compiled = graph.compile()
-        result = await compiled.ainvoke(
-            {"document_id": "test", "status": "pending"},
-        )
-        assert "error" in result
-        assert "Test error" in result["error"]
-
-
 class TestNodes:
     """Tests for individual pipeline nodes."""
 
@@ -130,21 +72,45 @@ class TestNodes:
         assert result["parsed_content"] == "# Existing content"
 
     @pytest.mark.asyncio
-    async def test_classify_node(self) -> None:
+    @patch("src.bulk.nodes.ClassifierSubagent")
+    async def test_classify_node(self, mock_cls: AsyncMock) -> None:
+        """Classify node calls ClassifierSubagent and returns result."""
+        import uuid
+
+        from src.agents.schemas.classification import ClassificationResult
+
+        mock_instance = AsyncMock()
+        mock_instance.classify.return_value = ClassificationResult(
+            category_id=uuid.uuid4(),
+            category_name="Other/Unclassified",
+            reasoning="Bulk classification",
+        )
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "parsed",
+            "parsed_content": "test content",
             "node_timings": {},
         }
         result = await classify_node(state)
         assert result["status"] == "classified"
         assert "category_name" in result["classification_result"]
+        assert "classify" in result["node_timings"]
 
     @pytest.mark.asyncio
-    async def test_extract_node(self) -> None:
+    @patch("src.bulk.nodes.ExtractorSubagent")
+    async def test_extract_node(self, mock_cls: AsyncMock) -> None:
+        from src.agents.schemas.extraction import ExtractionResult
+
+        mock_instance = AsyncMock()
+        mock_instance.extract.return_value = ExtractionResult(fields=[])
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "classified",
+            "parsed_content": "test",
             "node_timings": {},
         }
         result = await extract_node(state)
@@ -152,20 +118,40 @@ class TestNodes:
         assert result["extraction_results"] == []
 
     @pytest.mark.asyncio
-    async def test_judge_node(self) -> None:
+    @patch("src.bulk.nodes.JudgeSubagent")
+    async def test_judge_node(self, mock_cls: AsyncMock) -> None:
+        from src.agents.schemas.extraction import JudgeResult
+
+        mock_instance = AsyncMock()
+        mock_instance.evaluate.return_value = JudgeResult(evaluations=[])
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "extracted",
+            "parsed_content": "test",
+            "extraction_results": [],
             "node_timings": {},
         }
         result = await judge_node(state)
         assert result["status"] == "judged"
 
     @pytest.mark.asyncio
-    async def test_summarize_node(self) -> None:
+    @patch("src.bulk.nodes.SummarizerSubagent")
+    async def test_summarize_node(self, mock_cls: AsyncMock) -> None:
+        from src.agents.schemas.summary import SummaryResult
+
+        mock_instance = AsyncMock()
+        mock_instance.summarize.return_value = SummaryResult(
+            summary="Summary for document doc-1",
+            key_topics=["general"],
+        )
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "judged",
+            "parsed_content": "test",
             "node_timings": {},
         }
         result = await summarize_node(state)
@@ -216,10 +202,24 @@ class TestNodes:
         assert "doc-99" in result["parsed_content"]
 
     @pytest.mark.asyncio
-    async def test_classify_node_result_shape(self) -> None:
+    @patch("src.bulk.nodes.ClassifierSubagent")
+    async def test_classify_node_result_shape(self, mock_cls: AsyncMock) -> None:
+        import uuid
+
+        from src.agents.schemas.classification import ClassificationResult
+
+        mock_instance = AsyncMock()
+        mock_instance.classify.return_value = ClassificationResult(
+            category_id=uuid.uuid4(),
+            category_name="Other/Unclassified",
+            reasoning="Bulk classification",
+        )
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "parsed",
+            "parsed_content": "test",
             "node_timings": {},
         }
         result = await classify_node(state)
@@ -227,10 +227,18 @@ class TestNodes:
         assert "classify" in result["node_timings"]
 
     @pytest.mark.asyncio
-    async def test_extract_node_result_shape(self) -> None:
+    @patch("src.bulk.nodes.ExtractorSubagent")
+    async def test_extract_node_result_shape(self, mock_cls: AsyncMock) -> None:
+        from src.agents.schemas.extraction import ExtractionResult
+
+        mock_instance = AsyncMock()
+        mock_instance.extract.return_value = ExtractionResult(fields=[])
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "classified",
+            "parsed_content": "test",
             "node_timings": {},
         }
         result = await extract_node(state)
@@ -238,10 +246,19 @@ class TestNodes:
         assert "extract" in result["node_timings"]
 
     @pytest.mark.asyncio
-    async def test_judge_node_result_shape(self) -> None:
+    @patch("src.bulk.nodes.JudgeSubagent")
+    async def test_judge_node_result_shape(self, mock_cls: AsyncMock) -> None:
+        from src.agents.schemas.extraction import JudgeResult
+
+        mock_instance = AsyncMock()
+        mock_instance.evaluate.return_value = JudgeResult(evaluations=[])
+        mock_cls.return_value = mock_instance
+
         state: DocumentState = {
             "document_id": "doc-1",
             "status": "extracted",
+            "parsed_content": "test",
+            "extraction_results": [],
             "node_timings": {},
         }
         result = await judge_node(state)
@@ -270,56 +287,84 @@ class TestNodes:
         assert "finalize" in result["node_timings"]
 
 
-class TestNodeErrorHandling:
-    """Tests for node error paths."""
-
-    @pytest.mark.asyncio
-    async def test_node_error_captured_in_graph(self) -> None:
-        """A failing node captures error without raising."""
-
-        async def bad_parse_node(state):
-            raise RuntimeError("Parser crashed")
-
-        graph = StateGraph(DocumentState)
-        graph.add_node("parse_node", bad_parse_node)
-        graph.add_node("finalize_node", finalize_node)
-        graph.add_edge("parse_node", "finalize_node")
-        graph.set_entry_point("parse_node")
-        graph.set_finish_point("finalize_node")
-
-        compiled = graph.compile()
-        result = await compiled.ainvoke(
-            {"document_id": "err-doc", "status": "pending", "node_timings": {}},
-        )
-        assert result.get("error") is not None
-        assert "Parser crashed" in result["error"]
-
-
 class TestPipeline:
     """Tests for the full pipeline orchestration."""
 
     @pytest.mark.asyncio
     async def test_build_pipeline(self) -> None:
         compiled = build_pipeline()
-        assert isinstance(compiled, CompiledGraph)
+        # The compiled graph should have an ainvoke method
+        assert hasattr(compiled, "ainvoke")
 
     @pytest.mark.asyncio
-    async def test_run_single_document(self) -> None:
+    @patch("src.bulk.nodes.ClassifierSubagent")
+    @patch("src.bulk.nodes.ExtractorSubagent")
+    @patch("src.bulk.nodes.JudgeSubagent")
+    @patch("src.bulk.nodes.SummarizerSubagent")
+    async def test_run_single_document(
+        self,
+        mock_summarizer: AsyncMock,
+        mock_judge: AsyncMock,
+        mock_extractor: AsyncMock,
+        mock_classifier: AsyncMock,
+    ) -> None:
+        import uuid
+
+        from src.agents.schemas.classification import ClassificationResult
+        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
+        from src.agents.schemas.summary import SummaryResult
+
+        # Setup mocks
+        mock_classifier.return_value.classify = AsyncMock(
+            return_value=ClassificationResult(
+                category_id=uuid.uuid4(),
+                category_name="Other/Unclassified",
+                reasoning="test",
+            )
+        )
+        mock_extractor.return_value.extract = AsyncMock(return_value=ExtractionResult(fields=[]))
+        mock_judge.return_value.evaluate = AsyncMock(return_value=JudgeResult(evaluations=[]))
+        mock_summarizer.return_value.summarize = AsyncMock(
+            return_value=SummaryResult(summary="test summary", key_topics=["general"])
+        )
+
         compiled = build_pipeline()
         result = await run_pipeline_for_document(compiled, "doc-1")
         assert result["document_id"] == "doc-1"
         assert result["status"] == "completed"
-        assert result["error"] is None
+        assert result.get("error") is None
 
     @pytest.mark.asyncio
-    async def test_run_single_document_with_content(self) -> None:
-        compiled = build_pipeline()
-        result = await run_pipeline_for_document(compiled, "doc-2", initial_content="# My document")
-        assert result["parsed_content"] == "# My document"
-        assert result["status"] == "completed"
+    @patch("src.bulk.nodes.ClassifierSubagent")
+    @patch("src.bulk.nodes.ExtractorSubagent")
+    @patch("src.bulk.nodes.JudgeSubagent")
+    @patch("src.bulk.nodes.SummarizerSubagent")
+    async def test_run_bulk_pipeline(
+        self,
+        mock_summarizer: AsyncMock,
+        mock_judge: AsyncMock,
+        mock_extractor: AsyncMock,
+        mock_classifier: AsyncMock,
+    ) -> None:
+        import uuid
 
-    @pytest.mark.asyncio
-    async def test_run_bulk_pipeline(self) -> None:
+        from src.agents.schemas.classification import ClassificationResult
+        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
+        from src.agents.schemas.summary import SummaryResult
+
+        mock_classifier.return_value.classify = AsyncMock(
+            return_value=ClassificationResult(
+                category_id=uuid.uuid4(),
+                category_name="Other/Unclassified",
+                reasoning="test",
+            )
+        )
+        mock_extractor.return_value.extract = AsyncMock(return_value=ExtractionResult(fields=[]))
+        mock_judge.return_value.evaluate = AsyncMock(return_value=JudgeResult(evaluations=[]))
+        mock_summarizer.return_value.summarize = AsyncMock(
+            return_value=SummaryResult(summary="test summary", key_topics=["general"])
+        )
+
         results = await run_bulk_pipeline(
             ["doc-1", "doc-2", "doc-3"],
             concurrent_limit=2,
@@ -329,21 +374,41 @@ class TestPipeline:
             assert r["status"] == "completed"
 
     @pytest.mark.asyncio
-    async def test_run_bulk_pipeline_with_checkpointer(self) -> None:
-        saver = MemorySaver()
-        results = await run_bulk_pipeline(["doc-a"], checkpointer=saver)
-        assert len(results) == 1
-        # Check checkpointer saved state
-        saved = saver.load("doc-a")
-        assert saved is not None
-
-    @pytest.mark.asyncio
     async def test_run_bulk_empty(self) -> None:
         results = await run_bulk_pipeline([])
         assert results == []
 
     @pytest.mark.asyncio
-    async def test_pipeline_timing(self) -> None:
+    @patch("src.bulk.nodes.ClassifierSubagent")
+    @patch("src.bulk.nodes.ExtractorSubagent")
+    @patch("src.bulk.nodes.JudgeSubagent")
+    @patch("src.bulk.nodes.SummarizerSubagent")
+    async def test_pipeline_timing(
+        self,
+        mock_summarizer: AsyncMock,
+        mock_judge: AsyncMock,
+        mock_extractor: AsyncMock,
+        mock_classifier: AsyncMock,
+    ) -> None:
+        import uuid
+
+        from src.agents.schemas.classification import ClassificationResult
+        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
+        from src.agents.schemas.summary import SummaryResult
+
+        mock_classifier.return_value.classify = AsyncMock(
+            return_value=ClassificationResult(
+                category_id=uuid.uuid4(),
+                category_name="test",
+                reasoning="test",
+            )
+        )
+        mock_extractor.return_value.extract = AsyncMock(return_value=ExtractionResult(fields=[]))
+        mock_judge.return_value.evaluate = AsyncMock(return_value=JudgeResult(evaluations=[]))
+        mock_summarizer.return_value.summarize = AsyncMock(
+            return_value=SummaryResult(summary="test", key_topics=[])
+        )
+
         compiled = build_pipeline()
         result = await run_pipeline_for_document(compiled, "doc-timing")
         timings = result.get("node_timings", {})

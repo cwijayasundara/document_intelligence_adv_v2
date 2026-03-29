@@ -1,11 +1,10 @@
 """Tests for classifier subagent."""
 
 import uuid
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.classifier import ClassifierSubagent
 from src.agents.schemas.classification import ClassificationResult
 
 
@@ -13,7 +12,20 @@ class TestClassifierSubagent:
     """Tests for ClassifierSubagent."""
 
     def setup_method(self) -> None:
-        self.classifier = ClassifierSubagent()
+        # Patch create_deep_agent so ClassifierSubagent.__init__ doesn't call real SDK
+        with patch("src.agents.classifier.create_deep_agent") as mock_create:
+            mock_agent = MagicMock()
+            mock_agent.ainvoke = AsyncMock(
+                return_value={
+                    "structured_response": None,
+                    "response": "Classified as LPA based on partnership terms.",
+                }
+            )
+            mock_create.return_value = mock_agent
+            from src.agents.classifier import ClassifierSubagent
+
+            self.classifier = ClassifierSubagent()
+
         self.sample_categories = [
             {
                 "id": uuid.uuid4(),
@@ -59,18 +71,23 @@ class TestClassifierSubagent:
         assert result.category_id in cat_ids
 
     @pytest.mark.asyncio
-    async def test_classify_with_mock_agent(self) -> None:
-        mock_response = {"response": "Classified as LPA based on partnership terms."}
-        self.classifier._agent.run = AsyncMock(return_value=mock_response)
+    async def test_classify_with_structured_response(self) -> None:
+        """When structured_response is a ClassificationResult, it is returned directly."""
+        expected = ClassificationResult(
+            category_id=self.sample_categories[0]["id"],
+            category_name="LPA",
+            reasoning="Matched based on partnership language.",
+        )
+        self.classifier._agent.ainvoke = AsyncMock(
+            return_value={
+                "structured_response": expected,
+                "response": "",
+            }
+        )
 
         result = await self.classifier.classify(self.sample_content, self.sample_categories)
-        assert isinstance(result, ClassificationResult)
-        self.classifier._agent.run.assert_called_once()
-
-    def test_as_subagent_slot(self) -> None:
-        slot = self.classifier.as_subagent_slot()
-        assert slot.name == "classifier"
-        assert slot.description
+        assert result is expected
+        self.classifier._agent.ainvoke.assert_called_once()
 
     def test_build_prompt_includes_categories(self) -> None:
         prompt = self.classifier._build_prompt("test content", self.sample_categories)
@@ -89,3 +106,9 @@ class TestClassifierSubagent:
         self.classifier._parsed_content = "test"
         content = await self.classifier._get_parsed_content()
         assert content == "test"
+
+    def test_as_subagent_config(self) -> None:
+        config = self.classifier.as_subagent_config()
+        assert config["name"] == "classifier"
+        assert config["description"]
+        assert isinstance(config, dict)
