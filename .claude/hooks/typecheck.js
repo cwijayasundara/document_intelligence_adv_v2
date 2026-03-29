@@ -1,0 +1,65 @@
+#!/usr/bin/env node
+
+'use strict';
+
+const fs = require('fs');
+const path = require('path');
+const { spawnSync } = require('child_process');
+
+try {
+  const input = JSON.parse(fs.readFileSync('/dev/stdin', 'utf8'));
+  const filePath = (input.tool_input && input.tool_input.file_path) || '';
+
+  if (!filePath) {
+    process.exit(0);
+  }
+
+  const ext = path.extname(filePath).toLowerCase();
+  const isPython = ext === '.py';
+  const isTypeScript = ext === '.ts' || ext === '.tsx';
+
+  if (!isPython && !isTypeScript) {
+    process.exit(0);
+  }
+
+  // Try to read project-manifest.json
+  let manifest = null;
+  try {
+    const manifestPath = path.join(process.cwd(), 'project-manifest.json');
+    manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+  } catch (_) {
+    // No manifest — use defaults
+  }
+
+  const typechecker = manifest && manifest.typechecker ? manifest.typechecker : null;
+
+  if (isPython) {
+    const useChecker = typechecker ? typechecker === 'mypy' : true; // fallback: use mypy
+    if (useChecker) {
+      const result = spawnSync('sh', ['-c', `uv run mypy "${filePath}"`], {
+        encoding: 'utf8',
+        shell: false,
+      });
+      if (result.status !== 0) {
+        const output = (result.stdout || '') + (result.stderr || '');
+        process.stderr.write(`Typecheck errors in ${filePath}:\n${output}\nFix: Add type annotations or fix the type mismatch shown above.\n`);
+      }
+    }
+  } else if (isTypeScript) {
+    const useChecker = typechecker ? typechecker === 'tsc' : true; // fallback: use tsc
+    if (useChecker) {
+      const result = spawnSync('sh', ['-c', 'npx tsc --noEmit'], {
+        encoding: 'utf8',
+        shell: false,
+      });
+      if (result.status !== 0) {
+        const output = (result.stdout || '') + (result.stderr || '');
+        process.stderr.write(`Typecheck errors (tsc):\n${output}\nFix: Add type annotations or fix the type mismatch shown above.\n`);
+      }
+    }
+  }
+} catch (err) {
+  process.stderr.write(`typecheck.js error: ${err.message}\n`);
+}
+
+process.exit(0);

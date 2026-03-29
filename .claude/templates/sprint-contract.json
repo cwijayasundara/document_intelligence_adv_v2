@@ -1,0 +1,17 @@
+{
+  "group": "",
+  "stories": [],
+  "contract": {
+    "api_checks": [],
+    "playwright_checks": [],
+    "design_checks": {
+      "pages": [],
+      "min_score": 7,
+      "criteria": ["design_quality", "originality", "craft", "functionality"]
+    },
+    "architecture_checks": {
+      "files_must_exist": [],
+      "schema_validation": true
+    }
+  }
+}
