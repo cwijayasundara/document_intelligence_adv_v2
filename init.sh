@@ -1,41 +1,98 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -euo pipefail
 
-echo "=== Bootstrapping dev environment ==="
+echo "=== PE Document Intelligence Platform — Bootstrap ==="
+echo ""
 
-# Backend dependencies
-cd backend && uv sync && cd ..
+# Check prerequisites
+command -v docker >/dev/null 2>&1 || { echo "Error: docker is not installed."; exit 1; }
+command -v docker compose >/dev/null 2>&1 || { echo "Error: docker compose is not available."; exit 1; }
 
-# Frontend dependencies
-cd frontend && npm ci && cd ..
+# Create data directories
+echo "[1/6] Creating data directories..."
+mkdir -p data/upload data/parsed data/schemas
 
-# Environment
-if [ -f "backend/.env.example" ] && [ ! -f "backend/.env" ]; then
-  cp backend/.env.example backend/.env
-  echo "Created backend/.env from .env.example — add your API keys"
+# Copy .env if not exists
+if [ ! -f .env ]; then
+  echo "[2/6] Creating .env from .env.example..."
+  cp .env.example .env
+  echo "  ⚠ Edit .env with your API keys before using the platform."
+else
+  echo "[2/6] .env already exists, skipping."
 fi
 
-# Docker services
-docker compose up -d --build
+# Copy backend .env if not exists
+if [ ! -f backend/.env ]; then
+  echo "  Creating backend/.env from .env..."
+  cp .env backend/.env
+fi
 
-# Health checks
-echo "Waiting for services..."
-for i in $(seq 1 10); do
-  if curl -sf http://localhost:8000/api/v1/health > /dev/null 2>&1; then
-    echo "Backend is healthy"
+# Start Docker services
+echo "[3/6] Starting PostgreSQL and Weaviate..."
+docker compose up -d
+
+# Wait for PostgreSQL
+echo "[4/6] Waiting for PostgreSQL..."
+for i in $(seq 1 30); do
+  if docker compose exec -T postgres pg_isready -U doc_intel >/dev/null 2>&1; then
+    echo "  PostgreSQL is ready."
     break
   fi
-  echo "Waiting for backend... ($i/10)"
-  sleep 2
+  if [ "$i" -eq 30 ]; then
+    echo "  Error: PostgreSQL did not become ready in 30s."
+    docker compose logs postgres --tail=20
+    exit 1
+  fi
+  sleep 1
 done
 
-for i in $(seq 1 10); do
-  if curl -sf http://localhost:5173 > /dev/null 2>&1; then
-    echo "Frontend is healthy"
+# Wait for Weaviate
+echo "  Waiting for Weaviate..."
+for i in $(seq 1 30); do
+  if curl -sf http://localhost:8080/v1/.well-known/ready >/dev/null 2>&1; then
+    echo "  Weaviate is ready."
     break
   fi
-  echo "Waiting for frontend... ($i/10)"
-  sleep 2
+  if [ "$i" -eq 30 ]; then
+    echo "  Error: Weaviate did not become ready in 30s."
+    docker compose logs weaviate --tail=20
+    exit 1
+  fi
+  sleep 1
 done
 
-echo "=== Environment ready ==="
+# Backend setup
+echo "[5/6] Setting up backend..."
+cd backend
+if command -v uv >/dev/null 2>&1; then
+  uv sync
+  echo "  Running database migrations..."
+  uv run alembic upgrade head
+else
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+  echo "  Running database migrations..."
+  alembic upgrade head
+fi
+cd ..
+
+# Frontend setup
+echo "[6/6] Setting up frontend..."
+cd frontend
+npm ci
+cd ..
+
+echo ""
+echo "=== Bootstrap complete ==="
+echo ""
+echo "Services running:"
+echo "  PostgreSQL  → localhost:5432"
+echo "  Weaviate    → localhost:8080"
+echo ""
+echo "To start the app:"
+echo "  Backend:  cd backend && uv run uvicorn src.main:app --reload --port 8000"
+echo "  Frontend: cd frontend && npm run dev"
+echo ""
+echo "  Backend API:  http://localhost:8000/api/v1/health"
+echo "  Frontend UI:  http://localhost:5173"

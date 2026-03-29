@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
+    container_name: doc_intel_postgres
+    restart: unless-stopped
     ports:
       - "5432:5432"
     environment:
@@ -17,6 +19,8 @@ services:
 
   weaviate:
     image: semitechnologies/weaviate:1.30.0
+    container_name: doc_intel_weaviate
+    restart: unless-stopped
     ports:
       - "8080:8080"
       - "50051:50051"
@@ -29,6 +33,11 @@ services:
       CLUSTER_HOSTNAME: "node1"
     volumes:
       - weaviate_data:/var/lib/weaviate
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/v1/.well-known/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
 volumes:
   pgdata:
