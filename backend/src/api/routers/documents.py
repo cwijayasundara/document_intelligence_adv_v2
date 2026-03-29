@@ -1,6 +1,7 @@
 """Document management API endpoints: upload, list, get, delete."""
 
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -15,6 +16,29 @@ from src.services.document_service import DocumentService
 from src.storage.local import LocalStorage
 
 router = APIRouter()
+
+MAX_FILE_SIZE: int = 100 * 1024 * 1024  # 100 MB
+
+ALLOWED_EXTENSIONS: set[str] = {".pdf", ".docx", ".xlsx", ".png", ".jpg", ".jpeg", ".tiff"}
+
+# Mapping from extension to expected magic byte prefixes
+_MAGIC_BYTES: dict[str, list[bytes]] = {
+    ".pdf": [b"%PDF"],
+    ".docx": [b"PK"],
+    ".xlsx": [b"PK"],
+    ".png": [b"\x89PNG"],
+    ".jpg": [b"\xff\xd8\xff"],
+    ".jpeg": [b"\xff\xd8\xff"],
+    ".tiff": [b"II", b"MM"],
+}
+
+
+def _validate_magic_bytes(extension: str, content: bytes) -> bool:
+    """Check that file content matches expected magic bytes for the extension."""
+    expected = _MAGIC_BYTES.get(extension)
+    if expected is None:
+        return True  # No magic byte check configured for this extension
+    return any(content.startswith(magic) for magic in expected)
 
 
 def _get_storage() -> LocalStorage:
@@ -42,6 +66,26 @@ async def upload_document(
 
     content = await file.read()
     filename = file.filename or "unknown"
+
+    # VULN-004: Enforce file size limit
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File size exceeds maximum allowed size of {MAX_FILE_SIZE} bytes",
+        )
+
+    # VULN-005: Validate extension is allowed and magic bytes match
+    ext = Path(filename).suffix.lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"File extension '{ext}' not allowed",
+        )
+    if not _validate_magic_bytes(ext, content):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"File content does not match expected format for '{ext}'",
+        )
 
     try:
         doc, is_duplicate = await service.upload(filename, content)
@@ -76,12 +120,18 @@ async def list_documents(
     storage = _get_storage()
     service = DocumentService(session, storage)
 
-    docs, total = await service.list_documents(
-        status=status_filter,
-        category_id=category_id,
-        sort_by=sort_by,
-        sort_order=sort_order,
-    )
+    try:
+        docs, total = await service.list_documents(
+            status=status_filter,
+            category_id=category_id,
+            sort_by=sort_by,
+            sort_order=sort_order,
+        )
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(exc),
+        ) from exc
 
     items = [DocumentListItem.model_validate(d) for d in docs]
     return DocumentListResponse(documents=items, total=total)

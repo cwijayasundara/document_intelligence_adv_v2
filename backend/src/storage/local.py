@@ -25,13 +25,44 @@ class LocalStorage:
         """Return the parsed directory path."""
         return self._parsed_dir
 
+    @staticmethod
+    def _sanitize_filename(filename: str) -> str:
+        """Sanitize a filename to prevent path traversal attacks.
+
+        Rejects names containing '..' or path separators, then extracts
+        just the basename component.
+
+        Raises:
+            ValueError: If the filename is invalid or attempts path traversal.
+        """
+        if not filename or ".." in filename or "/" in filename or "\\" in filename:
+            raise ValueError(f"Invalid filename: {filename!r}")
+
+        # Extract just the filename component (no directory parts)
+        safe_name = Path(filename).name
+
+        if not safe_name or safe_name in {".", ".."}:
+            raise ValueError(f"Invalid filename: {filename!r}")
+
+        return safe_name
+
     async def save_file(self, filename: str, content: bytes) -> Path:
         """Save file content to the upload directory.
 
         Returns:
             The full path where the file was saved.
+
+        Raises:
+            ValueError: If the filename is invalid or attempts path traversal.
         """
-        dest = self._upload_dir / filename
+        safe_name = self._sanitize_filename(filename)
+        dest = (self._upload_dir / safe_name).resolve()
+
+        # Ensure the resolved path is still within the upload directory
+        upload_resolved = self._upload_dir.resolve()
+        if not str(dest).startswith(str(upload_resolved) + "/") and dest != upload_resolved:
+            raise ValueError(f"Invalid filename: {filename!r}")
+
         async with aiofiles.open(dest, "wb") as f:
             await f.write(content)
         return dest

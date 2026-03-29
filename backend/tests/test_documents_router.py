@@ -71,7 +71,7 @@ async def test_upload_document(
 
     response = await client.post(
         "/api/v1/documents/upload",
-        files={"file": ("test.pdf", b"content", "application/pdf")},
+        files={"file": ("test.pdf", b"%PDF-content", "application/pdf")},
     )
 
     assert response.status_code == 201
@@ -183,3 +183,62 @@ async def test_upload_invalid_type(
     )
 
     assert response.status_code == 422
+
+
+@patch("src.api.routers.documents._get_storage")
+@patch("src.api.routers.documents.DocumentService")
+async def test_invalid_sort_column(
+    MockService: MagicMock,
+    mock_get_storage: MagicMock,
+    client: AsyncClient,
+) -> None:
+    """GET /documents rejects invalid sort_by column via service ValueError."""
+    instance = MockService.return_value
+    instance.list_documents = AsyncMock(side_effect=ValueError("Invalid sort column: 'drop_table'"))
+
+    response = await client.get("/api/v1/documents?sort_by=drop_table")
+
+    assert response.status_code == 422
+    assert "Invalid sort column" in response.json()["detail"]
+
+
+@patch("src.api.routers.documents._get_storage")
+@patch("src.api.routers.documents.DocumentService")
+async def test_file_too_large(
+    MockService: MagicMock,
+    mock_get_storage: MagicMock,
+    client: AsyncClient,
+) -> None:
+    """POST /documents/upload returns 413 when file exceeds size limit."""
+    # Create content larger than MAX_FILE_SIZE (100 MB).
+    # We patch MAX_FILE_SIZE to a small value for speed.
+    from src.api.routers import documents as doc_module
+
+    original = doc_module.MAX_FILE_SIZE
+    doc_module.MAX_FILE_SIZE = 10  # 10 bytes for testing
+    try:
+        response = await client.post(
+            "/api/v1/documents/upload",
+            files={"file": ("big.pdf", b"x" * 20, "application/pdf")},
+        )
+        assert response.status_code == 413
+        assert "exceeds maximum" in response.json()["detail"]
+    finally:
+        doc_module.MAX_FILE_SIZE = original
+
+
+@patch("src.api.routers.documents._get_storage")
+@patch("src.api.routers.documents.DocumentService")
+async def test_magic_byte_mismatch(
+    MockService: MagicMock,
+    mock_get_storage: MagicMock,
+    client: AsyncClient,
+) -> None:
+    """POST /documents/upload returns 400 when magic bytes don't match extension."""
+    # Send a .pdf file with non-PDF content (not starting with %PDF)
+    response = await client.post(
+        "/api/v1/documents/upload",
+        files={"file": ("fake.pdf", b"this is not a pdf", "application/pdf")},
+    )
+    assert response.status_code == 400
+    assert "does not match expected format" in response.json()["detail"]

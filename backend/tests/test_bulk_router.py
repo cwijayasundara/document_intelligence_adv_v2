@@ -111,8 +111,8 @@ async def test_bulk_upload_creates_job(
     response = await client.post(
         "/api/v1/bulk/upload",
         files=[
-            ("files", ("doc1.pdf", b"content1", "application/pdf")),
-            ("files", ("doc2.pdf", b"content2", "application/pdf")),
+            ("files", ("doc1.pdf", b"%PDF-content1", "application/pdf")),
+            ("files", ("doc2.pdf", b"%PDF-content2", "application/pdf")),
         ],
     )
 
@@ -299,12 +299,12 @@ async def test_bulk_upload_mixed_file_types(
     response = await client.post(
         "/api/v1/bulk/upload",
         files=[
-            ("files", ("report.pdf", b"content1", "application/pdf")),
+            ("files", ("report.pdf", b"%PDF-content1", "application/pdf")),
             (
                 "files",
                 (
                     "data.xlsx",
-                    b"content2",
+                    b"PK-content2",
                     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                 ),
             ),
@@ -329,7 +329,7 @@ async def test_bulk_upload_single_file(
     response = await client.post(
         "/api/v1/bulk/upload",
         files=[
-            ("files", ("single.pdf", b"content", "application/pdf")),
+            ("files", ("single.pdf", b"%PDF-content", "application/pdf")),
         ],
     )
 

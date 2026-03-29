@@ -7,6 +7,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Document
 
+ALLOWED_SORT_COLUMNS: set[str] = {
+    "file_name",
+    "status",
+    "file_type",
+    "file_size",
+    "created_at",
+    "updated_at",
+}
+
 
 class DocumentRepository:
     """Async repository for document CRUD operations."""
@@ -67,7 +76,12 @@ class DocumentRepository:
             stmt = stmt.where(Document.document_category_id == category_id)
             count_stmt = count_stmt.where(Document.document_category_id == category_id)
 
-        sort_column = getattr(Document, sort_by, Document.created_at)
+        if sort_by not in ALLOWED_SORT_COLUMNS:
+            raise ValueError(
+                f"Invalid sort column: {sort_by!r}. "
+                f"Allowed: {', '.join(sorted(ALLOWED_SORT_COLUMNS))}"
+            )
+        sort_column = getattr(Document, sort_by)
         if sort_order == "asc":
             stmt = stmt.order_by(sort_column.asc())
         else:

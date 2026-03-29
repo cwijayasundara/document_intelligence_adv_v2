@@ -7,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, UploadFi
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_session
+from src.api.routers.documents import MAX_FILE_SIZE, _validate_magic_bytes
 from src.api.schemas.bulk import (
     BulkJobDetailResponse,
     BulkJobDocumentResponse,
@@ -63,6 +64,22 @@ async def bulk_upload(
                 detail=f"File type '{ext}' not allowed for file '{filename}'",
             )
         content = await f.read()
+
+        # Enforce file size limit
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"File '{filename}' exceeds maximum allowed size of {MAX_FILE_SIZE} bytes",
+            )
+
+        # Validate magic bytes match the claimed extension
+        ext_with_dot = f".{ext}"
+        if not _validate_magic_bytes(ext_with_dot, content):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"File '{filename}' content does not match expected format for '.{ext}'",
+            )
+
         file_names.append(filename)
         file_contents.append(content)
         file_types.append(ext)

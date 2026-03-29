@@ -70,3 +70,21 @@ def test_upload_dir_property(storage: LocalStorage) -> None:
 def test_parsed_dir_property(storage: LocalStorage) -> None:
     """parsed_dir property returns correct path."""
     assert isinstance(storage.parsed_dir, Path)
+
+
+@pytest.mark.parametrize(
+    "malicious_name",
+    [
+        "../etc/passwd",
+        "../../secret.txt",
+        "foo/../../bar.txt",
+        "/etc/passwd",
+        "..\\windows\\system32\\config",
+        "..",
+        ".",
+    ],
+)
+async def test_path_traversal_rejected(storage: LocalStorage, malicious_name: str) -> None:
+    """save_file rejects filenames that attempt path traversal."""
+    with pytest.raises(ValueError, match="Invalid filename"):
+        await storage.save_file(malicious_name, b"malicious content")
