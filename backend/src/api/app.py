@@ -19,6 +19,7 @@ from src.api.routers import (
     ingest,
     parse,
     rag,
+    stream,
     summarize,
 )
 from src.db.connection import dispose_engine, get_session_factory, init_engine
@@ -125,5 +126,6 @@ def create_app(database_url: str = "") -> FastAPI:
     app.include_router(extract.router, prefix="/api/v1", tags=["extract"])
     app.include_router(rag.router, prefix="/api/v1", tags=["rag"])
     app.include_router(bulk.router, prefix="/api/v1", tags=["bulk"])
+    app.include_router(stream.router, prefix="/api/v1", tags=["stream"])
 
     return app
