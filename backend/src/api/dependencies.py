@@ -20,6 +20,19 @@ def get_app_settings() -> AppSettings:
     return get_settings()
 
 
+from src.api.middleware.run_guard import RunGuard
+
+_run_guard: RunGuard | None = None
+
+
+def get_run_guard() -> RunGuard:
+    """Return the singleton RunGuard instance."""
+    global _run_guard
+    if _run_guard is None:
+        _run_guard = RunGuard()
+    return _run_guard
+
+
 async def get_current_user_id(
     x_user_id: str | None = Header(None, alias="X-User-Id"),
 ) -> str:
