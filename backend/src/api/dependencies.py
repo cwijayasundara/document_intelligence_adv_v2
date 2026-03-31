@@ -5,6 +5,7 @@ from collections.abc import AsyncGenerator
 from fastapi import Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.middleware.run_guard import RunGuard
 from src.config.settings import AppSettings, get_settings
 from src.db.connection import get_session as _get_session
 
@@ -18,9 +19,6 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 def get_app_settings() -> AppSettings:
     """Return the cached application settings singleton."""
     return get_settings()
-
-
-from src.api.middleware.run_guard import RunGuard
 
 _run_guard: RunGuard | None = None
 

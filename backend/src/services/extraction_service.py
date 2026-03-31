@@ -38,7 +38,10 @@ class ExtractionService:
         Returns:
             List of result dicts with merged confidence data.
         """
-        logger.info("Extracting %d fields from content (%d chars)", len(extraction_fields), len(parsed_content))
+        logger.info(
+            "Extracting %d fields from content (%d chars)",
+            len(extraction_fields), len(parsed_content),
+        )
         extraction_result = await self._extractor.extract(parsed_content, extraction_fields)
 
         logger.info("Judging %d extracted fields", len(extraction_result.fields))

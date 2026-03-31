@@ -99,7 +99,10 @@ async def extract_document(
         saved = await ev_repo.save_results(doc_id, results)
 
         review_count = sum(1 for r in results if r["requires_review"])
-        logger.info("Extraction saved for %s: %d results, %d need review", doc_id, len(saved), review_count)
+        logger.info(
+            "Extraction saved for %s: %d results, %d need review",
+            doc_id, len(saved), review_count,
+        )
 
         doc.status = "extracted"
         await session.flush()
