@@ -85,6 +85,11 @@ class AppSettings(BaseSettings):
     agent_max_llm_calls: int = Field(default=50, description="Max LLM calls per pipeline run")
     agent_max_tool_calls: int = Field(default=200, description="Max tool calls per pipeline run")
 
+    # Observability
+    otel_enabled: bool = Field(default=False, description="Enable OpenTelemetry tracing")
+    otel_service_name: str = Field(default="doc-intel", description="OTel service name")
+    otel_exporter_endpoint: str = Field(default="", description="OTel collector endpoint")
+
     # Nested config from config.yml
     storage: StorageSettings = Field(default_factory=StorageSettings)
     chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)
