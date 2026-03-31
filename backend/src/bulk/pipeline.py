@@ -14,6 +14,8 @@ from typing import Any
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 
+# AsyncPostgresSaver is imported lazily to avoid hard dependency on psycopg at import time.
+# Use create_checkpointer() to instantiate it at runtime.
 from src.bulk.nodes import (
     classify_node,
     extract_node,
@@ -28,13 +30,29 @@ from src.bulk.state import DocumentState
 DEFAULT_CONCURRENCY = 10
 
 
+async def create_checkpointer(conn_string: str) -> Any:
+    """Create a persistent AsyncPostgresSaver checkpointer.
+
+    Args:
+        conn_string: Sync PostgreSQL connection string (postgresql://...).
+
+    Returns:
+        Configured AsyncPostgresSaver instance.
+    """
+    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+    saver = AsyncPostgresSaver.from_conn_string(conn_string)
+    await saver.setup()
+    return saver
+
+
 def build_pipeline(
-    checkpointer: MemorySaver | None = None,
+    checkpointer: Any | None = None,
 ) -> Any:
     """Build and compile the bulk processing StateGraph.
 
     Args:
-        checkpointer: Optional MemorySaver for resumability.
+        checkpointer: Optional checkpointer for resumability (MemorySaver or AsyncPostgresSaver).
 
     Returns:
         Compiled graph ready for invocation.
@@ -102,18 +120,22 @@ async def run_pipeline_for_document(
 async def run_bulk_pipeline(
     document_ids: list[str],
     concurrent_limit: int = DEFAULT_CONCURRENCY,
-    checkpointer: MemorySaver | None = None,
+    checkpointer: Any | None = None,
+    db_url: str | None = None,
 ) -> list[DocumentState]:
     """Run the bulk pipeline for multiple documents concurrently.
 
     Args:
         document_ids: List of document UUID strings.
         concurrent_limit: Max concurrent documents.
-        checkpointer: Optional MemorySaver instance.
+        checkpointer: Optional checkpointer instance (MemorySaver or AsyncPostgresSaver).
+        db_url: Optional sync PostgreSQL URL; creates AsyncPostgresSaver if provided.
 
     Returns:
         List of final DocumentState results.
     """
+    if checkpointer is None and db_url is not None:
+        checkpointer = await create_checkpointer(db_url)
     compiled = build_pipeline(checkpointer=checkpointer)
     semaphore = asyncio.Semaphore(concurrent_limit)
 

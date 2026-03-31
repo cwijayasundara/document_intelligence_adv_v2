@@ -76,11 +76,27 @@ class AppSettings(BaseSettings):
     # Logging (configurable via LOG_LEVEL env var, defaults to INFO)
     log_level: str = Field(default="INFO", description="Root log level")
 
+    # LLM retry/fallback
+    openai_fallback_model: str = Field(default="", description="Fallback model for retries")
+    llm_max_retries: int = Field(default=3, description="Max LLM call retries")
+    llm_base_delay: float = Field(default=1.0, description="Base delay for LLM retry backoff")
+
+    # Agent rate limiting
+    agent_max_llm_calls: int = Field(default=50, description="Max LLM calls per pipeline run")
+    agent_max_tool_calls: int = Field(default=200, description="Max tool calls per pipeline run")
+
     # Nested config from config.yml
     storage: StorageSettings = Field(default_factory=StorageSettings)
     chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)
     bulk: BulkSettings = Field(default_factory=BulkSettings)
     rag: RAGSettings = Field(default_factory=RAGSettings)
+
+    @property
+    def database_url_sync(self) -> str:
+        """Sync postgres URL for checkpointer (strips +asyncpg driver suffix)."""
+        _async_scheme = "postgresql+asyncpg"
+        _sync_scheme = "postgresql"
+        return self.database_url.replace(_async_scheme, _sync_scheme, 1)
 
     @classmethod
     def from_yaml_and_env(cls, env_file: str | None = None) -> "AppSettings":
