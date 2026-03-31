@@ -2,12 +2,27 @@
 
 Redacts SSN/tax IDs, phone numbers, email addresses, bank accounts,
 and US street addresses while preserving fund names and financial terms.
+Supports configurable strategies: REDACT, MASK, and BLOCK.
 """
 
 from __future__ import annotations
 
+import enum
 import re
 from dataclasses import dataclass, field
+
+
+class PIIStrategy(enum.Enum):
+    """Strategy for handling detected PII."""
+
+    REDACT = "redact"
+    MASK = "mask"
+    BLOCK = "block"
+
+
+class PIIDetectedError(Exception):
+    """Raised when PII is detected and strategy is BLOCK."""
+
 
 # Financial terms that should NOT be redacted
 PASSTHROUGH_TERMS = {
@@ -60,7 +75,8 @@ class PIIFilterMiddleware:
     with typed placeholders. Preserves fund names and financial terms.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, strategy: PIIStrategy = PIIStrategy.REDACT) -> None:
+        self._strategy = strategy
         # Order matters: more specific patterns first to avoid overlap
         self._patterns: list[tuple[re.Pattern[str], str, str]] = [
             (SSN_PATTERN, "[REDACTED_SSN]", "ssn"),
@@ -78,6 +94,9 @@ class PIIFilterMiddleware:
 
         Returns:
             PIIFilterResult with redacted text and stats.
+
+        Raises:
+            PIIDetectedError: If strategy is BLOCK and PII is found.
         """
         redacted = text
         total_count = 0
@@ -88,23 +107,59 @@ class PIIFilterMiddleware:
             if matches:
                 filtered_matches = [m for m in matches if not self._is_financial_term(m, redacted)]
                 if filtered_matches:
-                    redacted = pattern.sub(
-                        lambda m: (
-                            replacement
-                            if not self._is_financial_term(m.group(), redacted)
-                            else m.group()
-                        ),
-                        redacted,
-                    )
                     count = len(filtered_matches)
                     total_count += count
                     type_counts[pii_type] = type_counts.get(pii_type, 0) + count
+
+                    if self._strategy == PIIStrategy.BLOCK:
+                        continue  # count all types before raising
+
+                    if self._strategy == PIIStrategy.MASK:
+                        redacted = pattern.sub(
+                            lambda m, pt=pii_type: (
+                                self._mask_match(m.group(), pt)
+                                if not self._is_financial_term(m.group(), redacted)
+                                else m.group()
+                            ),
+                            redacted,
+                        )
+                    else:  # REDACT (default)
+                        redacted = pattern.sub(
+                            lambda m, rep=replacement: (
+                                rep
+                                if not self._is_financial_term(m.group(), redacted)
+                                else m.group()
+                            ),
+                            redacted,
+                        )
+
+        if self._strategy == PIIStrategy.BLOCK and total_count > 0:
+            detected = ", ".join(type_counts.keys())
+            raise PIIDetectedError(f"PII detected ({detected}): {total_count} instance(s) found")
 
         return PIIFilterResult(
             redacted_text=redacted,
             redactions_count=total_count,
             redaction_types=type_counts,
         )
+
+    @staticmethod
+    def _mask_match(match_text: str, pii_type: str) -> str:
+        """Mask PII preserving last 4 characters.
+
+        Args:
+            match_text: The matched PII text.
+            pii_type: The type of PII detected.
+
+        Returns:
+            Masked text with last 4 chars preserved.
+        """
+        if len(match_text) <= 4:
+            return "*" * len(match_text)
+        tail = match_text[-4:]
+        head = match_text[:-4]
+        masked_head = re.sub(r"[a-zA-Z0-9]", "*", head)
+        return masked_head + tail
 
     @staticmethod
     def _is_financial_term(match_text: str, full_text: str) -> bool:
