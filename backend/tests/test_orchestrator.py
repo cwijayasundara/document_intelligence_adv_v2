@@ -24,7 +24,7 @@ def test_build_orchestrator_calls_create_deep_agent(mock_create: MagicMock) -> N
     mock_create.assert_called_once()
     call_kwargs = mock_create.call_args[1]
     assert call_kwargs["model"] == "openai:gpt-5.4-mini"
-    assert len(call_kwargs["middleware"]) == 3
+    assert len(call_kwargs["middleware"]) == 2
     assert len(call_kwargs["subagents"]) == 5
 
 
@@ -94,12 +94,13 @@ async def test_reset_orchestrator(mock_create: MagicMock) -> None:
 @patch("src.agents.orchestrator.SummarizationMiddleware", MagicMock)
 @patch("src.agents.orchestrator.SubAgentMiddleware", MagicMock)
 @patch("src.agents.orchestrator.create_deep_agent")
-def test_orchestrator_has_filesystem_backend(mock_create: MagicMock) -> None:
-    """Orchestrator passes a FilesystemBackend."""
+def test_orchestrator_has_in_memory_backend(mock_create: MagicMock) -> None:
+    """Orchestrator passes an InMemoryBackend."""
     mock_create.return_value = MagicMock()
     _build_orchestrator()
 
     call_kwargs = mock_create.call_args[1]
     assert "backend" in call_kwargs
-    # The backend should be a FilesystemBackend instance
-    assert call_kwargs["backend"] is not None
+    from src.agents.backends import InMemoryBackend
+
+    assert isinstance(call_kwargs["backend"], InMemoryBackend)
