@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from src.api.dependencies import get_app_settings, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_session
 from src.api.schemas.documents import (
     DocumentListItem,
     DocumentListResponse,
@@ -62,6 +62,7 @@ def _get_storage() -> LocalStorage:
 async def upload_document(
     file: UploadFile,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> DocumentResponse:
     """Upload a document file with SHA-256 dedup."""
     storage = _get_storage()
@@ -91,7 +92,7 @@ async def upload_document(
         )
 
     try:
-        doc, is_duplicate = await service.upload(filename, content)
+        doc, is_duplicate = await service.upload(filename, content, user_id=user_id)
     except ValueError as exc:
         logger.warning("Upload rejected for %s: %s", filename, exc)
         raise HTTPException(
@@ -119,6 +120,7 @@ async def list_documents(
     sort_by: str = "created_at",
     sort_order: str = "desc",
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> DocumentListResponse:
     """List all documents with optional filtering and sorting."""
     storage = _get_storage()
@@ -130,6 +132,7 @@ async def list_documents(
             category_id=category_id,
             sort_by=sort_by,
             sort_order=sort_order,
+            user_id=user_id,
         )
     except ValueError as exc:
         raise HTTPException(
@@ -149,12 +152,13 @@ async def list_documents(
 async def get_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> DocumentResponse:
     """Get full document details by ID."""
     storage = _get_storage()
     service = DocumentService(session, storage)
 
-    doc = await service.get_document(doc_id)
+    doc = await service.get_document(doc_id, user_id=user_id)
     if doc is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -171,12 +175,13 @@ async def get_document(
 async def delete_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> None:
     """Delete a document and its associated files."""
     storage = _get_storage()
     service = DocumentService(session, storage)
 
-    deleted = await service.delete_document(doc_id)
+    deleted = await service.delete_document(doc_id, user_id=user_id)
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

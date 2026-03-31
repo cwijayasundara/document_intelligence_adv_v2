@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from src.api.dependencies import get_session
+from src.api.dependencies import get_current_user_id, get_session
 from src.api.schemas.extract import (
     ExtractionResponse,
     ExtractionResultItem,
@@ -49,6 +49,7 @@ def _get_extraction_service() -> ExtractionService:
 async def extract_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ExtractionResponse:
     """Run extraction + judge on a document, save results."""
     doc_repo = DocumentRepository(session)
@@ -126,6 +127,7 @@ async def extract_document(
 async def get_extraction_results(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ExtractionResultsResponse:
     """Get extraction results for a document."""
     doc_repo = DocumentRepository(session)
@@ -185,6 +187,7 @@ async def update_extraction_results(
     doc_id: uuid.UUID,
     body: ExtractionUpdateRequest,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ExtractionUpdateResponse:
     """Update extracted values and check review gate."""
     doc_repo = DocumentRepository(session)

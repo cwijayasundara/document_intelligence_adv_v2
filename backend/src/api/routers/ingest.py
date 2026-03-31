@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from src.api.dependencies import get_app_settings, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_session
 from src.db.repositories.documents import DocumentRepository
 from src.rag.chunker import SemanticChunker
 from src.rag.weaviate_client import COLLECTION_NAME, WeaviateClient
@@ -38,6 +38,7 @@ class IngestResponse(BaseModel):
 async def ingest_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> IngestResponse:
     """Chunk and ingest a document into Weaviate for RAG."""
     repo = DocumentRepository(session)

@@ -31,6 +31,7 @@ class DocumentRepository:
         file_type: str,
         file_size: int,
         status: str = "uploaded",
+        user_id: str | None = None,
     ) -> Document:
         """Create a new document record."""
         doc = Document(
@@ -41,20 +42,33 @@ class DocumentRepository:
             file_type=file_type,
             file_size=file_size,
             status=status,
+            user_id=user_id,
         )
         self._session.add(doc)
         await self._session.flush()
         return doc
 
-    async def get_by_id(self, doc_id: uuid.UUID) -> Document | None:
-        """Get a document by ID."""
+    async def get_by_id(
+        self,
+        doc_id: uuid.UUID,
+        user_id: str | None = None,
+    ) -> Document | None:
+        """Get a document by ID, optionally scoped to user."""
         stmt = select(Document).where(Document.id == doc_id)
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_hash(self, file_hash: str) -> Document | None:
+    async def get_by_hash(
+        self,
+        file_hash: str,
+        user_id: str | None = None,
+    ) -> Document | None:
         """Get a document by file hash (for dedup)."""
         stmt = select(Document).where(Document.file_hash == file_hash)
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
@@ -64,11 +78,15 @@ class DocumentRepository:
         category_id: uuid.UUID | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        user_id: str | None = None,
     ) -> tuple[list[Document], int]:
         """List documents with optional filters and sorting."""
         stmt = select(Document)
         count_stmt = select(func.count()).select_from(Document)
 
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
+            count_stmt = count_stmt.where(Document.user_id == user_id)
         if status is not None:
             stmt = stmt.where(Document.status == status)
             count_stmt = count_stmt.where(Document.status == status)
@@ -95,9 +113,15 @@ class DocumentRepository:
 
         return docs, total
 
-    async def delete(self, doc_id: uuid.UUID) -> bool:
+    async def delete(
+        self,
+        doc_id: uuid.UUID,
+        user_id: str | None = None,
+    ) -> bool:
         """Delete a document by ID. Returns True if deleted."""
         stmt = delete(Document).where(Document.id == doc_id)
+        if user_id is not None:
+            stmt = stmt.where(Document.user_id == user_id)
         result = await self._session.execute(stmt)
         return (result.rowcount or 0) > 0
 

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from src.api.dependencies import get_app_settings, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_session
 from src.api.schemas.parse import (
     EditContentRequest,
     EditContentResponse,
@@ -46,6 +46,7 @@ def _build_parse_service(
 async def parse_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ParseResponse:
     """Trigger document parsing via Reducto."""
     service = _build_parse_service(session)
@@ -79,6 +80,7 @@ async def parse_document(
 async def get_parsed_content(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ParseContentResponse:
     """Get parsed markdown content for a document."""
     service = _build_parse_service(session)
@@ -109,6 +111,7 @@ async def save_edited_content(
     doc_id: uuid.UUID,
     body: EditContentRequest,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> EditContentResponse:
     """Save edited markdown content."""
     service = _build_parse_service(session)

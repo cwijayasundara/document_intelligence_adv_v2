@@ -20,6 +20,7 @@ class BulkJobRepository:
         self,
         total_documents: int,
         status: str = "pending",
+        user_id: str | None = None,
     ) -> BulkJob:
         """Create a new bulk job record."""
         job = BulkJob(
@@ -28,25 +29,35 @@ class BulkJobRepository:
             total_documents=total_documents,
             processed_count=0,
             failed_count=0,
+            user_id=user_id,
             created_at=datetime.now(timezone.utc),
         )
         self._session.add(job)
         await self._session.flush()
         return job
 
-    async def get_by_id(self, job_id: uuid.UUID) -> BulkJob | None:
+    async def get_by_id(
+        self,
+        job_id: uuid.UUID,
+        user_id: str | None = None,
+    ) -> BulkJob | None:
         """Get a bulk job by ID with its documents eagerly loaded."""
         stmt = select(BulkJob).where(BulkJob.id == job_id).options(selectinload(BulkJob.documents))
+        if user_id is not None:
+            stmt = stmt.where(BulkJob.user_id == user_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 
     async def list_all(
         self,
         status: str | None = None,
+        user_id: str | None = None,
     ) -> list[BulkJob]:
         """List all bulk jobs with optional status filter."""
         stmt = select(BulkJob).order_by(BulkJob.created_at.desc())
 
+        if user_id is not None:
+            stmt = stmt.where(BulkJob.user_id == user_id)
         if status is not None:
             stmt = stmt.where(BulkJob.status == status)
 

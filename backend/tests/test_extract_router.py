@@ -9,6 +9,9 @@ from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
 from src.api.dependencies import get_session
+from tests.db_helpers import TEST_BASE_URL
+
+AUTH_HEADERS: dict[str, str] = {"X-User-Id": "test-user"}
 
 
 @pytest.fixture
@@ -33,7 +36,7 @@ def app(mock_session) -> FastAPI:
 @pytest.fixture
 async def client(app: FastAPI):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
 
 
@@ -121,7 +124,7 @@ class TestExtractRouter:
             mock_repo.get_by_id = AsyncMock(return_value=None)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/extract/{doc_id}")
+            resp = await client.post(f"/api/v1/extract/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -136,7 +139,7 @@ class TestExtractRouter:
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/extract/{doc_id}")
+            resp = await client.post(f"/api/v1/extract/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
@@ -152,7 +155,7 @@ class TestExtractRouter:
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/extract/{doc_id}")
+            resp = await client.post(f"/api/v1/extract/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
@@ -212,7 +215,7 @@ class TestExtractRouter:
             mock_ev_repo.save_results = AsyncMock(return_value=[mock_saved])
             mock_ev_cls.return_value = mock_ev_repo
 
-            resp = await client.post(f"/api/v1/extract/{doc_id}")
+            resp = await client.post(f"/api/v1/extract/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 201
             data = resp.json()
             assert data["status"] == "extracted"
@@ -227,7 +230,7 @@ class TestExtractRouter:
             mock_repo.get_by_id = AsyncMock(return_value=None)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.get(f"/api/v1/extract/{doc_id}/results")
+            resp = await client.get(f"/api/v1/extract/{doc_id}/results", headers=AUTH_HEADERS)
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -248,7 +251,7 @@ class TestExtractRouter:
             mock_ev_repo.get_by_document_id = AsyncMock(return_value=[])
             mock_ev_cls.return_value = mock_ev_repo
 
-            resp = await client.get(f"/api/v1/extract/{doc_id}/results")
+            resp = await client.get(f"/api/v1/extract/{doc_id}/results", headers=AUTH_HEADERS)
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -283,7 +286,7 @@ class TestExtractRouter:
             mock_ev_repo.get_by_document_id = AsyncMock(return_value=[mock_ev])
             mock_ev_cls.return_value = mock_ev_repo
 
-            resp = await client.get(f"/api/v1/extract/{doc_id}/results")
+            resp = await client.get(f"/api/v1/extract/{doc_id}/results", headers=AUTH_HEADERS)
             assert resp.status_code == 200
             data = resp.json()
             assert data["all_reviewed"] is True
@@ -299,6 +302,7 @@ class TestExtractRouter:
             resp = await client.put(
                 f"/api/v1/extract/{doc_id}/results",
                 json={"updates": []},
+                headers=AUTH_HEADERS,
             )
             assert resp.status_code == 404
 
@@ -326,6 +330,7 @@ class TestExtractRouter:
             resp = await client.put(
                 f"/api/v1/extract/{doc_id}/results",
                 json={"updates": []},
+                headers=AUTH_HEADERS,
             )
             assert resp.status_code == 400
 
@@ -351,6 +356,7 @@ class TestExtractRouter:
 
             resp = await client.put(
                 f"/api/v1/extract/{doc_id}/results",
+                headers=AUTH_HEADERS,
                 json={
                     "updates": [
                         {

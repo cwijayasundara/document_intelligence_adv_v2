@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from src.api.dependencies import get_session
+from src.api.dependencies import get_current_user_id, get_session
 from src.api.schemas.summarize import SummarizeResponse, SummaryGetResponse
 from src.db.repositories.documents import DocumentRepository
 from src.services.state_machine import InvalidTransitionError, validate_transition
@@ -35,6 +35,7 @@ def _get_summary_service() -> SummaryService:
 async def summarize_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> SummarizeResponse:
     """Generate or regenerate a document summary."""
     repo = DocumentRepository(session)
@@ -93,6 +94,7 @@ async def summarize_document(
 async def get_summary(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> SummaryGetResponse:
     """Get an existing document summary."""
     repo = DocumentRepository(session)

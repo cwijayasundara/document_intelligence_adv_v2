@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 logger = logging.getLogger(__name__)
 
 from src.agents.classifier import ClassifierSubagent
-from src.api.dependencies import get_session
+from src.api.dependencies import get_current_user_id, get_session
 from src.api.schemas.classify import ClassifyResponse
 from src.db.repositories.categories import CategoryRepository
 from src.db.repositories.documents import DocumentRepository
@@ -38,6 +38,7 @@ def _get_classifier() -> ClassifierSubagent:
 async def classify_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> ClassifyResponse:
     """Trigger classification for a document via the classifier subagent."""
     repo = DocumentRepository(session)
