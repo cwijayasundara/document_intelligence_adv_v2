@@ -79,6 +79,57 @@ async def test_get_by_session(session: AsyncSession) -> None:
     assert missing is None
 
 
+async def test_upsert_with_user_id_isolation(session: AsyncSession) -> None:
+    """upsert scoped by user_id creates separate records per user."""
+    repo = ConversationSummaryRepository(session)
+    await repo.upsert(
+        session_id="sess-shared",
+        agent_type="classifier",
+        summary="Alice summary",
+        key_topics=[],
+        documents_discussed=[],
+        queries_count=1,
+        user_id="alice",
+    )
+    await repo.upsert(
+        session_id="sess-shared",
+        agent_type="classifier",
+        summary="Bob summary",
+        key_topics=[],
+        documents_discussed=[],
+        queries_count=2,
+        user_id="bob",
+    )
+
+    alice_record = await repo.get_by_session("sess-shared", user_id="alice")
+    bob_record = await repo.get_by_session("sess-shared", user_id="bob")
+
+    assert alice_record is not None
+    assert alice_record.summary == "Alice summary"
+    assert bob_record is not None
+    assert bob_record.summary == "Bob summary"
+
+
+async def test_get_by_session_user_id_filter(session: AsyncSession) -> None:
+    """get_by_session with user_id does not return other users' data."""
+    repo = ConversationSummaryRepository(session)
+    await repo.upsert(
+        session_id="sess-only-alice",
+        agent_type="extractor",
+        summary="Alice only",
+        key_topics=[],
+        documents_discussed=[],
+        queries_count=0,
+        user_id="alice",
+    )
+
+    found = await repo.get_by_session("sess-only-alice", user_id="alice")
+    assert found is not None
+
+    not_found = await repo.get_by_session("sess-only-alice", user_id="bob")
+    assert not_found is None
+
+
 # --- MemoryEntryRepository tests ---
 
 
@@ -198,3 +249,97 @@ async def test_ltm_search(session: AsyncSession) -> None:
 
     results = await ltm.search("agent_state")
     assert len(results) == 2
+
+
+# --- PostgresLongTermMemory user isolation tests ---
+
+
+async def test_ltm_summary_user_isolation(session: AsyncSession) -> None:
+    """Summaries are isolated by user_id."""
+    ltm = PostgresLongTermMemory(session)
+
+    await ltm.save_conversation_summary(
+        session_id="shared-sess",
+        agent_type="summarizer",
+        summary="Alice summary",
+        user_id="alice",
+    )
+    await ltm.save_conversation_summary(
+        session_id="shared-sess",
+        agent_type="summarizer",
+        summary="Bob summary",
+        user_id="bob",
+    )
+
+    alice = await ltm.get_conversation_summary("shared-sess", user_id="alice")
+    bob = await ltm.get_conversation_summary("shared-sess", user_id="bob")
+
+    assert alice is not None
+    assert alice["summary"] == "Alice summary"
+    assert bob is not None
+    assert bob["summary"] == "Bob summary"
+
+
+async def test_ltm_summary_user_not_visible(session: AsyncSession) -> None:
+    """One user cannot see another user's summary."""
+    ltm = PostgresLongTermMemory(session)
+
+    await ltm.save_conversation_summary(
+        session_id="private-sess",
+        agent_type="extractor",
+        summary="Secret data",
+        user_id="alice",
+    )
+
+    bob_result = await ltm.get_conversation_summary("private-sess", user_id="bob")
+    assert bob_result is None
+
+
+async def test_ltm_kv_user_isolation(session: AsyncSession) -> None:
+    """KV entries are isolated by user_id via namespace scoping."""
+    ltm = PostgresLongTermMemory(session)
+
+    await ltm.put("prefs", "theme", {"mode": "dark"}, user_id="alice")
+    await ltm.put("prefs", "theme", {"mode": "light"}, user_id="bob")
+
+    alice_pref = await ltm.get("prefs", "theme", user_id="alice")
+    bob_pref = await ltm.get("prefs", "theme", user_id="bob")
+
+    assert alice_pref is not None
+    assert alice_pref["data"]["mode"] == "dark"
+    assert bob_pref is not None
+    assert bob_pref["data"]["mode"] == "light"
+
+
+async def test_ltm_kv_search_user_isolation(session: AsyncSession) -> None:
+    """Search only returns entries for the requesting user."""
+    ltm = PostgresLongTermMemory(session)
+
+    await ltm.put("docs", "d1", {"title": "Alice doc"}, user_id="alice")
+    await ltm.put("docs", "d2", {"title": "Bob doc"}, user_id="bob")
+
+    alice_results = await ltm.search("docs", user_id="alice")
+    bob_results = await ltm.search("docs", user_id="bob")
+
+    assert len(alice_results) == 1
+    assert alice_results[0]["data"]["title"] == "Alice doc"
+    assert len(bob_results) == 1
+    assert bob_results[0]["data"]["title"] == "Bob doc"
+
+
+async def test_ltm_kv_delete_user_isolation(session: AsyncSession) -> None:
+    """Deleting one user's entry does not affect another."""
+    ltm = PostgresLongTermMemory(session)
+
+    await ltm.put("cache", "item", {"v": 1}, user_id="alice")
+    await ltm.put("cache", "item", {"v": 2}, user_id="bob")
+
+    deleted = await ltm.delete("cache", "item", user_id="alice")
+    assert deleted is True
+
+    alice_gone = await ltm.get("cache", "item", user_id="alice")
+    assert alice_gone is None
+
+    bob_still = await ltm.get("cache", "item", user_id="bob")
+    assert bob_still is not None
+    assert bob_still["data"]["v"] == 2

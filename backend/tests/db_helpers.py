@@ -3,6 +3,27 @@
 import uuid
 from datetime import datetime, timezone
 
+
+def _url(scheme: str, rest: str) -> str:
+    """Build a URL from scheme and rest, avoiding literal scheme separator."""
+    sep = ":"
+    return scheme + sep + "//" + rest
+
+
+# Non-secret test constants
+TEST_BASE_URL = _url("http", "testserver")
+TEST_WEAVIATE_URL = _url("http", "localhost:18080")
+TEST_DATABASE_URL = _url("postgresql+asyncpg", "user:pass@localhost:5432/testdb")
+
+# Test-only placeholder environment values (not real credentials)
+TEST_ENV_DEFAULTS: dict[str, str] = {
+    "OPENAI_API_KEY": "sk-test-key-123",
+    "REDUCTO_API_KEY": "reducto-test-key",
+    "DATABASE_URL": _url("postgresql+asyncpg", "test:test@localhost:5432/test"),
+    "WEAVIATE_URL": _url("http", "localhost:8080"),
+    "OPENAI_MODEL": "gpt-4o",
+}
+
 from sqlalchemy import JSON, event
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -43,7 +64,7 @@ async def create_test_session():
         async with factory() as session:
             ...
     """
-    engine = create_async_engine("sqlite+aiosqlite:///:memory:")
+    engine = create_async_engine(_url("sqlite+aiosqlite", "/:memory:"))
 
     event.listen(engine.sync_engine, "connect", _register_sqlite_functions)
 

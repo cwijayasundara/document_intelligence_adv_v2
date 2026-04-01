@@ -117,3 +117,88 @@ class TestShortTermMemory:
         msgs = self.memory.get_messages("s1")
         msgs.append(None)  # type: ignore
         assert len(self.memory.get_messages("s1")) == 1
+
+
+class TestShortTermMemoryUserIsolation:
+    """Tests that user_id scoping isolates memories between users."""
+
+    def setup_method(self) -> None:
+        self.memory = ShortTermMemory(max_messages=20)
+
+    def test_make_key(self) -> None:
+        key = ShortTermMemory._make_key("user-1", "sess-1")
+        assert key == "user-1:sess-1"
+
+    def test_user_isolation_messages(self) -> None:
+        """User A's messages are invisible to User B in the same session."""
+        self.memory.add_human_message("s1", "Alice says hi", user_id="alice")
+        self.memory.add_human_message("s1", "Bob says hi", user_id="bob")
+
+        alice_msgs = self.memory.get_messages("s1", user_id="alice")
+        bob_msgs = self.memory.get_messages("s1", user_id="bob")
+
+        assert len(alice_msgs) == 1
+        assert alice_msgs[0].content == "Alice says hi"
+        assert len(bob_msgs) == 1
+        assert bob_msgs[0].content == "Bob says hi"
+
+    def test_user_isolation_clear(self) -> None:
+        """Clearing one user's session does not affect another."""
+        self.memory.add_human_message("s1", "Alice", user_id="alice")
+        self.memory.add_human_message("s1", "Bob", user_id="bob")
+
+        self.memory.clear_session("s1", user_id="alice")
+
+        assert self.memory.get_messages("s1", user_id="alice") == []
+        assert len(self.memory.get_messages("s1", user_id="bob")) == 1
+
+    def test_user_isolation_delete(self) -> None:
+        """Deleting one user's session does not affect another."""
+        self.memory.add_human_message("s1", "Alice", user_id="alice")
+        self.memory.add_human_message("s1", "Bob", user_id="bob")
+
+        result = self.memory.delete_session("s1", user_id="alice")
+        assert result is True
+
+        assert self.memory.get_messages("s1", user_id="alice") == []
+        assert len(self.memory.get_messages("s1", user_id="bob")) == 1
+
+    def test_user_isolation_summary(self) -> None:
+        """Each user gets their own conversation summary."""
+        self.memory.add_human_message("s1", "Alice topic", user_id="alice")
+        self.memory.add_ai_message("s1", "Alice response", user_id="alice")
+        self.memory.add_human_message("s1", "Bob topic", user_id="bob")
+
+        alice_summary = self.memory.get_conversation_summary("s1", user_id="alice")
+        bob_summary = self.memory.get_conversation_summary("s1", user_id="bob")
+
+        assert "Alice topic" in alice_summary
+        assert "Bob topic" not in alice_summary
+        assert "Bob topic" in bob_summary
+
+    def test_default_user_id_is_anonymous(self) -> None:
+        """Calls without user_id default to 'anonymous'."""
+        self.memory.add_human_message("s1", "anon message")
+        msgs = self.memory.get_messages("s1")
+        assert len(msgs) == 1
+
+        # Explicit anonymous should see the same data
+        msgs_explicit = self.memory.get_messages("s1", user_id="anonymous")
+        assert len(msgs_explicit) == 1
+        assert msgs_explicit[0].content == "anon message"
+
+    def test_anonymous_isolated_from_named_user(self) -> None:
+        """Anonymous user does not see named user's messages."""
+        self.memory.add_human_message("s1", "anon msg")
+        self.memory.add_human_message("s1", "alice msg", user_id="alice")
+
+        assert len(self.memory.get_messages("s1")) == 1
+        assert self.memory.get_messages("s1")[0].content == "anon msg"
+        assert len(self.memory.get_messages("s1", user_id="alice")) == 1
+
+    def test_session_count_includes_all_users(self) -> None:
+        """Session count reflects all user-scoped sessions."""
+        self.memory.add_human_message("s1", "a", user_id="alice")
+        self.memory.add_human_message("s1", "b", user_id="bob")
+        # Two distinct internal keys: alice:s1 and bob:s1
+        assert self.memory.get_session_count() == 2

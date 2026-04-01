@@ -6,9 +6,8 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
-
-from src.api.dependencies import get_app_settings, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
+from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.parse import (
     EditContentRequest,
     EditContentResponse,
@@ -20,6 +19,8 @@ from src.parser.reducto import ReductoClient, ReductoParseError
 from src.services.parse_service import ParseService
 from src.services.state_machine import InvalidTransitionError
 from src.storage.local import LocalStorage
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -46,29 +47,39 @@ def _build_parse_service(
 async def parse_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
+    run_guard: RunGuard = Depends(get_run_guard),
 ) -> ParseResponse:
     """Trigger document parsing via Reducto."""
-    service = _build_parse_service(session)
-    try:
-        doc, content, skipped = await service.parse_document(doc_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
-    except InvalidTransitionError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-    except ReductoParseError as exc:
-        logger.error("Reducto parse failed for document %s: %s", doc_id, exc)
+    if not await run_guard.acquire(str(doc_id)):
         raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=str(exc),
-        ) from exc
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document is already being processed",
+        )
+    try:
+        service = _build_parse_service(session)
+        try:
+            doc, content, skipped = await service.parse_document(doc_id)
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
+        except InvalidTransitionError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        except ReductoParseError as exc:
+            logger.error("Reducto parse failed for document %s: %s", doc_id, exc)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=str(exc),
+            ) from exc
 
-    return ParseResponse(
-        document_id=doc.id,
-        status=doc.status,
-        content=content,
-        skipped=skipped,
-        message=("File hash unchanged, returning cached parse result" if skipped else None),
-    )
+        return ParseResponse(
+            document_id=doc.id,
+            status=doc.status,
+            content=content,
+            skipped=skipped,
+            message=("File hash unchanged, returning cached parse result" if skipped else None),
+        )
+    finally:
+        await run_guard.release(str(doc_id))
 
 
 @router.get(
@@ -79,6 +90,7 @@ async def parse_document(
 async def get_parsed_content(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ParseContentResponse:
     """Get parsed markdown content for a document."""
     service = _build_parse_service(session)
@@ -109,6 +121,7 @@ async def save_edited_content(
     doc_id: uuid.UUID,
     body: EditContentRequest,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> EditContentResponse:
     """Save edited markdown content."""
     service = _build_parse_service(session)

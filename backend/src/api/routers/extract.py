@@ -8,9 +8,8 @@ import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-logger = logging.getLogger(__name__)
-
-from src.api.dependencies import get_session
+from src.api.dependencies import get_current_user_id, get_run_guard, get_session
+from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.extract import (
     ExtractionResponse,
     ExtractionResultItem,
@@ -26,6 +25,8 @@ from src.db.repositories.extraction import (
 )
 from src.services.extraction_service import ExtractionService
 from src.services.state_machine import InvalidTransitionError, validate_transition
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -49,73 +50,86 @@ def _get_extraction_service() -> ExtractionService:
 async def extract_document(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
+    run_guard: RunGuard = Depends(get_run_guard),
 ) -> ExtractionResponse:
     """Run extraction + judge on a document, save results."""
-    doc_repo = DocumentRepository(session)
-    doc = await doc_repo.get_by_id(doc_id)
-    if doc is None:
+    if not await run_guard.acquire(str(doc_id)):
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Document not found",
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Document is already being processed",
         )
-
     try:
-        validate_transition(doc.status, "extracted")
-    except InvalidTransitionError as exc:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+        doc_repo = DocumentRepository(session)
+        doc = await doc_repo.get_by_id(doc_id)
+        if doc is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Document not found",
+            )
 
-    if not doc.parsed_path:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Document has no parsed content",
+        try:
+            validate_transition(doc.status, "extracted")
+        except InvalidTransitionError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+
+        if not doc.parsed_path:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Document has no parsed content",
+            )
+
+        path = Path(doc.parsed_path)
+        if not path.exists():
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Parsed content file not found",
+            )
+
+        async with aiofiles.open(path, "r") as f:
+            content = await f.read()
+
+        field_defs = await _load_extraction_fields(session, doc.document_category_id)
+
+        service = _get_extraction_service()
+        logger.info("Starting extraction for document %s (%d fields)", doc_id, len(field_defs))
+        results = await service.extract_and_judge(content, field_defs)
+
+        ev_repo = ExtractedValuesRepository(session)
+        saved = await ev_repo.save_results(doc_id, results)
+
+        review_count = sum(1 for r in results if r["requires_review"])
+        logger.info(
+            "Extraction saved for %s: %d results, %d need review",
+            doc_id, len(saved), review_count,
         )
 
-    path = Path(doc.parsed_path)
-    if not path.exists():
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Parsed content file not found",
+        doc.status = "extracted"
+        await session.flush()
+
+        items = [
+            ExtractionResultItem(
+                id=saved[i].id,
+                field_name=results[i]["field_name"],
+                display_name=results[i]["display_name"],
+                extracted_value=results[i]["extracted_value"],
+                source_text=results[i]["source_text"],
+                confidence=results[i]["confidence"],
+                confidence_reasoning=results[i]["confidence_reasoning"],
+                requires_review=results[i]["requires_review"],
+                reviewed=False,
+            )
+            for i in range(len(saved))
+        ]
+
+        return ExtractionResponse(
+            document_id=doc_id,
+            status="extracted",
+            results=items,
+            requires_review_count=review_count,
         )
-
-    async with aiofiles.open(path, "r") as f:
-        content = await f.read()
-
-    field_defs = await _load_extraction_fields(session, doc.document_category_id)
-
-    service = _get_extraction_service()
-    logger.info("Starting extraction for document %s (%d fields)", doc_id, len(field_defs))
-    results = await service.extract_and_judge(content, field_defs)
-
-    ev_repo = ExtractedValuesRepository(session)
-    saved = await ev_repo.save_results(doc_id, results)
-
-    review_count = sum(1 for r in results if r["requires_review"])
-    logger.info("Extraction saved for %s: %d results, %d need review", doc_id, len(saved), review_count)
-
-    doc.status = "extracted"
-    await session.flush()
-
-    items = [
-        ExtractionResultItem(
-            id=saved[i].id,
-            field_name=results[i]["field_name"],
-            display_name=results[i]["display_name"],
-            extracted_value=results[i]["extracted_value"],
-            source_text=results[i]["source_text"],
-            confidence=results[i]["confidence"],
-            confidence_reasoning=results[i]["confidence_reasoning"],
-            requires_review=results[i]["requires_review"],
-            reviewed=False,
-        )
-        for i in range(len(saved))
-    ]
-
-    return ExtractionResponse(
-        document_id=doc_id,
-        status="extracted",
-        results=items,
-        requires_review_count=review_count,
-    )
+    finally:
+        await run_guard.release(str(doc_id))
 
 
 @router.get(
@@ -126,6 +140,7 @@ async def extract_document(
 async def get_extraction_results(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ExtractionResultsResponse:
     """Get extraction results for a document."""
     doc_repo = DocumentRepository(session)
@@ -185,6 +200,7 @@ async def update_extraction_results(
     doc_id: uuid.UUID,
     body: ExtractionUpdateRequest,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> ExtractionUpdateResponse:
     """Update extracted values and check review gate."""
     doc_repo = DocumentRepository(session)

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from src.api.dependencies import get_session
+from src.api.dependencies import get_current_user_id, get_session
 from src.api.routers.documents import MAX_FILE_SIZE, _validate_magic_bytes
 from src.api.schemas.bulk import (
     BulkJobDetailResponse,
@@ -42,6 +42,7 @@ async def bulk_upload(
     files: List[UploadFile],
     background_tasks: BackgroundTasks,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> BulkUploadResponse:
     """Upload multiple files and create a bulk processing job.
 
@@ -89,7 +90,9 @@ async def bulk_upload(
 
     service = BulkJobService(session)
     logger.info("Creating bulk job with %d files", len(file_names))
-    job, documents = await service.create_job(file_names, file_contents, file_types)
+    job, documents = await service.create_job(
+        file_names, file_contents, file_types, user_id=user_id
+    )
     logger.info("Bulk job %s created with %d documents", job.id, len(documents))
 
     # Build document response list using uploaded document info
@@ -120,10 +123,11 @@ async def bulk_upload(
 async def list_bulk_jobs(
     status_filter: str | None = None,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> BulkJobListResponse:
     """List all bulk jobs with optional status filter."""
     service = BulkJobService(session)
-    jobs = await service.list_jobs(status=status_filter)
+    jobs = await service.list_jobs(status=status_filter, user_id=user_id)
 
     job_responses = [
         BulkJobResponse(
@@ -149,10 +153,11 @@ async def list_bulk_jobs(
 async def get_bulk_job(
     job_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
 ) -> BulkJobDetailResponse:
     """Get bulk job details with per-document breakdown."""
     service = BulkJobService(session)
-    job = await service.get_job(job_id)
+    job = await service.get_job(job_id, user_id=user_id)
 
     if job is None:
         raise HTTPException(

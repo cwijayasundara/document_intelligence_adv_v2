@@ -2,8 +2,10 @@
 
 from collections.abc import AsyncGenerator
 
+from fastapi import Header, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.api.middleware.run_guard import RunGuard
 from src.config.settings import AppSettings, get_settings
 from src.db.connection import get_session as _get_session
 
@@ -17,3 +19,22 @@ async def get_session() -> AsyncGenerator[AsyncSession, None]:
 def get_app_settings() -> AppSettings:
     """Return the cached application settings singleton."""
     return get_settings()
+
+_run_guard: RunGuard | None = None
+
+
+def get_run_guard() -> RunGuard:
+    """Return the singleton RunGuard instance."""
+    global _run_guard
+    if _run_guard is None:
+        _run_guard = RunGuard()
+    return _run_guard
+
+
+async def get_current_user_id(
+    x_user_id: str | None = Header(None, alias="X-User-Id"),
+) -> str:
+    """Extract and validate the X-User-Id header."""
+    if not x_user_id or not x_user_id.strip():
+        raise HTTPException(status_code=401, detail="X-User-Id header required")
+    return x_user_id.strip()

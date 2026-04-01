@@ -9,6 +9,9 @@ from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
 from src.services.state_machine import InvalidTransitionError
+from tests.db_helpers import TEST_BASE_URL
+
+AUTH_HEADERS: dict[str, str] = {"X-User-Id": "test-user"}
 
 
 @pytest.fixture
@@ -19,7 +22,7 @@ def app() -> FastAPI:
 @pytest.fixture
 async def client(app: FastAPI):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
 
 
@@ -36,7 +39,7 @@ class TestParseRouter:
             )
             mock_build.return_value = service
 
-            resp = await client.post(f"/api/v1/parse/{doc_id}")
+            resp = await client.post(f"/api/v1/parse/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -49,7 +52,7 @@ class TestParseRouter:
             )
             mock_build.return_value = service
 
-            resp = await client.post(f"/api/v1/parse/{doc_id}")
+            resp = await client.post(f"/api/v1/parse/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
@@ -64,7 +67,7 @@ class TestParseRouter:
             service.parse_document = AsyncMock(return_value=(mock_doc, "# Content", False))
             mock_build.return_value = service
 
-            resp = await client.post(f"/api/v1/parse/{doc_id}")
+            resp = await client.post(f"/api/v1/parse/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 200
             data = resp.json()
             assert data["content"] == "# Content"
@@ -82,7 +85,7 @@ class TestParseRouter:
             service.parse_document = AsyncMock(return_value=(mock_doc, "# Cached", True))
             mock_build.return_value = service
 
-            resp = await client.post(f"/api/v1/parse/{doc_id}")
+            resp = await client.post(f"/api/v1/parse/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 200
             data = resp.json()
             assert data["skipped"] is True
@@ -102,7 +105,7 @@ class TestParseRouter:
             service = MagicMock()
             mock_build.return_value = service
 
-            resp = await client.get(f"/api/v1/parse/{doc_id}/content")
+            resp = await client.get(f"/api/v1/parse/{doc_id}/content", headers=AUTH_HEADERS)
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -124,7 +127,7 @@ class TestParseRouter:
             service.get_parsed_content = AsyncMock(return_value="# Content")
             mock_build.return_value = service
 
-            resp = await client.get(f"/api/v1/parse/{doc_id}/content")
+            resp = await client.get(f"/api/v1/parse/{doc_id}/content", headers=AUTH_HEADERS)
             assert resp.status_code == 200
             data = resp.json()
             assert data["content"] == "# Content"
@@ -144,6 +147,7 @@ class TestParseRouter:
             resp = await client.put(
                 f"/api/v1/parse/{doc_id}/content",
                 json={"content": "# Edited"},
+                headers=AUTH_HEADERS,
             )
             assert resp.status_code == 200
             data = resp.json()
@@ -163,6 +167,7 @@ class TestParseRouter:
             resp = await client.put(
                 f"/api/v1/parse/{doc_id}/content",
                 json={"content": "# Edited"},
+                headers=AUTH_HEADERS,
             )
             assert resp.status_code == 400
 
@@ -176,5 +181,5 @@ class TestParseRouter:
             service.parse_document = AsyncMock(side_effect=ReductoParseError("API failed"))
             mock_build.return_value = service
 
-            resp = await client.post(f"/api/v1/parse/{doc_id}")
+            resp = await client.post(f"/api/v1/parse/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 500

@@ -10,13 +10,13 @@ import asyncio
 from typing import Any
 
 from deepagents import (
-    FilesystemMiddleware,
     SubAgent,
     SubAgentMiddleware,
     create_deep_agent,
 )
-from deepagents.backends import FilesystemBackend
 from deepagents.middleware.summarization import SummarizationMiddleware
+
+from src.agents.backends import InMemoryBackend
 
 # Singleton state
 _orchestrator: Any | None = None
@@ -49,7 +49,7 @@ def _get_lock() -> asyncio.Lock:
 
 def _build_orchestrator() -> Any:
     """Build a fresh orchestrator instance with configured middleware."""
-    backend = FilesystemBackend(root_dir="./data")
+    backend = InMemoryBackend()
 
     subagents: list[SubAgent] = [
         SubAgent(
@@ -63,7 +63,6 @@ def _build_orchestrator() -> Any:
     ]
 
     middleware = [
-        FilesystemMiddleware(),
         SubAgentMiddleware(backend=backend, subagents=subagents),
         SummarizationMiddleware(model="openai:gpt-5.4-mini", backend=backend),
     ]

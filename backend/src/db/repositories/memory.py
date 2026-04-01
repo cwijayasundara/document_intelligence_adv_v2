@@ -23,9 +23,12 @@ class ConversationSummaryRepository:
         key_topics: list[str],
         documents_discussed: list[str],
         queries_count: int,
+        user_id: str | None = None,
     ) -> ConversationSummary:
         """Create or update a conversation summary (upsert by session_id)."""
         stmt = select(ConversationSummary).where(ConversationSummary.session_id == session_id)
+        if user_id is not None:
+            stmt = stmt.where(ConversationSummary.user_id == user_id)
         result = await self._session.execute(stmt)
         existing = result.scalar_one_or_none()
 
@@ -46,14 +49,21 @@ class ConversationSummaryRepository:
             key_topics=key_topics,
             documents_discussed=documents_discussed,
             queries_count=queries_count,
+            user_id=user_id,
         )
         self._session.add(record)
         await self._session.flush()
         return record
 
-    async def get_by_session(self, session_id: str) -> ConversationSummary | None:
+    async def get_by_session(
+        self,
+        session_id: str,
+        user_id: str | None = None,
+    ) -> ConversationSummary | None:
         """Get a conversation summary by session ID."""
         stmt = select(ConversationSummary).where(ConversationSummary.session_id == session_id)
+        if user_id is not None:
+            stmt = stmt.where(ConversationSummary.user_id == user_id)
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
 

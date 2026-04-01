@@ -208,6 +208,7 @@ class TestDocumentModel:
             "document_category_id",
             "file_type",
             "file_size",
+            "user_id",
             "created_at",
             "updated_at",
         }
@@ -359,6 +360,7 @@ class TestBulkJobModel:
             "total_documents",
             "processed_count",
             "failed_count",
+            "user_id",
             "created_at",
             "completed_at",
         }
@@ -406,9 +408,11 @@ class TestConversationSummaryModel:
         assert "created_at" in cols
         assert "updated_at" in cols
 
-    def test_session_id_is_unique(self) -> None:
-        col = ConversationSummary.__table__.c.session_id
-        assert col.unique is True
+    def test_user_session_composite_unique(self) -> None:
+        """Uniqueness is enforced via composite (user_id, session_id) constraint."""
+        constraints = ConversationSummary.__table__.constraints
+        unique_names = {c.name for c in constraints if hasattr(c, "columns") and len(c.columns) > 1}
+        assert "uq_conversation_summaries_user_session" in unique_names
 
     def test_columns(self) -> None:
         cols = _get_column_names(ConversationSummary)
@@ -420,6 +424,7 @@ class TestConversationSummaryModel:
             "key_topics",
             "documents_discussed",
             "queries_count",
+            "user_id",
             "created_at",
             "updated_at",
         }
@@ -452,7 +457,7 @@ class TestMemoryEntryModel:
 
     def test_columns(self) -> None:
         cols = _get_column_names(MemoryEntry)
-        expected = {"id", "namespace", "key", "data", "created_at", "updated_at"}
+        expected = {"id", "namespace", "key", "data", "user_id", "created_at", "updated_at"}
         assert expected == cols
 
 

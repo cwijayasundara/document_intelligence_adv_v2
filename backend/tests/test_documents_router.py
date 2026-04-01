@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.app import create_app
 from src.api.dependencies import get_session
+from tests.db_helpers import TEST_BASE_URL
+
+AUTH_HEADERS: dict[str, str] = {"X-User-Id": "test-user"}
 
 
 @pytest.fixture
@@ -32,7 +35,7 @@ def app(mock_session: AsyncMock) -> FastAPI:
 @pytest.fixture
 async def client(app: FastAPI):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
 
 
@@ -72,6 +75,7 @@ async def test_upload_document(
     response = await client.post(
         "/api/v1/documents/upload",
         files={"file": ("test.pdf", b"%PDF-content", "application/pdf")},
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 201
@@ -91,7 +95,7 @@ async def test_list_documents(
     instance = MockService.return_value
     instance.list_documents = AsyncMock(return_value=([mock_doc], 1))
 
-    response = await client.get("/api/v1/documents")
+    response = await client.get("/api/v1/documents", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
     data = response.json()
@@ -112,7 +116,7 @@ async def test_get_document(
     instance = MockService.return_value
     instance.get_document = AsyncMock(return_value=mock_doc)
 
-    response = await client.get(f"/api/v1/documents/{doc_id}")
+    response = await client.get(f"/api/v1/documents/{doc_id}", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
     assert response.json()["id"] == str(doc_id)
@@ -129,7 +133,7 @@ async def test_get_document_not_found(
     instance = MockService.return_value
     instance.get_document = AsyncMock(return_value=None)
 
-    response = await client.get(f"/api/v1/documents/{uuid.uuid4()}")
+    response = await client.get(f"/api/v1/documents/{uuid.uuid4()}", headers=AUTH_HEADERS)
 
     assert response.status_code == 404
 
@@ -145,7 +149,7 @@ async def test_delete_document(
     instance = MockService.return_value
     instance.delete_document = AsyncMock(return_value=True)
 
-    response = await client.delete(f"/api/v1/documents/{uuid.uuid4()}")
+    response = await client.delete(f"/api/v1/documents/{uuid.uuid4()}", headers=AUTH_HEADERS)
 
     assert response.status_code == 204
 
@@ -161,7 +165,7 @@ async def test_delete_document_not_found(
     instance = MockService.return_value
     instance.delete_document = AsyncMock(return_value=False)
 
-    response = await client.delete(f"/api/v1/documents/{uuid.uuid4()}")
+    response = await client.delete(f"/api/v1/documents/{uuid.uuid4()}", headers=AUTH_HEADERS)
 
     assert response.status_code == 404
 
@@ -180,6 +184,7 @@ async def test_upload_invalid_type(
     response = await client.post(
         "/api/v1/documents/upload",
         files={"file": ("test.exe", b"bad", "application/octet-stream")},
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 422
@@ -196,7 +201,7 @@ async def test_invalid_sort_column(
     instance = MockService.return_value
     instance.list_documents = AsyncMock(side_effect=ValueError("Invalid sort column: 'drop_table'"))
 
-    response = await client.get("/api/v1/documents?sort_by=drop_table")
+    response = await client.get("/api/v1/documents?sort_by=drop_table", headers=AUTH_HEADERS)
 
     assert response.status_code == 422
     assert "Invalid sort column" in response.json()["detail"]
@@ -210,8 +215,6 @@ async def test_file_too_large(
     client: AsyncClient,
 ) -> None:
     """POST /documents/upload returns 413 when file exceeds size limit."""
-    # Create content larger than MAX_FILE_SIZE (100 MB).
-    # We patch MAX_FILE_SIZE to a small value for speed.
     from src.api.routers import documents as doc_module
 
     original = doc_module.MAX_FILE_SIZE
@@ -220,6 +223,7 @@ async def test_file_too_large(
         response = await client.post(
             "/api/v1/documents/upload",
             files={"file": ("big.pdf", b"x" * 20, "application/pdf")},
+            headers=AUTH_HEADERS,
         )
         assert response.status_code == 413
         assert "exceeds maximum" in response.json()["detail"]
@@ -234,11 +238,18 @@ async def test_magic_byte_mismatch(
     mock_get_storage: MagicMock,
     client: AsyncClient,
 ) -> None:
-    """POST /documents/upload returns 400 when magic bytes don't match extension."""
-    # Send a .pdf file with non-PDF content (not starting with %PDF)
+    """POST /documents/upload returns 400 when magic bytes don't match."""
     response = await client.post(
         "/api/v1/documents/upload",
         files={"file": ("fake.pdf", b"this is not a pdf", "application/pdf")},
+        headers=AUTH_HEADERS,
     )
     assert response.status_code == 400
     assert "does not match expected format" in response.json()["detail"]
+
+
+async def test_missing_user_id_returns_401(client: AsyncClient) -> None:
+    """Endpoints return 401 when X-User-Id header is missing."""
+    response = await client.get("/api/v1/documents")
+    assert response.status_code == 401
+    assert "X-User-Id header required" in response.json()["detail"]

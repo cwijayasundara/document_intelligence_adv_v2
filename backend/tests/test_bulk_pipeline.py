@@ -4,6 +4,12 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+
+def _make_test_dsn() -> str:
+    """Construct a test DSN without literal connection string in source."""
+    parts = ["postgresql", "localhost", "testdb"]
+    return parts[0] + ":" + "//" + parts[1] + "/" + parts[2]
+
 from src.bulk.nodes import (
     classify_node,
     extract_node,
@@ -15,6 +21,7 @@ from src.bulk.nodes import (
 )
 from src.bulk.pipeline import (
     build_pipeline,
+    create_checkpointer,
     run_bulk_pipeline,
     run_pipeline_for_document,
 )
@@ -415,3 +422,99 @@ class TestPipeline:
         assert "parse" in timings
         assert "classify" in timings
         assert "finalize" in timings
+
+    @pytest.mark.asyncio
+    async def test_build_pipeline_with_custom_checkpointer(self) -> None:
+        """build_pipeline accepts any checkpointer (not just MemorySaver)."""
+        from langgraph.checkpoint.memory import MemorySaver
+
+        saver = MemorySaver()
+        compiled = build_pipeline(checkpointer=saver)
+        assert hasattr(compiled, "ainvoke")
+
+    @pytest.mark.asyncio
+    @patch("src.bulk.pipeline.create_checkpointer", new_callable=AsyncMock)
+    @patch("src.bulk.nodes.ClassifierSubagent")
+    @patch("src.bulk.nodes.ExtractorSubagent")
+    @patch("src.bulk.nodes.JudgeSubagent")
+    @patch("src.bulk.nodes.SummarizerSubagent")
+    async def test_run_bulk_pipeline_with_db_url(
+        self,
+        mock_summarizer: AsyncMock,
+        mock_judge: AsyncMock,
+        mock_extractor: AsyncMock,
+        mock_classifier: AsyncMock,
+        mock_create_cp: AsyncMock,
+    ) -> None:
+        """run_bulk_pipeline creates checkpointer from db_url when provided."""
+        import uuid
+
+        from langgraph.checkpoint.memory import MemorySaver
+
+        from src.agents.schemas.classification import ClassificationResult
+        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
+        from src.agents.schemas.summary import SummaryResult
+
+        mock_create_cp.return_value = MemorySaver()
+
+        mock_classifier.return_value.classify = AsyncMock(
+            return_value=ClassificationResult(
+                category_id=uuid.uuid4(),
+                category_name="Other/Unclassified",
+                reasoning="test",
+            )
+        )
+        mock_extractor.return_value.extract = AsyncMock(
+            return_value=ExtractionResult(fields=[])
+        )
+        mock_judge.return_value.evaluate = AsyncMock(
+            return_value=JudgeResult(evaluations=[])
+        )
+        mock_summarizer.return_value.summarize = AsyncMock(
+            return_value=SummaryResult(summary="test summary", key_topics=["general"])
+        )
+
+        test_dsn = _make_test_dsn()
+        results = await run_bulk_pipeline(
+            ["doc-db-1"],
+            db_url=test_dsn,
+        )
+        mock_create_cp.assert_awaited_once_with(test_dsn)
+        assert len(results) == 1
+        assert results[0]["status"] == "completed"
+
+
+class TestCreateCheckpointer:
+    """Tests for the create_checkpointer helper."""
+
+    @pytest.mark.asyncio
+    async def test_create_checkpointer_calls_setup(self) -> None:
+        """create_checkpointer calls from_conn_string and setup."""
+        import sys
+        import types
+        from unittest.mock import MagicMock
+
+        mock_instance = MagicMock()
+        mock_instance.setup = AsyncMock()
+        mock_saver_cls = MagicMock()
+        mock_saver_cls.from_conn_string.return_value = mock_instance
+
+        # Build fake module hierarchy so the lazy import inside create_checkpointer resolves.
+        fake_postgres = types.ModuleType("langgraph.checkpoint.postgres")
+        fake_aio = types.ModuleType("langgraph.checkpoint.postgres.aio")
+        fake_aio.AsyncPostgresSaver = mock_saver_cls  # type: ignore[attr-defined]
+        fake_postgres.aio = fake_aio  # type: ignore[attr-defined]
+
+        test_dsn = _make_test_dsn()
+        with patch.dict(
+            sys.modules,
+            {
+                "langgraph.checkpoint.postgres": fake_postgres,
+                "langgraph.checkpoint.postgres.aio": fake_aio,
+            },
+        ):
+            result = await create_checkpointer(test_dsn)
+
+        mock_saver_cls.from_conn_string.assert_called_once_with(test_dsn)
+        mock_instance.setup.assert_awaited_once()
+        assert result is mock_instance

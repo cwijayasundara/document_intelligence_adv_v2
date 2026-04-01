@@ -63,6 +63,11 @@ class PostgresLongTermMemory:
         self._summary_repo = ConversationSummaryRepository(session)
         self._memory_repo = MemoryEntryRepository(session)
 
+    @staticmethod
+    def _scoped_namespace(user_id: str, namespace: str) -> str:
+        """Prefix namespace with user_id for tenant isolation."""
+        return f"{user_id}/{namespace}"
+
     @retry_on_db_error
     async def save_conversation_summary(
         self,
@@ -72,6 +77,7 @@ class PostgresLongTermMemory:
         key_topics: list[str] | None = None,
         documents_discussed: list[str] | None = None,
         queries_count: int = 0,
+        user_id: str = "anonymous",
     ) -> dict[str, Any]:
         """Save or update a conversation summary with upsert semantics."""
         record = await self._summary_repo.upsert(
@@ -81,6 +87,7 @@ class PostgresLongTermMemory:
             key_topics=key_topics or [],
             documents_discussed=documents_discussed or [],
             queries_count=queries_count,
+            user_id=user_id,
         )
         return {
             "session_id": record.session_id,
@@ -92,9 +99,16 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def get_conversation_summary(self, session_id: str) -> dict[str, Any] | None:
-        """Retrieve a conversation summary by session ID."""
-        record = await self._summary_repo.get_by_session(session_id)
+    async def get_conversation_summary(
+        self,
+        session_id: str,
+        user_id: str = "anonymous",
+    ) -> dict[str, Any] | None:
+        """Retrieve a conversation summary by session ID and user."""
+        record = await self._summary_repo.get_by_session(
+            session_id,
+            user_id=user_id,
+        )
         if record is None:
             return None
         return {
@@ -107,9 +121,16 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def put(self, namespace: str, key: str, data: dict[str, Any]) -> dict[str, Any]:
+    async def put(
+        self,
+        namespace: str,
+        key: str,
+        data: dict[str, Any],
+        user_id: str = "anonymous",
+    ) -> dict[str, Any]:
         """Store a key-value entry in the given namespace."""
-        entry = await self._memory_repo.put(namespace, key, data)
+        scoped = self._scoped_namespace(user_id, namespace)
+        entry = await self._memory_repo.put(scoped, key, data)
         return {
             "namespace": entry.namespace,
             "key": entry.key,
@@ -117,9 +138,15 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def get(self, namespace: str, key: str) -> dict[str, Any] | None:
+    async def get(
+        self,
+        namespace: str,
+        key: str,
+        user_id: str = "anonymous",
+    ) -> dict[str, Any] | None:
         """Retrieve a value by namespace and key."""
-        entry = await self._memory_repo.get(namespace, key)
+        scoped = self._scoped_namespace(user_id, namespace)
+        entry = await self._memory_repo.get(scoped, key)
         if entry is None:
             return None
         return {
@@ -129,14 +156,25 @@ class PostgresLongTermMemory:
         }
 
     @retry_on_db_error
-    async def delete(self, namespace: str, key: str) -> bool:
+    async def delete(
+        self,
+        namespace: str,
+        key: str,
+        user_id: str = "anonymous",
+    ) -> bool:
         """Delete a key-value entry. Returns True if deleted."""
-        return await self._memory_repo.delete(namespace, key)
+        scoped = self._scoped_namespace(user_id, namespace)
+        return await self._memory_repo.delete(scoped, key)
 
     @retry_on_db_error
-    async def search(self, namespace: str) -> list[dict[str, Any]]:
+    async def search(
+        self,
+        namespace: str,
+        user_id: str = "anonymous",
+    ) -> list[dict[str, Any]]:
         """List all entries in a namespace."""
-        entries = await self._memory_repo.search(namespace)
+        scoped = self._scoped_namespace(user_id, namespace)
+        entries = await self._memory_repo.search(scoped)
         return [
             {
                 "namespace": e.namespace,

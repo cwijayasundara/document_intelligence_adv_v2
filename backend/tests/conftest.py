@@ -8,27 +8,16 @@ from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
+from tests.db_helpers import TEST_BASE_URL, TEST_ENV_DEFAULTS
 
 
 @pytest.fixture
 def test_env(tmp_path: Path) -> dict[str, str]:
     """Provide a complete set of test environment variables."""
     env_file = tmp_path / ".env"
-    env_file.write_text(
-        "OPENAI_API_KEY=sk-test-key-123\n"
-        "REDUCTO_API_KEY=reducto-test-key\n"
-        "DATABASE_URL=postgresql+asyncpg://test:test@localhost:5432/test\n"
-        "WEAVIATE_URL=http://localhost:8080\n"
-        "OPENAI_MODEL=gpt-4o\n"
-    )
-    return {
-        "OPENAI_API_KEY": "sk-test-key-123",
-        "REDUCTO_API_KEY": "reducto-test-key",
-        "DATABASE_URL": "postgresql+asyncpg://test:test@localhost:5432/test",
-        "WEAVIATE_URL": "http://localhost:8080",
-        "OPENAI_MODEL": "gpt-4o",
-        "env_file": str(env_file),
-    }
+    lines = [f"{k}={v}" for k, v in TEST_ENV_DEFAULTS.items()]
+    env_file.write_text("\n".join(lines) + "\n")
+    return {**TEST_ENV_DEFAULTS, "env_file": str(env_file)}
 
 
 @pytest.fixture
@@ -41,5 +30,5 @@ def app() -> FastAPI:
 async def client(app) -> AsyncGenerator[AsyncClient, None]:
     """Create an async HTTP test client."""
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac

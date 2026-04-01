@@ -12,6 +12,7 @@ from httpx import ASGITransport, AsyncClient
 import src.db.connection as conn_module
 from src.api.app import create_app
 from src.api.schemas.common import ErrorResponse, HealthResponse
+from tests.db_helpers import TEST_BASE_URL, TEST_DATABASE_URL
 
 
 @pytest.fixture
@@ -24,7 +25,7 @@ def app_no_db():
 async def client_no_db(app_no_db):
     """Create client for app without DB."""
     transport = ASGITransport(app=app_no_db)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
 
 
@@ -40,9 +41,8 @@ class TestAppFactory:
         assert app.version == "1.0.0"
 
     def test_stores_database_url_in_state(self) -> None:
-        url = "postgresql+asyncpg://test:test@localhost:5432/test"
-        app = create_app(database_url=url)
-        assert app.state.database_url == url
+        app = create_app(database_url=TEST_DATABASE_URL)
+        assert app.state.database_url == TEST_DATABASE_URL
 
 
 class TestCORSMiddleware:
@@ -100,7 +100,7 @@ class TestHealthEndpoint:
 
         with patch.object(conn_module, "_session_factory", mock_factory):
             transport = ASGITransport(app=app_no_db)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
                 response = await ac.get("/api/v1/health")
 
         assert response.status_code == 200
@@ -136,7 +136,7 @@ class TestHealthEndpoint:
 
         with patch.object(conn_module, "_session_factory", mock_factory):
             transport = ASGITransport(app=app_no_db)
-            async with AsyncClient(transport=transport, base_url="http://test") as ac:
+            async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
                 response = await ac.get("/api/v1/health")
 
         assert response.status_code == 503

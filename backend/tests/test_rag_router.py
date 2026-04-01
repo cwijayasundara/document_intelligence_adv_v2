@@ -8,6 +8,9 @@ from httpx import ASGITransport, AsyncClient
 
 from src.api.app import create_app
 from src.api.dependencies import get_session
+from tests.db_helpers import TEST_BASE_URL, TEST_WEAVIATE_URL
+
+AUTH_HEADERS: dict[str, str] = {"X-User-Id": "test-user"}
 
 
 @pytest.fixture
@@ -30,8 +33,15 @@ def app(mock_session) -> FastAPI:
 @pytest.fixture
 async def client(app: FastAPI):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
+
+
+def _mock_weaviate_settings() -> MagicMock:
+    """Return mock settings with weaviate_url set."""
+    settings = MagicMock()
+    settings.weaviate_url = TEST_WEAVIATE_URL
+    return settings
 
 
 class TestRAGRouter:
@@ -44,9 +54,7 @@ class TestRAGRouter:
             patch("src.api.routers.rag.WeaviateClient") as mock_wc_cls,
             patch("src.api.routers.rag.RAGService") as mock_svc_cls,
         ):
-            settings = MagicMock()
-            settings.weaviate_url = "http://test:8080"
-            mock_settings.return_value = settings
+            mock_settings.return_value = _mock_weaviate_settings()
 
             mock_wc = MagicMock()
             mock_wc.connect = AsyncMock()
@@ -73,6 +81,7 @@ class TestRAGRouter:
 
             resp = await client.post(
                 "/api/v1/rag/query",
+                headers=AUTH_HEADERS,
                 json={
                     "query": "What is the management fee?",
                     "scope": "single_document",
@@ -94,9 +103,7 @@ class TestRAGRouter:
             patch("src.api.routers.rag.WeaviateClient") as mock_wc_cls,
             patch("src.api.routers.rag.RAGService") as mock_svc_cls,
         ):
-            settings = MagicMock()
-            settings.weaviate_url = "http://test:8080"
-            mock_settings.return_value = settings
+            mock_settings.return_value = _mock_weaviate_settings()
 
             mock_wc = MagicMock()
             mock_wc.connect = AsyncMock()
@@ -115,6 +122,7 @@ class TestRAGRouter:
 
             resp = await client.post(
                 "/api/v1/rag/query",
+                headers=AUTH_HEADERS,
                 json={
                     "query": "test",
                     "scope": "all",
@@ -129,6 +137,7 @@ class TestRAGRouter:
     async def test_rag_query_missing_query(self, client: AsyncClient) -> None:
         resp = await client.post(
             "/api/v1/rag/query",
+            headers=AUTH_HEADERS,
             json={"scope": "all"},
         )
         assert resp.status_code == 422
@@ -137,6 +146,7 @@ class TestRAGRouter:
     async def test_rag_query_missing_scope(self, client: AsyncClient) -> None:
         resp = await client.post(
             "/api/v1/rag/query",
+            headers=AUTH_HEADERS,
             json={"query": "test"},
         )
         assert resp.status_code == 422
@@ -148,9 +158,7 @@ class TestRAGRouter:
             patch("src.api.routers.rag.WeaviateClient") as mock_wc_cls,
             patch("src.api.routers.rag.RAGService") as mock_svc_cls,
         ):
-            settings = MagicMock()
-            settings.weaviate_url = "http://test:8080"
-            mock_settings.return_value = settings
+            mock_settings.return_value = _mock_weaviate_settings()
 
             mock_wc = MagicMock()
             mock_wc.connect = AsyncMock()
@@ -169,6 +177,7 @@ class TestRAGRouter:
 
             resp = await client.post(
                 "/api/v1/rag/query",
+                headers=AUTH_HEADERS,
                 json={
                     "query": "test query",
                     "scope": "all",

@@ -31,6 +31,7 @@ class BulkJobService:
         file_names: list[str],
         file_contents: list[bytes],
         file_types: list[str],
+        user_id: str | None = None,
     ) -> tuple[BulkJob, list[Document]]:
         """Create a bulk job with uploaded files.
 
@@ -57,7 +58,7 @@ class BulkJobService:
             file_size = len(content)
 
             # Check for duplicate by hash
-            existing = await self._document_repo.get_by_hash(file_hash)
+            existing = await self._document_repo.get_by_hash(file_hash, user_id=user_id)
             if existing:
                 documents.append(existing)
             else:
@@ -68,6 +69,7 @@ class BulkJobService:
                     file_type=ext,
                     file_size=file_size,
                     status="uploaded",
+                    user_id=user_id,
                 )
                 documents.append(doc)
 
@@ -75,6 +77,7 @@ class BulkJobService:
         job = await self._job_repo.create(
             total_documents=len(documents),
             status="pending",
+            user_id=user_id,
         )
 
         # Create bulk job document records
@@ -91,13 +94,21 @@ class BulkJobService:
         loaded_job = await self._job_repo.get_by_id(job.id)
         return loaded_job or job, documents
 
-    async def get_job(self, job_id: uuid.UUID) -> BulkJob | None:
+    async def get_job(
+        self,
+        job_id: uuid.UUID,
+        user_id: str | None = None,
+    ) -> BulkJob | None:
         """Get a bulk job by ID with document details."""
-        return await self._job_repo.get_by_id(job_id)
+        return await self._job_repo.get_by_id(job_id, user_id=user_id)
 
-    async def list_jobs(self, status: str | None = None) -> list[BulkJob]:
+    async def list_jobs(
+        self,
+        status: str | None = None,
+        user_id: str | None = None,
+    ) -> list[BulkJob]:
         """List all bulk jobs with optional status filter."""
-        return await self._job_repo.list_all(status=status)
+        return await self._job_repo.list_all(status=status, user_id=user_id)
 
     async def start_pipeline(
         self,

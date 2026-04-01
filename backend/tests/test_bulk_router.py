@@ -11,6 +11,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.app import create_app
 from src.api.dependencies import get_session
+from tests.db_helpers import TEST_BASE_URL
+
+AUTH_HEADERS: dict[str, str] = {"X-User-Id": "test-user"}
 
 
 @pytest.fixture
@@ -32,7 +35,7 @@ def app(mock_session: AsyncMock) -> FastAPI:
 @pytest.fixture
 async def client(app: FastAPI):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
 
 
@@ -114,6 +117,7 @@ async def test_bulk_upload_creates_job(
             ("files", ("doc1.pdf", b"%PDF-content1", "application/pdf")),
             ("files", ("doc2.pdf", b"%PDF-content2", "application/pdf")),
         ],
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 201
@@ -132,6 +136,7 @@ async def test_bulk_upload_no_files(
     response = await client.post(
         "/api/v1/bulk/upload",
         files=[],
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 422
@@ -148,6 +153,7 @@ async def test_bulk_upload_invalid_file_type(
         files=[
             ("files", ("malware.exe", b"content", "application/octet-stream")),
         ],
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 422
@@ -166,7 +172,7 @@ async def test_list_bulk_jobs(
     instance = MockService.return_value
     instance.list_jobs = AsyncMock(return_value=[job1, job2])
 
-    response = await client.get("/api/v1/bulk/jobs")
+    response = await client.get("/api/v1/bulk/jobs", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
     data = response.json()
@@ -186,12 +192,12 @@ async def test_list_bulk_jobs_with_status_filter(
     instance = MockService.return_value
     instance.list_jobs = AsyncMock(return_value=[job])
 
-    response = await client.get("/api/v1/bulk/jobs?status_filter=processing")
+    response = await client.get("/api/v1/bulk/jobs?status_filter=processing", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
     data = response.json()
     assert len(data["jobs"]) == 1
-    instance.list_jobs.assert_called_once_with(status="processing")
+    instance.list_jobs.assert_called_once_with(status="processing", user_id="test-user")
 
 
 @patch("src.api.routers.bulk.BulkJobService")
@@ -203,7 +209,7 @@ async def test_list_bulk_jobs_empty(
     instance = MockService.return_value
     instance.list_jobs = AsyncMock(return_value=[])
 
-    response = await client.get("/api/v1/bulk/jobs")
+    response = await client.get("/api/v1/bulk/jobs", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
     assert response.json()["jobs"] == []
@@ -247,7 +253,7 @@ async def test_get_bulk_job_detail(
     instance = MockService.return_value
     instance.get_job = AsyncMock(return_value=mock_job)
 
-    response = await client.get(f"/api/v1/bulk/jobs/{job_id}")
+    response = await client.get(f"/api/v1/bulk/jobs/{job_id}", headers=AUTH_HEADERS)
 
     assert response.status_code == 200
     data = response.json()
@@ -278,7 +284,7 @@ async def test_get_bulk_job_not_found(
     instance = MockService.return_value
     instance.get_job = AsyncMock(return_value=None)
 
-    response = await client.get(f"/api/v1/bulk/jobs/{uuid.uuid4()}")
+    response = await client.get(f"/api/v1/bulk/jobs/{uuid.uuid4()}", headers=AUTH_HEADERS)
 
     assert response.status_code == 404
 
@@ -298,6 +304,7 @@ async def test_bulk_upload_mixed_file_types(
 
     response = await client.post(
         "/api/v1/bulk/upload",
+        headers=AUTH_HEADERS,
         files=[
             ("files", ("report.pdf", b"%PDF-content1", "application/pdf")),
             (
@@ -331,6 +338,7 @@ async def test_bulk_upload_single_file(
         files=[
             ("files", ("single.pdf", b"%PDF-content", "application/pdf")),
         ],
+        headers=AUTH_HEADERS,
     )
 
     assert response.status_code == 201

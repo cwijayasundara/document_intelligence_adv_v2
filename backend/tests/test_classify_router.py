@@ -10,6 +10,9 @@ from httpx import ASGITransport, AsyncClient
 from src.agents.schemas.classification import ClassificationResult
 from src.api.app import create_app
 from src.api.dependencies import get_session
+from tests.db_helpers import TEST_BASE_URL
+
+AUTH_HEADERS: dict[str, str] = {"X-User-Id": "test-user"}
 
 
 @pytest.fixture
@@ -34,7 +37,7 @@ def app(mock_session) -> FastAPI:
 @pytest.fixture
 async def client(app: FastAPI):
     transport = ASGITransport(app=app)
-    async with AsyncClient(transport=transport, base_url="http://test") as ac:
+    async with AsyncClient(transport=transport, base_url=TEST_BASE_URL) as ac:
         yield ac
 
 
@@ -49,7 +52,7 @@ class TestClassifyRouter:
             mock_repo.get_by_id = AsyncMock(return_value=None)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/classify/{doc_id}")
+            resp = await client.post(f"/api/v1/classify/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 404
 
     @pytest.mark.asyncio
@@ -65,7 +68,7 @@ class TestClassifyRouter:
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/classify/{doc_id}")
+            resp = await client.post(f"/api/v1/classify/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
@@ -81,7 +84,7 @@ class TestClassifyRouter:
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/classify/{doc_id}")
+            resp = await client.post(f"/api/v1/classify/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 400
 
     @pytest.mark.asyncio
@@ -124,7 +127,7 @@ class TestClassifyRouter:
             mock_classifier.classify = AsyncMock(return_value=classification_result)
             mock_get_cls.return_value = mock_classifier
 
-            resp = await client.post(f"/api/v1/classify/{doc_id}")
+            resp = await client.post(f"/api/v1/classify/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 200
             data = resp.json()
             assert data["category_name"] == "LPA"
@@ -167,7 +170,7 @@ class TestClassifyRouter:
             mock_classifier.classify = AsyncMock(return_value=classification_result)
             mock_get_cls.return_value = mock_classifier
 
-            resp = await client.post(f"/api/v1/classify/{doc_id}")
+            resp = await client.post(f"/api/v1/classify/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 200
 
     @pytest.mark.asyncio
@@ -183,5 +186,5 @@ class TestClassifyRouter:
             mock_repo.get_by_id = AsyncMock(return_value=mock_doc)
             mock_repo_cls.return_value = mock_repo
 
-            resp = await client.post(f"/api/v1/classify/{doc_id}")
+            resp = await client.post(f"/api/v1/classify/{doc_id}", headers=AUTH_HEADERS)
             assert resp.status_code == 404

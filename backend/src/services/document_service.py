@@ -27,7 +27,12 @@ class DocumentService:
         self._repo = DocumentRepository(session)
         self._storage = storage
 
-    async def upload(self, filename: str, content: bytes) -> tuple[Document, bool]:
+    async def upload(
+        self,
+        filename: str,
+        content: bytes,
+        user_id: str | None = None,
+    ) -> tuple[Document, bool]:
         """Upload a document file with SHA-256 dedup.
 
         Returns:
@@ -45,7 +50,7 @@ class DocumentService:
 
         file_hash = LocalStorage.compute_sha256(content)
 
-        existing = await self._repo.get_by_hash(file_hash)
+        existing = await self._repo.get_by_hash(file_hash, user_id=user_id)
         if existing is not None:
             logger.info("Duplicate detected: %s (hash=%s)", filename, file_hash[:12])
             return existing, True
@@ -58,13 +63,18 @@ class DocumentService:
             file_hash=file_hash,
             file_type=file_ext,
             file_size=len(content),
+            user_id=user_id,
         )
         logger.info("Uploaded document %s id=%s (%d bytes)", filename, doc.id, len(content))
         return doc, False
 
-    async def get_document(self, doc_id: uuid.UUID) -> Document | None:
+    async def get_document(
+        self,
+        doc_id: uuid.UUID,
+        user_id: str | None = None,
+    ) -> Document | None:
         """Get a document by ID."""
-        return await self._repo.get_by_id(doc_id)
+        return await self._repo.get_by_id(doc_id, user_id=user_id)
 
     async def list_documents(
         self,
@@ -72,6 +82,7 @@ class DocumentService:
         category_id: uuid.UUID | None = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
+        user_id: str | None = None,
     ) -> tuple[list[Document], int]:
         """List documents with optional filters."""
         return await self._repo.list_all(
@@ -79,15 +90,20 @@ class DocumentService:
             category_id=category_id,
             sort_by=sort_by,
             sort_order=sort_order,
+            user_id=user_id,
         )
 
-    async def delete_document(self, doc_id: uuid.UUID) -> bool:
+    async def delete_document(
+        self,
+        doc_id: uuid.UUID,
+        user_id: str | None = None,
+    ) -> bool:
         """Delete a document and its associated files.
 
         Returns:
             True if document was found and deleted.
         """
-        doc = await self._repo.get_by_id(doc_id)
+        doc = await self._repo.get_by_id(doc_id, user_id=user_id)
         if doc is None:
             return False
 
@@ -96,7 +112,7 @@ class DocumentService:
         if doc.parsed_path:
             await self._storage.delete_file(doc.parsed_path)
 
-        await self._repo.delete(doc_id)
+        await self._repo.delete(doc_id, user_id=user_id)
         logger.info("Deleted document %s (%s)", doc_id, doc.file_name)
         return True
 
