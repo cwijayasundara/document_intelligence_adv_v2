@@ -21,8 +21,10 @@ export interface DocumentListItem {
   fileName: string;
   status: DocumentStatus;
   documentCategoryId: string | null;
+  categoryName: string | null;
   fileType: string;
   fileSize: number;
+  parseConfidencePct: number | null;
   createdAt: string;
   updatedAt: string;
 }

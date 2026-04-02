@@ -8,8 +8,13 @@ import type {
 import apiClient from "./client";
 
 /** Trigger document parsing. */
-export async function triggerParse(id: string): Promise<ParseTriggerResponse> {
-  const response = await apiClient.post(`/parse/${id}`);
+export async function triggerParse(
+  id: string,
+  force = false,
+): Promise<ParseTriggerResponse> {
+  const response = await apiClient.post(`/parse/${id}`, null, {
+    params: force ? { force: true } : undefined,
+  });
   return response.data;
 }
 

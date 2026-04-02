@@ -4,6 +4,7 @@ export interface ClassifyResponse {
   documentId: string;
   categoryId: string;
   categoryName: string;
+  confidence: number;
   reasoning: string;
   status: string;
 }

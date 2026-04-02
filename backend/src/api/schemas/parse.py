@@ -11,6 +11,7 @@ class ParseResponse(BaseModel):
     document_id: uuid.UUID
     status: str
     content: str
+    confidence_pct: float = 100.0
     skipped: bool = False
     message: str | None = None
 
@@ -21,6 +22,7 @@ class ParseContentResponse(BaseModel):
     document_id: uuid.UUID
     content: str
     status: str
+    confidence_pct: float = 100.0
 
 
 class EditContentRequest(BaseModel):

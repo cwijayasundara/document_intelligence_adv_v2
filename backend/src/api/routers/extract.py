@@ -1,14 +1,14 @@
-"""Extraction API endpoints with review gate enforcement."""
+"""Extraction API endpoints with disk caching and review gate enforcement."""
 
 import logging
 import uuid
 from pathlib import Path
 
 import aiofiles
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_user_id, get_run_guard, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.extract import (
     ExtractionResponse,
@@ -37,7 +37,10 @@ def _get_extraction_service() -> ExtractionService:
     """Get or create the singleton ExtractionService."""
     global _extraction_service
     if _extraction_service is None:
-        _extraction_service = ExtractionService()
+        settings = get_app_settings()
+        _extraction_service = ExtractionService(
+            extraction_dir=settings.storage.extraction_dir,
+        )
     return _extraction_service
 
 
@@ -49,11 +52,15 @@ def _get_extraction_service() -> ExtractionService:
 )
 async def extract_document(
     doc_id: uuid.UUID,
+    force: bool = Query(False, description="Skip cache and re-extract"),
     session: AsyncSession = Depends(get_session),
     user_id: str = Depends(get_current_user_id),  # noqa: ARG001
     run_guard: RunGuard = Depends(get_run_guard),
 ) -> ExtractionResponse:
-    """Run extraction + judge on a document, save results."""
+    """Run extraction + judge on a document, save results.
+
+    Uses disk cache when available. Pass force=true to re-extract.
+    """
     if not await run_guard.acquire(str(doc_id)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -71,7 +78,9 @@ async def extract_document(
         try:
             validate_transition(doc.status, "extracted")
         except InvalidTransitionError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)
+            ) from exc
 
         if not doc.parsed_path:
             raise HTTPException(
@@ -92,16 +101,29 @@ async def extract_document(
         field_defs = await _load_extraction_fields(session, doc.document_category_id)
 
         service = _get_extraction_service()
-        logger.info("Starting extraction for document %s (%d fields)", doc_id, len(field_defs))
-        results = await service.extract_and_judge(content, field_defs)
+        logger.info(
+            "Starting extraction for document %s (%d fields, force=%s)",
+            doc_id,
+            len(field_defs),
+            force,
+        )
+        results = await service.extract_and_judge(
+            doc_id=doc_id,
+            parsed_content=content,
+            extraction_fields=field_defs,
+            force=force,
+        )
 
+        # Save to DB (deletes previous results and re-inserts)
         ev_repo = ExtractedValuesRepository(session)
         saved = await ev_repo.save_results(doc_id, results)
 
         review_count = sum(1 for r in results if r["requires_review"])
         logger.info(
             "Extraction saved for %s: %d results, %d need review",
-            doc_id, len(saved), review_count,
+            doc_id,
+            len(saved),
+            review_count,
         )
 
         doc.status = "extracted"
@@ -259,6 +281,7 @@ async def _load_extraction_fields(
             "description": f.description,
             "data_type": f.data_type,
             "examples": f.examples,
+            "required": f.required,
         }
         for f in fields
     ]

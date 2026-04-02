@@ -11,5 +11,6 @@ class ClassifyResponse(BaseModel):
     document_id: uuid.UUID
     category_id: uuid.UUID
     category_name: str
+    confidence: int
     reasoning: str
     status: str = "classified"

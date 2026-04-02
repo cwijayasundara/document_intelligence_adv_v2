@@ -1,16 +1,18 @@
 """Summarize API endpoints: generate and get summaries."""
 
 import logging
+import os
 import uuid
+from pathlib import Path
 
+import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.api.dependencies import get_current_user_id, get_run_guard, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.summarize import SummarizeResponse, SummaryGetResponse
 from src.db.repositories.documents import DocumentRepository
-from src.services.state_machine import InvalidTransitionError, validate_transition
 from src.services.summarize_service import SummaryService
 
 logger = logging.getLogger(__name__)
@@ -24,7 +26,11 @@ def _get_summary_service() -> SummaryService:
     """Get or create the singleton SummaryService."""
     global _summary_service
     if _summary_service is None:
-        _summary_service = SummaryService()
+        settings = get_app_settings()
+        os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
+        _summary_service = SummaryService(
+            summary_dir=settings.storage.summary_dir,
+        )
     return _summary_service
 
 
@@ -54,20 +60,11 @@ async def summarize_document(
                 detail="Document not found",
             )
 
-        try:
-            validate_transition(doc.status, "summarized")
-        except InvalidTransitionError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
-
         if not doc.parsed_path:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Document has no parsed content",
             )
-
-        from pathlib import Path
-
-        import aiofiles
 
         path = Path(doc.parsed_path)
         if not path.exists():
@@ -80,7 +77,7 @@ async def summarize_document(
             content = await f.read()
 
         service = _get_summary_service()
-        result = await service.generate_summary(doc_id, content)
+        result = await service.generate_summary(doc_id, content, force=True)
 
         doc.status = "summarized"
         await session.flush()
@@ -116,7 +113,7 @@ async def get_summary(
         )
 
     service = _get_summary_service()
-    cached = service.get_cached_summary(doc_id)
+    cached = await service.get_cached_summary(doc_id)
     if cached is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

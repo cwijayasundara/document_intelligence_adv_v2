@@ -3,7 +3,7 @@
 import logging
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
@@ -35,7 +35,7 @@ def _build_parse_service(
         upload_dir=settings.storage.upload_dir,
         parsed_dir=settings.storage.parsed_dir,
     )
-    reducto = ReductoClient(api_key=settings.reducto_api_key)
+    reducto = ReductoClient(api_key=settings.reducto_api_key, base_url=settings.reducto_base_url)
     return ParseService(repo=repo, storage=storage, reducto_client=reducto)
 
 
@@ -46,6 +46,7 @@ def _build_parse_service(
 )
 async def parse_document(
     doc_id: uuid.UUID,
+    force: bool = Query(False, description="Force re-parse, ignoring cache"),
     session: AsyncSession = Depends(get_session),
     user_id: str = Depends(get_current_user_id),  # noqa: ARG001
     run_guard: RunGuard = Depends(get_run_guard),
@@ -59,7 +60,9 @@ async def parse_document(
     try:
         service = _build_parse_service(session)
         try:
-            doc, content, skipped = await service.parse_document(doc_id)
+            doc, content, skipped, confidence_pct = await service.parse_document(
+                doc_id, force=force
+            )
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc)) from exc
         except InvalidTransitionError as exc:
@@ -75,6 +78,7 @@ async def parse_document(
             document_id=doc.id,
             status=doc.status,
             content=content,
+            confidence_pct=confidence_pct,
             skipped=skipped,
             message=("File hash unchanged, returning cached parse result" if skipped else None),
         )
@@ -102,14 +106,20 @@ async def get_parsed_content(
             detail="Document not found",
         )
 
-    content = await service.get_parsed_content(doc_id)
-    if content is None:
+    result = await service.get_parsed_content(doc_id)
+    if result is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="No parsed content exists",
         )
 
-    return ParseContentResponse(document_id=doc.id, content=content, status=doc.status)
+    content, confidence_pct = result
+    return ParseContentResponse(
+        document_id=doc.id,
+        content=content,
+        status=doc.status,
+        confidence_pct=confidence_pct,
+    )
 
 
 @router.put(

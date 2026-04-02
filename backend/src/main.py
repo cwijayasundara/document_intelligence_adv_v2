@@ -1,6 +1,7 @@
 """Uvicorn entry point for the PE Document Intelligence Platform."""
 
 import logging
+import os
 import sys
 
 import uvicorn
@@ -30,6 +31,9 @@ def configure_logging(level: str) -> None:
 
 settings = get_settings()
 configure_logging(settings.log_level)
+
+# Export API keys to environment so third-party SDKs (OpenAI, LangChain) can find them
+os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
 
 logger = logging.getLogger(__name__)
 logger.info(

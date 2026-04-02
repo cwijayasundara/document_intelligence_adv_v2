@@ -52,15 +52,23 @@ async def classify_node(state: DocumentState) -> dict[str, Any]:
     try:
         classifier = ClassifierSubagent()
         parsed_content = state.get("parsed_content", "")
+        file_name = state.get("file_name", "unknown")
+        summary_text = state.get("summary_text")
 
         # Default categories for bulk pipeline; in production these come from DB
         categories: list[dict[str, Any]] = state.get("categories", [])  # type: ignore[assignment]
 
-        result = await classifier.classify(parsed_content, categories)
+        result = await classifier.classify(
+            file_name=file_name,
+            content=parsed_content,
+            categories=categories,
+            summary=summary_text,
+        )
         return {
             "classification_result": {
                 "category_id": str(result.category_id),
                 "category_name": result.category_name,
+                "confidence": result.confidence,
                 "reasoning": result.reasoning,
             },
             "status": "classified",

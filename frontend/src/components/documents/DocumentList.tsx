@@ -5,9 +5,31 @@ import DocumentRow from "./DocumentRow";
 
 interface DocumentListProps {
   documents: DocumentListItem[];
+  onReparse?: (id: string) => void;
+  reparsingId?: string;
+  onClassify?: (id: string) => void;
+  classifyingId?: string;
+  onExtract?: (id: string) => void;
+  extractingId?: string;
+  onSummarize?: (id: string) => void;
+  summarizingId?: string;
+  onSelect?: (id: string) => void;
+  selectedId?: string;
 }
 
-export default function DocumentList({ documents }: DocumentListProps) {
+export default function DocumentList({
+  documents,
+  onReparse,
+  reparsingId,
+  onClassify,
+  classifyingId,
+  onExtract,
+  extractingId,
+  onSummarize,
+  summarizingId,
+  onSelect,
+  selectedId,
+}: DocumentListProps) {
   return (
     <div className="overflow-hidden shadow ring-1 ring-black/5 rounded-lg">
       <table className="min-w-full divide-y divide-gray-200">
@@ -18,6 +40,12 @@ export default function DocumentList({ documents }: DocumentListProps) {
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Status
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Confidence
+            </th>
+            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+              Category
             </th>
             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
               Type
@@ -35,7 +63,20 @@ export default function DocumentList({ documents }: DocumentListProps) {
         </thead>
         <tbody className="bg-white divide-y divide-gray-200">
           {documents.map((doc) => (
-            <DocumentRow key={doc.id} document={doc} />
+            <DocumentRow
+              key={doc.id}
+              document={doc}
+              onReparse={onReparse}
+              isReparsing={reparsingId === doc.id}
+              onClassify={onClassify}
+              isClassifying={classifyingId === doc.id}
+              onExtract={onExtract}
+              isExtracting={extractingId === doc.id}
+              onSummarize={onSummarize}
+              isSummarizing={summarizingId === doc.id}
+              onSelect={onSelect}
+              isSelected={selectedId === doc.id}
+            />
           ))}
         </tbody>
       </table>

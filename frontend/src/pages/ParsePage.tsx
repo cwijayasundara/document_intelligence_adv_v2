@@ -1,7 +1,16 @@
-/** Parse/Edit page with split view: document info + markdown editor. */
+/** Parse/Edit page with split view: document info + markdown editor.
+ *
+ * Shows confidence banner from Reducto parse. When confidence >= 90%,
+ * the editor defaults to preview-only (no edit button). When confidence
+ * is lower, edit mode is enabled by default so users can fix OCR errors
+ * or handwritten content.
+ */
 
 import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import ConfidenceBanner, {
+  CONFIDENCE_THRESHOLD,
+} from "../components/parse/ConfidenceBanner";
 import DocumentInfo from "../components/parse/DocumentInfo";
 import MarkdownEditor from "../components/parse/MarkdownEditor";
 import PageHeader from "../components/ui/PageHeader";
@@ -27,7 +36,7 @@ export default function ParsePage() {
   }, []);
 
   const handleParse = useCallback(() => {
-    triggerParse.mutate(documentId);
+    triggerParse.mutate({ id: documentId });
   }, [documentId, triggerParse]);
 
   const handleSave = useCallback(() => {
@@ -42,10 +51,15 @@ export default function ParsePage() {
   const isParsed = document?.status === "parsed" || document?.status === "edited";
   const canParse = document?.status === "uploaded";
   const content = parseData?.content ?? "";
+  const confidencePct = parseData?.confidencePct ?? 100;
+  const isHighConfidence = confidencePct >= CONFIDENCE_THRESHOLD;
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Parse & Edit Document" />
+
+      {/* Confidence banner — shown when document is parsed */}
+      {isParsed && <ConfidenceBanner confidencePct={confidencePct} />}
 
       <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-200">
         <button
@@ -57,14 +71,17 @@ export default function ParsePage() {
           {triggerParse.isPending ? "Parsing..." : "Parse Document"}
         </button>
 
-        <button
-          onClick={handleSave}
-          disabled={!hasEdits || saveEdits.isPending}
-          className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          data-testid="save-button"
-        >
-          {saveEdits.isPending ? "Saving..." : "Save Edits"}
-        </button>
+        {/* Save button — only show when editing is needed (low confidence) */}
+        {!isHighConfidence && (
+          <button
+            onClick={handleSave}
+            disabled={!hasEdits || saveEdits.isPending}
+            className="px-4 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            data-testid="save-button"
+          >
+            {saveEdits.isPending ? "Saving..." : "Save Edits"}
+          </button>
+        )}
 
         {isParsed && (
           <button
@@ -91,7 +108,7 @@ export default function ParsePage() {
             <MarkdownEditor
               content={content}
               onChange={handleContentChange}
-              readOnly={!isParsed}
+              readOnly={!isParsed || isHighConfidence}
             />
           )}
         </div>

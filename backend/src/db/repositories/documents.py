@@ -4,6 +4,7 @@ import uuid
 
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.db.models import Document
 
@@ -81,7 +82,7 @@ class DocumentRepository:
         user_id: str | None = None,
     ) -> tuple[list[Document], int]:
         """List documents with optional filters and sorting."""
-        stmt = select(Document)
+        stmt = select(Document).options(selectinload(Document.category))
         count_stmt = select(func.count()).select_from(Document)
 
         if user_id is not None:

@@ -1,11 +1,13 @@
 """Classifier subagent for document classification.
 
-Uses the DeepAgents SDK to classify parsed documents against
-user-defined categories. Applies PII middleware before LLM calls.
+Uses a hybrid approach combining file name signals and document content
+(preferring summary when available) for accurate PE document classification.
+Applies PII middleware before LLM calls. Returns confidence scores.
 """
 
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Any
 
@@ -14,125 +16,191 @@ from deepagents import SubAgent, create_deep_agent
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.classification import ClassificationResult
 
+# File name patterns that hint at document category
+_FILENAME_HINTS: list[tuple[re.Pattern[str], str]] = [
+    (re.compile(r"\bLPA\b|Limited.?Partnership.?Agreement", re.IGNORECASE), "Limited Partnership Agreement"),
+    (re.compile(r"\bSub(?:scription)?.?(?:Agree|Doc)", re.IGNORECASE), "Subscription Agreement"),
+    (re.compile(r"\bSide.?Letter\b|\bSL\b", re.IGNORECASE), "Side Letter"),
+]
 
-async def _get_categories_tool(categories: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Tool: get available categories for classification."""
-    return categories
+_SYSTEM_PROMPT = """\
+You are an expert document classifier for a Private Equity document intelligence platform.
 
+Your task: classify a PE document into exactly ONE of the provided categories.
 
-async def _get_parsed_content_tool(content: str) -> str:
-    """Tool: get parsed document content for classification."""
-    return content
+## Classification Guidelines
+
+- Examine the document content carefully for structural and legal indicators.
+- Use the file name as a supporting signal, but content always takes priority.
+- If the file name suggests one category but the content clearly indicates another, follow the content.
+- Return a confidence score from 0 to 100:
+  - 90-100: Strong match — multiple defining attributes present
+  - 70-89: Good match — key attributes present but some missing
+  - 50-69: Moderate match — some indicators present, ambiguous
+  - Below 50: Weak match — few indicators, likely a guess
+
+## Category Examples
+
+**Limited Partnership Agreement (LPA):**
+Typically titled "Limited Partnership Agreement" or "Agreement of Limited Partnership".
+Contains: fund name, GP/LP structure, management fee rate (e.g. 1.5-2%), carried interest
+(typically 20%), preferred return (typically 8%), fund term (e.g. 10 years), commitment period,
+distribution waterfall, capital call mechanics, clawback provisions, key person clauses.
+
+**Subscription Agreement:**
+Agreement by which an LP commits capital. Contains: capital commitment amount, investor
+representations & warranties, accredited investor certification, tax ID, AML/KYC certifications,
+subscription amount, references to the main LPA.
+
+**Side Letter:**
+Supplemental agreement between GP and a specific LP. References the main LPA by name.
+Contains: fee discounts/waivers, MFN clauses, co-investment rights, enhanced reporting,
+excuse/exclusion rights, transfer restriction modifications.
+
+Return the category_id, category_name, confidence (0-100), and reasoning.
+"""
 
 
 class ClassifierSubagent:
-    """Subagent that classifies documents into user-defined categories."""
+    """Subagent that classifies documents using file name + content signals."""
 
     def __init__(self) -> None:
         self._pii_filter = PIIFilterMiddleware()
         self._agent = create_deep_agent(
             model="openai:gpt-5.4-mini",
-            tools=[self._get_categories, self._get_parsed_content],
-            system_prompt=(
-                "You are a document classifier for a PE document intelligence system. "
-                "Given a document and a list of categories with their criteria, "
-                "classify the document into the single best-matching category. "
-                "Return the category_id, category_name, and reasoning."
-            ),
+            tools=[],
+            system_prompt=_SYSTEM_PROMPT,
             response_format=ClassificationResult,
         )
-        self._categories: list[dict[str, Any]] = []
-        self._parsed_content: str = ""
 
     async def classify(
         self,
-        parsed_content: str,
+        file_name: str,
+        content: str,
         categories: list[dict[str, Any]],
+        summary: str | None = None,
     ) -> ClassificationResult:
         """Classify a document against available categories.
 
+        Uses summary when available (more focused), falls back to full content.
+        File name is always included as a supporting signal.
+
         Args:
-            parsed_content: The parsed markdown content.
+            file_name: Original file name of the document.
+            content: The full parsed markdown content.
             categories: List of category dicts with id, name, criteria.
+            summary: Optional pre-generated document summary.
 
         Returns:
-            ClassificationResult with matched category and reasoning.
+            ClassificationResult with matched category, confidence, and reasoning.
         """
-        self._categories = categories
-        filtered = self._pii_filter.filter_content(parsed_content)
-        self._parsed_content = filtered.redacted_text
-
         if not categories:
             return ClassificationResult(
                 category_id=uuid.uuid4(),
                 category_name="Other/Unclassified",
+                confidence=0,
                 reasoning="No categories defined in the system.",
             )
 
-        prompt = self._build_prompt(filtered.redacted_text, categories)
-        result = await self._agent.ainvoke(prompt)
+        # Use summary if available, otherwise full content
+        classification_text = summary if summary else content
+        filtered = self._pii_filter.filter_content(classification_text)
+
+        prompt = self._build_prompt(
+            file_name=file_name,
+            content=filtered.redacted_text,
+            categories=categories,
+            is_summary=summary is not None,
+        )
+        result = await self._agent.ainvoke(
+            {"messages": [{"role": "user", "content": prompt}]}
+        )
 
         return self._parse_response(result, categories)
 
-    def _build_prompt(self, content: str, categories: list[dict[str, Any]]) -> str:
-        """Build the classification prompt."""
+    def _build_prompt(
+        self,
+        file_name: str,
+        content: str,
+        categories: list[dict[str, Any]],
+        is_summary: bool,
+    ) -> str:
+        """Build the classification prompt with file name + content."""
         cat_descriptions = "\n".join(
-            f"- {c['name']} (id={c['id']}): {c.get('classification_criteria', 'N/A')}"
+            f"- **{c['name']}** (id={c['id']}): "
+            f"{c.get('classification_criteria', 'No specific criteria defined.')}"
             for c in categories
         )
-        return (
-            f"Classify the following document into one of these categories:\n"
-            f"{cat_descriptions}\n\n"
-            f"Document content:\n{content[:3000]}\n\n"
-            f"Return the best matching category."
+
+        file_name_hint = self._get_filename_hint(file_name)
+        hint_line = (
+            f"File name analysis suggests: **{file_name_hint}** "
+            "(use as a supporting signal only, content takes priority)\n\n"
+            if file_name_hint
+            else ""
         )
+
+        content_label = "Document summary" if is_summary else "Document content"
+
+        return (
+            f"## File Name\n{file_name}\n\n"
+            f"{hint_line}"
+            f"## Available Categories\n{cat_descriptions}\n\n"
+            f"## {content_label}\n{content}\n\n"
+            f"Classify this document into the single best-matching category. "
+            f"Return category_id, category_name, confidence (0-100), and reasoning."
+        )
+
+    @staticmethod
+    def _get_filename_hint(file_name: str) -> str | None:
+        """Extract a category hint from the file name, if any pattern matches."""
+        for pattern, category_name in _FILENAME_HINTS:
+            if pattern.search(file_name):
+                return category_name
+        return None
 
     def _parse_response(
         self,
         result: dict[str, Any],
         categories: list[dict[str, Any]],
     ) -> ClassificationResult:
-        """Parse agent response into ClassificationResult.
-
-        Uses structured_response from the DeepAgents SDK when available.
-        Falls back to first category if structured parsing fails.
-        """
+        """Parse agent response into ClassificationResult."""
         structured = result.get("structured_response")
         if structured is not None and isinstance(structured, ClassificationResult):
             return structured
 
-        # Fallback: try to match from raw response text
-        response_text = result.get("response", "")
+        # Extract text from LangGraph messages state
+        response_text = ""
+        messages = result.get("messages", [])
+        if messages:
+            last_msg = messages[-1]
+            if hasattr(last_msg, "content"):
+                response_text = last_msg.content
+            elif isinstance(last_msg, dict):
+                response_text = last_msg.get("content", "")
+
+        if not response_text:
+            response_text = result.get("response", "")
+
+        # Fallback: try to match category from raw response text
         for cat in categories:
             if cat["name"].lower() in response_text.lower():
                 return ClassificationResult(
                     category_id=cat["id"],
                     category_name=cat["name"],
-                    reasoning=response_text or "Classification based on content analysis.",
+                    confidence=50,
+                    reasoning=response_text or "Classified via text matching fallback.",
                 )
 
-        # Final fallback: first category
-        if categories:
-            cat = categories[0]
-            return ClassificationResult(
-                category_id=cat["id"],
-                category_name=cat["name"],
-                reasoning=response_text or "Classification based on content analysis.",
-            )
-
+        # Final fallback: Other/Unclassified if it exists, else first category
+        other = next((c for c in categories if "unclassified" in c["name"].lower()), None)
+        fallback = other or categories[0]
         return ClassificationResult(
-            category_id=uuid.uuid4(),
-            category_name="Other/Unclassified",
-            reasoning="No matching category found.",
+            category_id=fallback["id"],
+            category_name=fallback["name"],
+            confidence=20,
+            reasoning=response_text or "Low confidence — no strong category match found.",
         )
-
-    async def _get_categories(self) -> list[dict[str, Any]]:
-        """Tool: get available categories."""
-        return self._categories
-
-    async def _get_parsed_content(self) -> str:
-        """Tool: get parsed document content."""
-        return self._parsed_content
 
     def as_subagent_config(self) -> SubAgent:
         """Create a subagent config dict for registration with orchestrator."""

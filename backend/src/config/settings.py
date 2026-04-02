@@ -27,6 +27,8 @@ class StorageSettings(BaseSettings):
 
     upload_dir: str = "./data/upload"
     parsed_dir: str = "./data/parsed"
+    summary_dir: str = "./data/summary"
+    extraction_dir: str = "./data/extraction"
     schemas_dir: str = "./schemas"
 
 
@@ -69,6 +71,7 @@ class AppSettings(BaseSettings):
     # Secrets from environment variables (no defaults -- validation fails if missing)
     openai_api_key: str = Field(..., description="OpenAI API key")
     reducto_api_key: str = Field(..., description="Reducto API key")
+    reducto_base_url: str = Field(..., description="Reducto API base URL")
     database_url: str = Field(..., description="PostgreSQL async connection URL")
     weaviate_url: str = Field(..., description="Weaviate server URL")
     openai_model: str = Field(..., description="OpenAI model identifier")

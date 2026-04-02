@@ -2,8 +2,9 @@
 
 import uuid
 
-from sqlalchemy import select, update
+from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from src.db.models import ExtractedValue, ExtractionField
 
@@ -30,12 +31,17 @@ class ExtractedValuesRepository:
         Returns:
             List of created ExtractedValue records.
         """
+        # Delete any previous extraction results for this document
+        await self._session.execute(
+            delete(ExtractedValue).where(ExtractedValue.document_id == document_id)
+        )
+
         created = []
         for r in results:
             ev = ExtractedValue(
                 id=uuid.uuid4(),
                 document_id=document_id,
-                field_id=r["field_id"],
+                field_id=uuid.UUID(r["field_id"]) if isinstance(r["field_id"], str) else r["field_id"],
                 extracted_value=r.get("extracted_value", ""),
                 source_text=r.get("source_text", ""),
                 confidence=r.get("confidence", "medium"),
@@ -52,6 +58,7 @@ class ExtractedValuesRepository:
         """Get all extracted values for a document."""
         stmt = (
             select(ExtractedValue)
+            .options(selectinload(ExtractedValue.field))
             .where(ExtractedValue.document_id == document_id)
             .order_by(ExtractedValue.created_at)
         )

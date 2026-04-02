@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text, text
+from sqlalchemy import BigInteger, DateTime, Float, ForeignKey, String, Text, text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -59,6 +59,7 @@ class Document(TimestampMixin, Base):
     )
     file_type: Mapped[str] = mapped_column(String(20), nullable=False)
     file_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    parse_confidence_pct: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     # Relationships
     category: Mapped[DocumentCategory | None] = relationship(back_populates="documents")

@@ -24,8 +24,9 @@ export function useParseContent(id: string) {
 export function useTriggerParse() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => triggerParse(id),
-    onSuccess: (_data, id) => {
+    mutationFn: ({ id, force = false }: { id: string; force?: boolean }) =>
+      triggerParse(id, force),
+    onSuccess: (_data, { id }) => {
       queryClient.invalidateQueries({ queryKey: [...PARSE_KEY, id] });
       queryClient.invalidateQueries({ queryKey: ["documents"] });
     },

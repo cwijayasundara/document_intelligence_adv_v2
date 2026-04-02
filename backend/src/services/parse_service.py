@@ -8,13 +8,15 @@ from pathlib import Path
 
 import aiofiles
 
-logger = logging.getLogger(__name__)
-
 from src.db.models import Document
 from src.db.repositories.documents import DocumentRepository
 from src.parser.reducto import ReductoClient
 from src.services.state_machine import validate_transition
 from src.storage.local import LocalStorage
+
+logger = logging.getLogger(__name__)
+
+_DEFAULT_CONFIDENCE = 100.0
 
 
 def _parsed_filename(doc: Document) -> str:
@@ -35,15 +37,18 @@ class ParseService:
         self._storage = storage
         self._reducto = reducto_client
 
-    async def parse_document(self, doc_id: uuid.UUID) -> tuple[Document, str, bool]:
+    async def parse_document(
+        self, doc_id: uuid.UUID, *, force: bool = False
+    ) -> tuple[Document, str, bool, float]:
         """Parse a document via Reducto.
 
-        Returns:
-            Tuple of (document, markdown_content, was_skipped).
-            was_skipped is True if the parsed file already existed.
+        Args:
+            doc_id: Document UUID.
+            force: If True, skip cache and re-parse via Reducto.
 
-        Raises:
-            ValueError: If document not found or invalid state.
+        Returns:
+            Tuple of (document, markdown_content, was_skipped, confidence_pct).
+            was_skipped is True if the parsed file already existed.
         """
         doc = await self._repo.get_by_id(doc_id)
         if doc is None:
@@ -51,35 +56,44 @@ class ParseService:
 
         parsed_path = self._storage.parsed_dir / _parsed_filename(doc)
 
-        if parsed_path.exists() and doc.parsed_path:
+        if not force and parsed_path.exists() and doc.parsed_path:
             logger.info("Parse cache hit for %s (%s)", doc_id, doc.file_name)
             content = await self._read_file(parsed_path)
-            return doc, content, True
+            confidence_pct = doc.parse_confidence_pct or _DEFAULT_CONFIDENCE
+            if doc.status == "uploaded":
+                doc.status = "parsed"
+                await self._repo._session.flush()
+            return doc, content, True, confidence_pct
 
-        validate_transition(doc.status, "parsed")
+        if not force:
+            validate_transition(doc.status, "parsed")
 
         logger.info("Parsing document %s (%s) via Reducto", doc_id, doc.file_name)
-        content = await self._reducto.parse(doc.original_path)
+        parse_result = await self._reducto.parse(doc.original_path)
 
-        await self._write_file(parsed_path, content)
+        await self._write_file(parsed_path, parse_result.content)
         logger.info(
-            "Parse complete for %s -> %s (%d chars)",
+            "Parse complete for %s -> %s (%d chars, %.1f%% confidence)",
             doc.file_name,
             parsed_path.name,
-            len(content),
+            len(parse_result.content),
+            parse_result.confidence_pct,
         )
 
         doc.parsed_path = str(parsed_path)
         doc.status = "parsed"
+        doc.parse_confidence_pct = parse_result.confidence_pct
         await self._repo._session.flush()
 
-        return doc, content, False
+        return doc, parse_result.content, False, parse_result.confidence_pct
 
-    async def get_parsed_content(self, doc_id: uuid.UUID) -> str | None:
-        """Get parsed markdown content for a document.
+    async def get_parsed_content(
+        self, doc_id: uuid.UUID
+    ) -> tuple[str, float] | None:
+        """Get parsed markdown content and confidence for a document.
 
         Returns:
-            Markdown content string, or None if not parsed.
+            Tuple of (content, confidence_pct), or None if not parsed.
         """
         doc = await self._repo.get_by_id(doc_id)
         if doc is None:
@@ -92,7 +106,9 @@ class ParseService:
         if not path.exists():
             return None
 
-        return await self._read_file(path)
+        content = await self._read_file(path)
+        confidence_pct = doc.parse_confidence_pct or _DEFAULT_CONFIDENCE
+        return content, confidence_pct
 
     async def save_edited_content(self, doc_id: uuid.UUID, content: str) -> Document:
         """Save edited markdown content and transition to edited status.

@@ -9,12 +9,13 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.agents.classifier import ClassifierSubagent
-from src.api.dependencies import get_current_user_id, get_run_guard, get_session
+from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.classify import ClassifyResponse
 from src.db.repositories.categories import CategoryRepository
 from src.db.repositories.documents import DocumentRepository
 from src.services.state_machine import InvalidTransitionError, validate_transition
+from src.services.summarize_service import SummaryService
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +43,12 @@ async def classify_document(
     user_id: str = Depends(get_current_user_id),
     run_guard: RunGuard = Depends(get_run_guard),
 ) -> ClassifyResponse:
-    """Trigger classification for a document via the classifier subagent."""
+    """Trigger classification for a document via the classifier subagent.
+
+    Uses the document summary when available for more focused classification.
+    Falls back to full parsed content otherwise. File name is always included
+    as a supporting signal.
+    """
     if not await run_guard.acquire(str(doc_id)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -78,6 +84,12 @@ async def classify_document(
         async with aiofiles.open(path, "r") as f:
             content = await f.read()
 
+        # Try to load existing summary for more focused classification
+        settings = get_app_settings()
+        summary_service = SummaryService(summary_dir=settings.storage.summary_dir)
+        cached_summary = await summary_service.get_cached_summary(doc_id)
+        summary_text = cached_summary.get("summary") if cached_summary else None
+
         cat_repo = CategoryRepository(session)
         categories = await cat_repo.list_all()
         cat_dicts = [
@@ -90,9 +102,26 @@ async def classify_document(
         ]
 
         classifier = _get_classifier()
-        logger.info("Classifying document %s against %d categories", doc_id, len(cat_dicts))
-        result = await classifier.classify(content, cat_dicts)
-        logger.info("Document %s classified as '%s'", doc_id, result.category_name)
+        source = "summary" if summary_text else "full content"
+        logger.info(
+            "Classifying document %s (%s) against %d categories using %s",
+            doc_id,
+            doc.file_name,
+            len(cat_dicts),
+            source,
+        )
+        result = await classifier.classify(
+            file_name=doc.file_name,
+            content=content,
+            categories=cat_dicts,
+            summary=summary_text,
+        )
+        logger.info(
+            "Document %s classified as '%s' (confidence=%d%%)",
+            doc_id,
+            result.category_name,
+            result.confidence,
+        )
 
         doc.document_category_id = result.category_id
         doc.status = "classified"
@@ -102,6 +131,7 @@ async def classify_document(
             document_id=doc_id,
             category_id=result.category_id,
             category_name=result.category_name,
+            confidence=result.confidence,
             reasoning=result.reasoning,
             status="classified",
         )

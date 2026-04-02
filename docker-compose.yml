@@ -21,6 +21,8 @@ services:
     image: semitechnologies/weaviate:1.30.0
     container_name: doc_intel_weaviate
     restart: unless-stopped
+    env_file:
+      - backend/.env
     ports:
       - "8080:8080"
       - "50051:50051"
