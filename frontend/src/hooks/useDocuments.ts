@@ -11,7 +11,7 @@ import type { Document, DocumentListResponse } from "../types/document";
 
 const DOCUMENTS_KEY = ["documents"] as const;
 
-/** Fetch all documents with auto-refresh every 30 seconds. */
+/** Fetch all documents. Refreshes automatically after mutations. */
 export function useDocuments(params?: {
   status?: string;
   categoryId?: string;
@@ -21,7 +21,6 @@ export function useDocuments(params?: {
   return useQuery<DocumentListResponse>({
     queryKey: [...DOCUMENTS_KEY, params],
     queryFn: () => fetchDocuments(params),
-    refetchInterval: 30_000,
   });
 }
 

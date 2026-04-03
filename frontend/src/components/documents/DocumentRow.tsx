@@ -31,6 +31,8 @@ interface DocumentRowProps {
   isExtracting?: boolean;
   onSummarize?: (id: string) => void;
   isSummarizing?: boolean;
+  onIngest?: (id: string) => void;
+  isIngesting?: boolean;
   onSelect?: (id: string) => void;
   isSelected?: boolean;
 }
@@ -45,6 +47,8 @@ export default function DocumentRow({
   isExtracting,
   onSummarize,
   isSummarizing,
+  onIngest,
+  isIngesting,
   onSelect,
   isSelected,
 }: DocumentRowProps) {
@@ -148,6 +152,16 @@ export default function DocumentRow({
               <CheckCircleIcon />
             </span>
           )}
+          {hasParsed && onIngest && (
+            <button
+              onClick={() => onIngest(document.id)}
+              disabled={isIngesting}
+              className="p-1.5 rounded-md text-teal-600 hover:bg-teal-50 hover:text-teal-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={isIngesting ? "Ingesting..." : "Ingest"}
+            >
+              {isIngesting ? <SpinnerIcon /> : <IngestIcon />}
+            </button>
+          )}
           <Link
             to={actionRoute}
             className="p-1.5 rounded-md text-primary-600 hover:bg-primary-50 hover:text-primary-800 transition-colors"
@@ -202,6 +216,24 @@ function CheckCircleIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+    </svg>
+  );
+}
+
+/** Database upload icon — represents ingestion to vector DB. */
+function IngestIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2 3.6 3 8 3s8-1 8-3V7M4 7c0 2 3.6 3 8 3s8-1 8-3M4 7c0-2 3.6-3 8-3s8 1 8 3" />
+    </svg>
+  );
+}
+
+/** Database with check — represents ingested state. */
+function DatabaseCheckIcon() {
+  return (
+    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2 3.6 3 8 3s8-1 8-3V7M4 7c0 2 3.6 3 8 3s8-1 8-3M4 7c0-2 3.6-3 8-3s8 1 8 3M9 12l2 2 4-4" />
     </svg>
   );
 }

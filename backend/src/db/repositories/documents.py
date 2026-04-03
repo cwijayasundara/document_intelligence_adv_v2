@@ -55,7 +55,7 @@ class DocumentRepository:
         user_id: str | None = None,
     ) -> Document | None:
         """Get a document by ID, optionally scoped to user."""
-        stmt = select(Document).where(Document.id == doc_id)
+        stmt = select(Document).options(selectinload(Document.category)).where(Document.id == doc_id)
         if user_id is not None:
             stmt = stmt.where(Document.user_id == user_id)
         result = await self._session.execute(stmt)

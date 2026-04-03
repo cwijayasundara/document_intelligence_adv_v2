@@ -4,12 +4,12 @@ from __future__ import annotations
 
 VALID_TRANSITIONS: dict[str, list[str]] = {
     "uploaded": ["parsed"],
-    "parsed": ["edited", "classified", "summarized"],
-    "edited": ["classified", "summarized"],
-    "classified": ["classified", "extracted", "summarized"],
-    "extracted": ["classified", "extracted", "summarized"],
+    "parsed": ["edited", "classified", "summarized", "ingested"],
+    "edited": ["classified", "summarized", "ingested"],
+    "classified": ["classified", "extracted", "summarized", "ingested"],
+    "extracted": ["classified", "extracted", "summarized", "ingested"],
     "summarized": ["classified", "extracted", "summarized", "ingested"],
-    "ingested": [],
+    "ingested": ["ingested"],
 }
 
 

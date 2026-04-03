@@ -1,37 +1,25 @@
-"""Weaviate client for vector storage and hybrid search.
+"""Weaviate vector store using LangChain integration.
 
-Provides connection management, collection setup, and CRUD operations
-for document chunks in Weaviate.
+Uses langchain-weaviate for document storage and hybrid search
+with OpenAI text-embedding-3-small embeddings.
 """
 
 from __future__ import annotations
 
 import logging
-import uuid
 from dataclasses import dataclass
-from datetime import datetime
 from typing import Any
+
+import weaviate
+from langchain_core.documents import Document
+from langchain_openai import OpenAIEmbeddings
+from langchain_weaviate import WeaviateVectorStore
+from weaviate.classes.query import Filter
 
 logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "DocumentChunks"
-
-
-@dataclass
-class ChunkData:
-    """Data for a single document chunk."""
-
-    text: str
-    document_id: str
-    document_name: str
-    document_category: str
-    file_name: str
-    chunk_index: int
-    created_at: str = ""
-
-    def __post_init__(self) -> None:
-        if not self.created_at:
-            self.created_at = datetime.now().isoformat()
+EMBEDDING_MODEL = "text-embedding-3-small"
 
 
 @dataclass
@@ -43,135 +31,162 @@ class SearchResult:
     document_name: str
     chunk_index: int
     relevance_score: float
+    metadata: dict[str, Any]
 
 
 class WeaviateClient:
-    """Client for Weaviate vector database operations.
+    """Client for Weaviate vector database using LangChain integration."""
 
-    Provides methods for connecting, creating collections,
-    upserting chunks, searching, and deleting by document.
-    """
-
-    def __init__(self, url: str, api_key: str | None = None) -> None:
+    def __init__(self, url: str) -> None:
         self._url = url
-        self._api_key = api_key
-        self._connected = False
-        self._collections: dict[str, list[dict[str, Any]]] = {}
+        self._client: weaviate.WeaviateClient | None = None
+        self._store: WeaviateVectorStore | None = None
+        self._embeddings = OpenAIEmbeddings(model=EMBEDDING_MODEL)
 
     @property
     def is_connected(self) -> bool:
-        """Check if client is connected."""
-        return self._connected
+        return self._client is not None and self._client.is_connected()
 
-    async def connect(self) -> None:
+    def connect(self) -> None:
         """Connect to the Weaviate instance."""
-        logger.info("Connecting to Weaviate at %s", self._url)
-        self._connected = True
+        if self._client is not None and self._client.is_connected():
+            return
+        logger.info(
+            "Connecting to Weaviate at %s (embedding model: %s)",
+            self._url,
+            EMBEDDING_MODEL,
+        )
+        self._client = weaviate.connect_to_local(
+            host=self._url.replace("http://", "").split(":")[0],
+            port=int(self._url.split(":")[-1]) if ":" in self._url.rsplit("/", 1)[-1] else 8080,
+        )
+        self._store = WeaviateVectorStore(
+            client=self._client,
+            index_name=COLLECTION_NAME,
+            text_key="text",
+            embedding=self._embeddings,
+        )
 
-    async def disconnect(self) -> None:
+    def disconnect(self) -> None:
         """Disconnect from Weaviate."""
-        self._connected = False
+        if self._client is not None:
+            self._client.close()
+            self._client = None
+            self._store = None
+            logger.info("Disconnected from Weaviate")
 
-    async def create_collection(self, name: str = COLLECTION_NAME) -> None:
-        """Create a collection if it doesn't exist."""
-        if name not in self._collections:
-            self._collections[name] = []
-            logger.info("Created collection: %s", name)
+    def _ensure_connected(self) -> WeaviateVectorStore:
+        """Ensure connected and return the vector store."""
+        if self._store is None:
+            self.connect()
+        assert self._store is not None
+        return self._store
 
-    async def upsert_chunks(
+    def add_documents(
         self,
-        chunks: list[ChunkData],
-        collection: str = COLLECTION_NAME,
+        texts: list[str],
+        metadatas: list[dict[str, Any]],
     ) -> int:
-        """Upsert chunks into a collection.
+        """Add document chunks with metadata to Weaviate.
 
         Args:
-            chunks: List of ChunkData objects.
-            collection: Target collection name.
+            texts: List of chunk text contents.
+            metadatas: List of metadata dicts per chunk.
 
         Returns:
-            Number of chunks upserted.
+            Number of chunks added.
         """
-        await self.create_collection(collection)
-        for chunk in chunks:
-            self._collections[collection].append(
-                {
-                    "id": str(uuid.uuid4()),
-                    "text": chunk.text,
-                    "document_id": chunk.document_id,
-                    "document_name": chunk.document_name,
-                    "document_category": chunk.document_category,
-                    "file_name": chunk.file_name,
-                    "chunk_index": chunk.chunk_index,
-                    "created_at": chunk.created_at,
-                }
-            )
-        return len(chunks)
-
-    async def delete_by_document(
-        self,
-        document_id: str,
-        collection: str = COLLECTION_NAME,
-    ) -> int:
-        """Delete all chunks for a document.
-
-        Returns:
-            Number of chunks deleted.
-        """
-        if collection not in self._collections:
-            return 0
-
-        before = len(self._collections[collection])
-        self._collections[collection] = [
-            c for c in self._collections[collection] if c["document_id"] != document_id
+        store = self._ensure_connected()
+        docs = [
+            Document(page_content=text, metadata=meta)
+            for text, meta in zip(texts, metadatas)
         ]
-        deleted = before - len(self._collections[collection])
-        return deleted
+        logger.info(
+            "Generating embeddings and storing %d chunks in %s (model: %s)",
+            len(docs),
+            COLLECTION_NAME,
+            EMBEDDING_MODEL,
+        )
+        store.add_documents(docs)
+        logger.info("Successfully stored %d chunks with embeddings", len(docs))
+        return len(docs)
 
-    async def search(
+    def delete_by_document(self, document_id: str) -> None:
+        """Delete all chunks for a document. No-op if collection/property doesn't exist yet."""
+        self._ensure_connected()
+        assert self._client is not None
+
+        if not self._client.collections.exists(COLLECTION_NAME):
+            return
+
+        try:
+            collection = self._client.collections.get(COLLECTION_NAME)
+            collection.data.delete_many(
+                where=Filter.by_property("document_id").equal(document_id)
+            )
+            logger.info("Deleted existing chunks for document %s from %s", document_id, COLLECTION_NAME)
+        except Exception as exc:
+            if "no such prop" in str(exc):
+                logger.info(
+                    "Collection %s has no document_id property yet (first ingestion), skipping delete",
+                    COLLECTION_NAME,
+                )
+            else:
+                raise
+
+    def search(
         self,
         query: str,
-        collection: str = COLLECTION_NAME,
         top_k: int = 5,
+        alpha: float = 0.5,
         document_id: str | None = None,
+        category: str | None = None,
     ) -> list[SearchResult]:
-        """Search for relevant chunks.
+        """Hybrid search for relevant chunks.
 
         Args:
             query: Search query text.
-            collection: Collection to search.
             top_k: Number of results to return.
+            alpha: Balance between keyword (0) and vector (1) search.
             document_id: Optional filter by document ID.
+            category: Optional filter by document category.
 
         Returns:
             List of SearchResult objects.
         """
-        if collection not in self._collections:
-            return []
+        store = self._ensure_connected()
 
-        candidates = self._collections[collection]
+        filters = None
         if document_id:
-            candidates = [c for c in candidates if c["document_id"] == document_id]
+            filters = Filter.by_property("document_id").equal(document_id)
+        elif category:
+            filters = Filter.by_property("document_category").equal(category)
 
-        results = []
-        for chunk in candidates[:top_k]:
-            results.append(
+        results = store.similarity_search_with_score(
+            query, k=top_k, alpha=alpha, filters=filters
+        )
+
+        search_results = []
+        for doc, score in results:
+            meta = doc.metadata or {}
+            search_results.append(
                 SearchResult(
-                    chunk_text=chunk["text"],
-                    document_id=chunk["document_id"],
-                    document_name=chunk["document_name"],
-                    chunk_index=chunk["chunk_index"],
-                    relevance_score=0.8,
+                    chunk_text=doc.page_content,
+                    document_id=meta.get("document_id", ""),
+                    document_name=meta.get("document_name", ""),
+                    chunk_index=meta.get("chunk_index", 0),
+                    relevance_score=score,
+                    metadata=meta,
                 )
             )
-        return results
+        return search_results
 
-    async def get_chunk_count(
-        self,
-        document_id: str,
-        collection: str = COLLECTION_NAME,
-    ) -> int:
+    def get_chunk_count(self, document_id: str) -> int:
         """Count chunks for a document."""
-        if collection not in self._collections:
-            return 0
-        return sum(1 for c in self._collections[collection] if c["document_id"] == document_id)
+        assert self._client is not None
+        collection = self._client.collections.get(COLLECTION_NAME)
+        result = collection.aggregate.over_all(
+            filters=Filter.by_property("document_id").equal(document_id),
+            total_count=True,
+        )
+        return result.total_count or 0

@@ -77,7 +77,7 @@ async def summarize_document(
             content = await f.read()
 
         service = _get_summary_service()
-        result = await service.generate_summary(doc_id, content, force=True)
+        result = await service.generate_summary(doc_id, content)
 
         doc.status = "summarized"
         await session.flush()

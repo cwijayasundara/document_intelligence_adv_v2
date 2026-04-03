@@ -11,6 +11,7 @@ class Citation(BaseModel):
     document_id: str
     chunk_index: int = 0
     relevance_score: float = 0.0
+    section: str = ""
 
 
 class RAGQueryRequest(BaseModel):

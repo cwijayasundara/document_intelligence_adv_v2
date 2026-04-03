@@ -23,25 +23,41 @@ async def rag_query(
     body: RAGQueryRequest,
     user_id: str = Depends(get_current_user_id),  # noqa: ARG001
 ) -> RAGQueryResponse:
-    """Execute a RAG query with scope filtering and search mode."""
+    """Execute a RAG query with scope filtering and hybrid search."""
     settings = get_app_settings()
     weaviate = WeaviateClient(url=settings.weaviate_url)
-    await weaviate.connect()
 
-    service = RAGService(weaviate_client=weaviate)
-    result = await service.query(
-        query=body.query,
-        scope=body.scope,
-        scope_id=body.scope_id,
-        search_mode=body.search_mode,
-        top_k=body.top_k,
-    )
+    try:
+        weaviate.connect()
+        logger.info(
+            "RAG query: scope=%s, scope_id=%s, mode=%s, top_k=%d",
+            body.scope,
+            body.scope_id,
+            body.search_mode,
+            body.top_k,
+        )
 
-    citations = [Citation(**c) for c in result["citations"]]
+        service = RAGService(weaviate_client=weaviate)
+        result = await service.query(
+            query=body.query,
+            scope=body.scope,
+            scope_id=body.scope_id,
+            search_mode=body.search_mode,
+            top_k=body.top_k,
+        )
 
-    return RAGQueryResponse(
-        answer=result["answer"],
-        citations=citations,
-        search_mode=result["search_mode"],
-        chunks_retrieved=result["chunks_retrieved"],
-    )
+        citations = [Citation(**c) for c in result["citations"]]
+        logger.info(
+            "RAG query complete: %d citations, answer=%d chars",
+            len(citations),
+            len(result["answer"]),
+        )
+
+        return RAGQueryResponse(
+            answer=result["answer"],
+            citations=citations,
+            search_mode=result["search_mode"],
+            chunks_retrieved=result["chunks_retrieved"],
+        )
+    finally:
+        weaviate.disconnect()

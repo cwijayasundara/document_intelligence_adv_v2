@@ -9,6 +9,7 @@ export interface Citation {
   documentId: string;
   chunkIndex: number;
   relevanceScore: number;
+  section: string;
 }
 
 export interface RagQueryRequest {

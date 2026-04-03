@@ -5,13 +5,14 @@ import { Link } from "react-router-dom";
 import DocumentCardGrid from "../components/documents/DocumentCardGrid";
 import DocumentDetailPanel from "../components/documents/DocumentDetailPanel";
 import DocumentList from "../components/documents/DocumentList";
+import DocumentTreePanel from "../components/documents/DocumentTreePanel";
 import EmptyState from "../components/ui/EmptyState";
 import PageHeader from "../components/ui/PageHeader";
 import { useTriggerClassify } from "../hooks/useClassify";
 import { useDocuments } from "../hooks/useDocuments";
 import { useTriggerExtract } from "../hooks/useExtraction";
 import { useTriggerParse } from "../hooks/useParse";
-import { useGenerateSummary } from "../hooks/useSummary";
+import { useGenerateSummary, useIngestDocument } from "../hooks/useSummary";
 
 type ViewMode = "table" | "cards";
 
@@ -21,10 +22,12 @@ export default function DashboardPage() {
   const triggerClassify = useTriggerClassify();
   const triggerExtract = useTriggerExtract();
   const generateSummary = useGenerateSummary();
+  const ingestDocument = useIngestDocument();
   const [reparsingId, setReparsingId] = useState<string>();
   const [classifyingId, setClassifyingId] = useState<string>();
   const [extractingId, setExtractingId] = useState<string>();
   const [summarizingId, setSummarizingId] = useState<string>();
+  const [ingestingId, setIngestingId] = useState<string>();
   const [viewMode, setViewMode] = useState<ViewMode>("cards");
   const [selectedId, setSelectedId] = useState<string>();
 
@@ -78,6 +81,16 @@ export default function DashboardPage() {
       });
     },
     [generateSummary],
+  );
+
+  const handleIngest = useCallback(
+    (id: string) => {
+      setIngestingId(id);
+      ingestDocument.mutate(id, {
+        onSettled: () => setIngestingId(undefined),
+      });
+    },
+    [ingestDocument],
   );
 
   const handleSelect = useCallback(
@@ -162,6 +175,8 @@ export default function DashboardPage() {
                 extractingId={extractingId}
                 onSummarize={handleSummarize}
                 summarizingId={summarizingId}
+                onIngest={handleIngest}
+                ingestingId={ingestingId}
                 onSelect={handleSelect}
                 selectedId={selectedId}
               />
@@ -176,6 +191,8 @@ export default function DashboardPage() {
                 extractingId={extractingId}
                 onSummarize={handleSummarize}
                 summarizingId={summarizingId}
+                onIngest={handleIngest}
+                ingestingId={ingestingId}
                 onSelect={handleSelect}
                 selectedId={selectedId}
               />
@@ -190,6 +207,11 @@ export default function DashboardPage() {
                 />
               </div>
             )}
+
+            {/* RAG search panel */}
+            <div className="mt-6">
+              <DocumentTreePanel documents={documents} />
+            </div>
           </>
         )}
       </div>

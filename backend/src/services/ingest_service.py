@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import uuid
+from typing import Any
 
-from src.rag.chunker import SemanticChunker
-from src.rag.weaviate_client import ChunkData, WeaviateClient
+from src.rag.chunker import DocumentChunker
+from src.rag.weaviate_client import WeaviateClient
 
 logger = logging.getLogger(__name__)
 
@@ -17,12 +18,12 @@ class IngestionService:
     def __init__(
         self,
         weaviate_client: WeaviateClient,
-        chunker: SemanticChunker | None = None,
+        chunker: DocumentChunker | None = None,
     ) -> None:
         self._weaviate = weaviate_client
-        self._chunker = chunker or SemanticChunker()
+        self._chunker = chunker or DocumentChunker()
 
-    async def ingest_document(
+    def ingest_document(
         self,
         document_id: uuid.UUID,
         document_name: str,
@@ -46,25 +47,46 @@ class IngestionService:
         """
         doc_id_str = str(document_id)
 
-        logger.info("Ingesting document %s (%s), deleting existing chunks", document_id, file_name)
-        await self._weaviate.delete_by_document(doc_id_str)
+        logger.info(
+            "Starting ingestion pipeline for '%s' (id=%s, category=%s, %d chars)",
+            file_name,
+            document_id,
+            document_category or "uncategorized",
+            len(parsed_content),
+        )
 
+        logger.info("Step 1/3: Removing previous chunks for document %s", document_id)
+        self._weaviate.delete_by_document(doc_id_str)
+
+        logger.info("Step 2/3: Chunking document with markdown-aware splitter")
         chunks = self._chunker.chunk(parsed_content)
 
-        chunk_data = [
-            ChunkData(
-                text=chunk.text,
-                document_id=doc_id_str,
-                document_name=document_name,
-                document_category=document_category,
-                file_name=file_name,
-                chunk_index=chunk.index,
-            )
-            for chunk in chunks
+        if not chunks:
+            logger.warning("No chunks generated for document %s — content may be empty", document_id)
+            return 0
+
+        texts = [c.text for c in chunks]
+        metadatas: list[dict[str, Any]] = [
+            {
+                "document_id": doc_id_str,
+                "document_name": document_name,
+                "document_category": document_category,
+                "file_name": file_name,
+                "chunk_index": c.index,
+                **c.metadata,
+            }
+            for c in chunks
         ]
 
-        if chunk_data:
-            await self._weaviate.upsert_chunks(chunk_data)
+        logger.info(
+            "Step 3/3: Embedding and storing %d chunks in Weaviate (metadata: document_id, file_name, category, headers)",
+            len(chunks),
+        )
+        count = self._weaviate.add_documents(texts, metadatas)
 
-        logger.info("Ingested %d chunks for document %s", len(chunk_data), document_id)
-        return len(chunk_data)
+        logger.info(
+            "Ingestion complete for '%s': %d chunks stored in vector DB",
+            file_name,
+            count,
+        )
+        return count

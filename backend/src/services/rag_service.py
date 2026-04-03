@@ -44,39 +44,56 @@ class RAGService:
         Returns:
             Dict with answer, citations, search_mode, chunks_retrieved.
         """
-        logger.info(
-            "RAG query: scope=%s scope_id=%s mode=%s top_k=%d",
-            scope,
-            scope_id,
-            search_mode,
-            top_k,
-        )
         alpha = SEARCH_MODE_ALPHA.get(search_mode, 0.5)
         doc_id = scope_id if scope == "single_document" else None
         category = scope_id if scope == "by_category" else None
 
-        chunks = await self._retriever.retrieve(
+        logger.info(
+            "Retrieving chunks: query='%s', alpha=%.1f, doc_id=%s, category=%s, top_k=%d",
+            query[:80],
+            alpha,
+            doc_id,
+            category,
+            top_k,
+        )
+
+        chunks = self._retriever.retrieve(
             query=query,
             top_k=top_k,
             document_id=doc_id,
             category_filter=category,
             alpha=alpha,
         )
+        logger.info("Retrieved %d chunks from Weaviate", len(chunks))
 
+        if not chunks:
+            logger.warning("No chunks found for query: '%s'", query[:80])
+            return {
+                "answer": "No relevant content found in the selected documents.",
+                "citations": [],
+                "search_mode": search_mode,
+                "chunks_retrieved": 0,
+            }
+
+        logger.info("Generating answer from %d chunks via LLM", len(chunks))
         answer = await self._retriever.generate_answer(query, chunks)
 
-        citations = [
-            {
+        citations = []
+        for c in chunks:
+            section_parts = []
+            for key in ("header_1", "header_2", "header_3"):
+                val = c.metadata.get(key)
+                if val:
+                    section_parts.append(val)
+            citations.append({
                 "chunk_text": c.chunk_text,
                 "document_name": c.document_name,
-                "document_id": c.document_id,
+                "document_id": str(c.document_id),
                 "chunk_index": c.chunk_index,
-                "relevance_score": c.relevance_score,
-            }
-            for c in chunks
-        ]
+                "relevance_score": float(c.relevance_score),
+                "section": " > ".join(section_parts),
+            })
 
-        logger.info("RAG query returned %d chunks", len(chunks))
         return {
             "answer": answer,
             "citations": citations,

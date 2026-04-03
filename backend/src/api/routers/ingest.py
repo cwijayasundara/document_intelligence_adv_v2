@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.db.repositories.documents import DocumentRepository
-from src.rag.chunker import SemanticChunker
+from src.rag.chunker import DocumentChunker
 from src.rag.weaviate_client import COLLECTION_NAME, WeaviateClient
 from src.services.ingest_service import IngestionService
 from src.services.state_machine import InvalidTransitionError, validate_transition
@@ -60,7 +60,10 @@ async def ingest_document(
         try:
             validate_transition(doc.status, "ingested")
         except InvalidTransitionError as exc:
-            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
 
         if not doc.parsed_path:
             raise HTTPException(
@@ -80,20 +83,24 @@ async def ingest_document(
 
         settings = get_app_settings()
         weaviate = WeaviateClient(url=settings.weaviate_url)
-        await weaviate.connect()
+        weaviate.connect()
 
-        chunker = SemanticChunker(
+        chunker = DocumentChunker(
             max_tokens=settings.chunking.max_tokens,
             overlap_tokens=settings.chunking.overlap_tokens,
         )
         service = IngestionService(weaviate_client=weaviate, chunker=chunker)
 
-        category_name = ""
-        if doc.category:
-            category_name = doc.category.name
+        category_name = doc.category.name if doc.category else ""
 
-        logger.info("Starting ingestion for document %s (%s)", doc_id, doc.file_name)
-        chunks_created = await service.ingest_document(
+        logger.info(
+            "Ingest request: doc_id=%s, file=%s, category=%s, content=%d chars",
+            doc_id,
+            doc.file_name,
+            category_name or "none",
+            len(content),
+        )
+        chunks_created = service.ingest_document(
             document_id=doc.id,
             document_name=doc.file_name,
             document_category=category_name,
@@ -103,6 +110,14 @@ async def ingest_document(
 
         doc.status = "ingested"
         await session.flush()
+        logger.info(
+            "Document %s status updated to 'ingested' (%d chunks in collection %s)",
+            doc_id,
+            chunks_created,
+            COLLECTION_NAME,
+        )
+
+        weaviate.disconnect()
 
         return IngestResponse(
             document_id=doc.id,

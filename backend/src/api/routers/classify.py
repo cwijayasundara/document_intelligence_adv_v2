@@ -39,30 +39,45 @@ def _get_classifier() -> ClassifierSubagent:
 )
 async def classify_document(
     doc_id: uuid.UUID,
+    force: bool = False,
     session: AsyncSession = Depends(get_session),
     user_id: str = Depends(get_current_user_id),
     run_guard: RunGuard = Depends(get_run_guard),
 ) -> ClassifyResponse:
-    """Trigger classification for a document via the classifier subagent.
+    """Classify a document. Returns cached result if already classified.
 
     Uses the document summary when available for more focused classification.
-    Falls back to full parsed content otherwise. File name is always included
-    as a supporting signal.
+    Falls back to full parsed content otherwise. Pass force=true to re-classify.
     """
+    repo = DocumentRepository(session)
+    doc = await repo.get_by_id(doc_id)
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Document not found",
+        )
+
+    # Return cached classification if already classified and not forced
+    if not force and doc.document_category_id is not None:
+        cat_repo = CategoryRepository(session)
+        cat = await cat_repo.get_by_id(doc.document_category_id)
+        if cat is not None:
+            logger.info("Returning cached classification for document %s", doc_id)
+            return ClassifyResponse(
+                document_id=doc_id,
+                category_id=cat.id,
+                category_name=cat.name,
+                confidence=95,
+                reasoning="Previously classified (cached result).",
+                status=doc.status,
+            )
+
     if not await run_guard.acquire(str(doc_id)):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Document is already being processed",
         )
     try:
-        repo = DocumentRepository(session)
-        doc = await repo.get_by_id(doc_id)
-        if doc is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Document not found",
-            )
-
         try:
             validate_transition(doc.status, "classified")
         except InvalidTransitionError as exc:

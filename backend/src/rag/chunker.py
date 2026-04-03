@@ -1,15 +1,29 @@
-"""Semantic chunker for splitting document content.
+"""Document chunker using LangChain's markdown-aware splitting.
 
-Uses recursive character text splitting with configurable chunk size
-and overlap. Falls back gracefully if langchain is not available.
+Two-stage approach:
+1. MarkdownHeaderTextSplitter — splits by document structure (Articles, Sections)
+2. RecursiveCharacterTextSplitter — splits oversized chunks with overlap
 """
 
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+
+from langchain_core.documents import Document
+from langchain_text_splitters import (
+    MarkdownHeaderTextSplitter,
+    RecursiveCharacterTextSplitter,
+)
 
 logger = logging.getLogger(__name__)
+
+# Markdown headers to split on — preserves LPA article/section hierarchy
+_HEADERS_TO_SPLIT_ON = [
+    ("#", "header_1"),
+    ("##", "header_2"),
+    ("###", "header_3"),
+]
 
 
 @dataclass
@@ -18,17 +32,11 @@ class Chunk:
 
     text: str
     index: int
-    start_char: int
-    end_char: int
+    metadata: dict[str, str] = field(default_factory=dict)
 
 
-class SemanticChunker:
-    """Split parsed markdown on semantic boundaries.
-
-    Uses a simple recursive splitting approach with configurable
-    max_tokens and overlap. Splits on paragraphs, then sentences,
-    then characters.
-    """
+class DocumentChunker:
+    """Split parsed markdown using structure-aware + size-based splitting."""
 
     def __init__(
         self,
@@ -39,95 +47,61 @@ class SemanticChunker:
         self._max_chars = max_tokens * chars_per_token
         self._overlap_chars = overlap_tokens * chars_per_token
 
-    @property
-    def max_chars(self) -> int:
-        """Return the max characters per chunk."""
-        return self._max_chars
-
-    @property
-    def overlap_chars(self) -> int:
-        """Return the overlap characters between chunks."""
-        return self._overlap_chars
+        self._header_splitter = MarkdownHeaderTextSplitter(
+            headers_to_split_on=_HEADERS_TO_SPLIT_ON,
+            strip_headers=False,
+        )
+        self._size_splitter = RecursiveCharacterTextSplitter(
+            chunk_size=self._max_chars,
+            chunk_overlap=self._overlap_chars,
+            separators=["\n\n", "\n", ". ", " "],
+        )
 
     def chunk(self, text: str) -> list[Chunk]:
-        """Split text into semantic chunks.
+        """Split markdown text into chunks preserving document structure.
 
         Args:
-            text: The full document text to chunk.
+            text: The full parsed markdown content.
 
         Returns:
-            List of Chunk objects with text, index, and position info.
+            List of Chunk objects with text, index, and header metadata.
         """
         if not text.strip():
+            logger.warning("Empty document content, no chunks to generate")
             return []
 
-        separators = ["\n\n", "\n", ". ", " "]
-        raw_chunks = self._recursive_split(text, separators)
+        logger.info(
+            "Stage 1: splitting %d chars by markdown headers (#, ##, ###)",
+            len(text),
+        )
+        header_docs: list[Document] = self._header_splitter.split_text(text)
+        logger.info(
+            "Stage 1 complete: %d header-based sections (max_chunk=%d chars, overlap=%d chars)",
+            len(header_docs),
+            self._max_chars,
+            self._overlap_chars,
+        )
+
+        logger.info("Stage 2: splitting oversized sections with RecursiveCharacterTextSplitter")
+        final_docs: list[Document] = self._size_splitter.split_documents(
+            header_docs
+        )
 
         chunks = []
-        for idx, (chunk_text, start) in enumerate(raw_chunks):
+        for idx, doc in enumerate(final_docs):
             chunks.append(
                 Chunk(
-                    text=chunk_text,
+                    text=doc.page_content,
                     index=idx,
-                    start_char=start,
-                    end_char=start + len(chunk_text),
+                    metadata=dict(doc.metadata),
                 )
             )
+
+        avg_chars = sum(len(c.text) for c in chunks) // max(len(chunks), 1)
+        logger.info(
+            "Chunking complete: %d sections -> %d chunks (avg %d chars/chunk)",
+            len(header_docs),
+            len(chunks),
+            avg_chars,
+        )
         return chunks
-
-    def _recursive_split(
-        self,
-        text: str,
-        separators: list[str],
-    ) -> list[tuple[str, int]]:
-        """Recursively split text using separators."""
-        if len(text) <= self._max_chars:
-            return [(text.strip(), 0)] if text.strip() else []
-
-        sep = separators[0] if separators else ""
-        remaining_seps = separators[1:] if len(separators) > 1 else []
-
-        if sep and sep in text:
-            parts = text.split(sep)
-        else:
-            if remaining_seps:
-                return self._recursive_split(text, remaining_seps)
-            return self._split_by_size(text)
-
-        result: list[tuple[str, int]] = []
-        current = ""
-        current_start = 0
-        pos = 0
-
-        for part in parts:
-            candidate = current + sep + part if current else part
-
-            if len(candidate) > self._max_chars and current:
-                result.append((current.strip(), current_start))
-                overlap_start = max(0, len(current) - self._overlap_chars)
-                current = current[overlap_start:] + sep + part
-                current_start = pos - len(current) + len(part) + len(sep)
-            else:
-                current = candidate
-                if not result:
-                    current_start = pos
-
-            pos += len(part) + len(sep)
-
-        if current.strip():
-            result.append((current.strip(), current_start))
-
-        return result
-
-    def _split_by_size(self, text: str) -> list[tuple[str, int]]:
-        """Fall back to splitting by character size."""
-        result: list[tuple[str, int]] = []
-        start = 0
-        while start < len(text):
-            end = min(start + self._max_chars, len(text))
-            chunk = text[start:end].strip()
-            if chunk:
-                result.append((chunk, start))
-            start = end - self._overlap_chars if end < len(text) else end
-        return result

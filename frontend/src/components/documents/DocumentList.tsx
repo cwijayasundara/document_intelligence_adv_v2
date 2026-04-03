@@ -13,6 +13,8 @@ interface DocumentListProps {
   extractingId?: string;
   onSummarize?: (id: string) => void;
   summarizingId?: string;
+  onIngest?: (id: string) => void;
+  ingestingId?: string;
   onSelect?: (id: string) => void;
   selectedId?: string;
 }
@@ -27,6 +29,8 @@ export default function DocumentList({
   extractingId,
   onSummarize,
   summarizingId,
+  onIngest,
+  ingestingId,
   onSelect,
   selectedId,
 }: DocumentListProps) {
@@ -74,6 +78,8 @@ export default function DocumentList({
               isExtracting={extractingId === doc.id}
               onSummarize={onSummarize}
               isSummarizing={summarizingId === doc.id}
+              onIngest={onIngest}
+              isIngesting={ingestingId === doc.id}
               onSelect={onSelect}
               isSelected={selectedId === doc.id}
             />
