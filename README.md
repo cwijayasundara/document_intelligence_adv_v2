@@ -26,16 +26,18 @@ React (Vite, :5173) ──> FastAPI Backend (:8000)
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Backend | Python 3.13, FastAPI, SQLAlchemy 2.0 (async), asyncpg, Alembic |
-| Frontend | React 19, Vite, TypeScript, Tailwind CSS 4, TanStack Query |
-| Agent Framework | DeepAgents 0.4.12 (LangGraph), OpenAI GPT-5.4-mini |
-| Document Parser | Reducto Cloud API |
-| Database | PostgreSQL 16 |
-| Vector Store | Weaviate (hybrid search: BM25 + vector) |
-| Chunking | LangChain SemanticChunker |
-| Testing | pytest (backend), Vitest (frontend) |
+
+| Component       | Technology                                                     |
+| --------------- | -------------------------------------------------------------- |
+| Backend         | Python 3.13, FastAPI, SQLAlchemy 2.0 (async), asyncpg, Alembic |
+| Frontend        | React 19, Vite, TypeScript, Tailwind CSS 4, TanStack Query     |
+| Agent Framework | DeepAgents 0.4.12 (LangGraph), OpenAI GPT-5.4-mini             |
+| Document Parser | Reducto Cloud API                                              |
+| Database        | PostgreSQL 16                                                  |
+| Vector Store    | Weaviate (hybrid search: BM25 + vector)                        |
+| Chunking        | LangChain SemanticChunker                                      |
+| Testing         | pytest (backend), Vitest (frontend)                            |
+
 
 ## Prerequisites
 
@@ -83,33 +85,35 @@ bash init.sh
 
 ## API Endpoints
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/v1/health` | Health check |
-| POST | `/api/v1/documents/upload` | Upload single document |
-| GET | `/api/v1/documents` | List all documents |
-| GET | `/api/v1/documents/:id` | Get document details |
-| DELETE | `/api/v1/documents/:id` | Delete document |
-| POST | `/api/v1/parse/:id` | Parse document via Reducto |
-| GET | `/api/v1/parse/:id/content` | Get parsed markdown |
-| PUT | `/api/v1/parse/:id/content` | Save edited content |
-| POST | `/api/v1/classify/:id` | Classify document |
-| POST | `/api/v1/extract/:id` | Extract fields + judge confidence |
-| GET | `/api/v1/extract/:id/results` | Get extraction results |
-| PUT | `/api/v1/extract/:id/results` | Update/review extracted values |
-| POST | `/api/v1/summarize/:id` | Generate summary |
-| GET | `/api/v1/summarize/:id` | Get existing summary |
-| POST | `/api/v1/ingest/:id` | Ingest into Weaviate |
-| POST | `/api/v1/rag/query` | RAG query with scope filtering |
-| GET | `/api/v1/config/categories` | List categories |
-| POST | `/api/v1/config/categories` | Create category |
-| PUT | `/api/v1/config/categories/:id` | Update category |
-| DELETE | `/api/v1/config/categories/:id` | Delete category |
-| GET | `/api/v1/config/categories/:id/fields` | List extraction fields |
-| POST | `/api/v1/config/categories/:id/fields` | Create/update fields |
-| POST | `/api/v1/bulk/upload` | Start bulk processing job |
-| GET | `/api/v1/bulk/jobs` | List bulk jobs |
-| GET | `/api/v1/bulk/jobs/:id` | Get job details |
+
+| Method | Path                                   | Description                       |
+| ------ | -------------------------------------- | --------------------------------- |
+| GET    | `/api/v1/health`                       | Health check                      |
+| POST   | `/api/v1/documents/upload`             | Upload single document            |
+| GET    | `/api/v1/documents`                    | List all documents                |
+| GET    | `/api/v1/documents/:id`                | Get document details              |
+| DELETE | `/api/v1/documents/:id`                | Delete document                   |
+| POST   | `/api/v1/parse/:id`                    | Parse document via Reducto        |
+| GET    | `/api/v1/parse/:id/content`            | Get parsed markdown               |
+| PUT    | `/api/v1/parse/:id/content`            | Save edited content               |
+| POST   | `/api/v1/classify/:id`                 | Classify document                 |
+| POST   | `/api/v1/extract/:id`                  | Extract fields + judge confidence |
+| GET    | `/api/v1/extract/:id/results`          | Get extraction results            |
+| PUT    | `/api/v1/extract/:id/results`          | Update/review extracted values    |
+| POST   | `/api/v1/summarize/:id`                | Generate summary                  |
+| GET    | `/api/v1/summarize/:id`                | Get existing summary              |
+| POST   | `/api/v1/ingest/:id`                   | Ingest into Weaviate              |
+| POST   | `/api/v1/rag/query`                    | RAG query with scope filtering    |
+| GET    | `/api/v1/config/categories`            | List categories                   |
+| POST   | `/api/v1/config/categories`            | Create category                   |
+| PUT    | `/api/v1/config/categories/:id`        | Update category                   |
+| DELETE | `/api/v1/config/categories/:id`        | Delete category                   |
+| GET    | `/api/v1/config/categories/:id/fields` | List extraction fields            |
+| POST   | `/api/v1/config/categories/:id/fields` | Create/update fields              |
+| POST   | `/api/v1/bulk/upload`                  | Start bulk processing job         |
+| GET    | `/api/v1/bulk/jobs`                    | List bulk jobs                    |
+| GET    | `/api/v1/bulk/jobs/:id`                | Get job details                   |
+
 
 ## Project Structure
 
@@ -176,29 +180,33 @@ cd frontend && npx tsc --noEmit
 
 ## Environment Variables
 
-| Variable | Description | Required | Example |
-|----------|-------------|----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for LLM calls | Yes | `sk-...` |
-| `REDUCTO_API_KEY` | Reducto Cloud API key for document parsing | Yes | `...` |
-| `DATABASE_URL` | PostgreSQL connection string | Yes | `postgresql+asyncpg://doc_intel:doc_intel_dev@localhost:5432/doc_intel` |
-| `WEAVIATE_URL` | Weaviate instance URL | Yes | `http://localhost:8080` |
-| `OPENAI_MODEL` | OpenAI model to use | Yes | `gpt-5.4-mini` |
+
+| Variable          | Description                                | Required | Example                                                                 |
+| ----------------- | ------------------------------------------ | -------- | ----------------------------------------------------------------------- |
+| `OPENAI_API_KEY`  | OpenAI API key for LLM calls               | Yes      | `sk-...`                                                                |
+| `REDUCTO_API_KEY` | Reducto Cloud API key for document parsing | Yes      | `...`                                                                   |
+| `DATABASE_URL`    | PostgreSQL connection string               | Yes      | `postgresql+asyncpg://doc_intel:doc_intel_dev@localhost:5432/doc_intel` |
+| `WEAVIATE_URL`    | Weaviate instance URL                      | Yes      | `http://localhost:8080`                                                 |
+| `OPENAI_MODEL`    | OpenAI model to use                        | Yes      | `gpt-5.4-mini`                                                          |
+
 
 ## Development
 
 **Adding a new API endpoint:**
+
 1. Create schema in `backend/src/api/schemas/`
 2. Create router in `backend/src/api/routers/`
 3. Register router in `backend/src/api/app.py`
 4. Add tests in `backend/tests/`
 
 **Running without Docker (database only):**
+
 ```bash
 # Start just PostgreSQL and Weaviate
 docker compose up -d postgres weaviate
 
 # Run backend directly
-cd backend && uv run uvicorn src.main:app --reload --port 8000
+cd backend && uv run uvicorn src.main:app --port 8000
 
 # Run frontend directly
 cd frontend && npm run dev
