@@ -43,43 +43,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node .claude/hooks/scope-directory.js",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/protect-env.js",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/detect-secrets.js",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/lint-on-save.js",
-            "timeout": 15000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/typecheck.js",
-            "timeout": 30000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-architecture.js",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-function-length.js",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/check-file-length.js",
-            "timeout": 5000
+            "command": "node .claude/hooks/post-edit.js",
+            "timeout": 20000
           }
         ]
       },
@@ -90,11 +55,6 @@
             "type": "command",
             "command": "node .claude/hooks/pre-commit-gate.js",
             "timeout": 30000
-          },
-          {
-            "type": "command",
-            "command": "node .claude/hooks/sprint-contract-gate.js",
-            "timeout": 5000
           }
         ]
       }

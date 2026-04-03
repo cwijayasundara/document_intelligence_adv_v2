@@ -43,6 +43,7 @@ try {
         encoding: 'utf8',
         shell: false,
         cwd,
+        timeout: 25000,
       });
       if (result.status !== 0) {
         // Only report errors in the edited file, not the entire project
@@ -60,10 +61,11 @@ try {
     if (useChecker) {
       const frontendIdx = normalized.indexOf('/frontend/');
       const cwd = frontendIdx !== -1 ? normalized.substring(0, frontendIdx + '/frontend'.length) : process.cwd();
-      const result = spawnSync('sh', ['-c', 'npx tsc --noEmit'], {
+      const result = spawnSync('sh', ['-c', 'npx tsc --noEmit --incremental --tsBuildInfoFile node_modules/.cache/.tsbuildinfo'], {
         encoding: 'utf8',
         shell: false,
         cwd,
+        timeout: 25000,
       });
       if (result.status !== 0) {
         // Only report errors in the edited file

@@ -44,6 +44,7 @@ try {
         encoding: 'utf8',
         shell: false,
         cwd,
+        timeout: 10000,
       });
       if (result.status !== 0) {
         const output = (result.stdout || '').trim();
@@ -61,6 +62,7 @@ try {
         encoding: 'utf8',
         shell: false,
         cwd,
+        timeout: 10000,
       });
       if (result.status !== 0) {
         const output = (result.stdout || '').trim();
