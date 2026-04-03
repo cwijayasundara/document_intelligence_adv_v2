@@ -13,12 +13,21 @@ class DocumentState(TypedDict, total=False):
     """
 
     document_id: str
+    file_name: str
+    original_path: str
+    parsed_path: str
     status: str
     parsed_content: str
+    summary_text: str
     classification_result: dict[str, Any]
+    category_id: str
+    category_name: str
     extraction_results: list[dict[str, Any]]
     judge_results: list[dict[str, Any]]
-    summary: str
+    categories: list[dict[str, Any]]
+    extraction_fields: list[dict[str, Any]]
+    extraction_fields_map: dict[str, list[dict[str, Any]]]
+    chunks_created: int
     error: str | None
     start_time_ms: float
     end_time_ms: float

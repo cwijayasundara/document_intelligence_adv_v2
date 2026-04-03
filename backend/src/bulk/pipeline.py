@@ -1,81 +1,53 @@
 """LangGraph-based bulk processing pipeline.
 
-Builds a StateGraph with 7 nodes: parse, classify, extract, judge,
-summarize, ingest, finalize. Supports concurrent document processing
-with asyncio.Semaphore and MemorySaver checkpointing.
+Node order: parse → summarize → classify → extract → ingest → finalize.
+Supports concurrent processing of 10 documents via asyncio.Semaphore.
 """
 
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from typing import Any
 
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 
-# AsyncPostgresSaver is imported lazily to avoid hard dependency on psycopg at import time.
-# Use create_checkpointer() to instantiate it at runtime.
 from src.bulk.nodes import (
     classify_node,
     extract_node,
     finalize_node,
     ingest_node,
-    judge_node,
     parse_node,
     summarize_node,
 )
 from src.bulk.state import DocumentState
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_CONCURRENCY = 10
 
 
-async def create_checkpointer(conn_string: str) -> Any:
-    """Create a persistent AsyncPostgresSaver checkpointer.
-
-    Args:
-        conn_string: Sync PostgreSQL connection string (postgresql://...).
-
-    Returns:
-        Configured AsyncPostgresSaver instance.
-    """
-    from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-
-    saver = AsyncPostgresSaver.from_conn_string(conn_string)
-    await saver.setup()
-    return saver
-
-
-def build_pipeline(
-    checkpointer: Any | None = None,
-) -> Any:
-    """Build and compile the bulk processing StateGraph.
-
-    Args:
-        checkpointer: Optional checkpointer for resumability (MemorySaver or AsyncPostgresSaver).
-
-    Returns:
-        Compiled graph ready for invocation.
-    """
+def build_pipeline(checkpointer: Any | None = None) -> Any:
+    """Build and compile the bulk processing StateGraph."""
     graph = StateGraph(DocumentState)
 
-    graph.add_node("parse_node", parse_node)
-    graph.add_node("classify_node", classify_node)
-    graph.add_node("extract_node", extract_node)
-    graph.add_node("judge_node", judge_node)
-    graph.add_node("summarize_node", summarize_node)
-    graph.add_node("ingest_node", ingest_node)
-    graph.add_node("finalize_node", finalize_node)
+    graph.add_node("parse", parse_node)
+    graph.add_node("summarize", summarize_node)
+    graph.add_node("classify", classify_node)
+    graph.add_node("extract", extract_node)
+    graph.add_node("ingest", ingest_node)
+    graph.add_node("finalize", finalize_node)
 
-    graph.add_edge("parse_node", "classify_node")
-    graph.add_edge("classify_node", "extract_node")
-    graph.add_edge("extract_node", "judge_node")
-    graph.add_edge("judge_node", "summarize_node")
-    graph.add_edge("summarize_node", "ingest_node")
-    graph.add_edge("ingest_node", "finalize_node")
+    graph.add_edge("parse", "summarize")
+    graph.add_edge("summarize", "classify")
+    graph.add_edge("classify", "extract")
+    graph.add_edge("extract", "ingest")
+    graph.add_edge("ingest", "finalize")
 
-    graph.set_entry_point("parse_node")
-    graph.set_finish_point("finalize_node")
+    graph.set_entry_point("parse")
+    graph.set_finish_point("finalize")
 
     saver = checkpointer or MemorySaver()
     return graph.compile(checkpointer=saver)
@@ -83,66 +55,73 @@ def build_pipeline(
 
 async def run_pipeline_for_document(
     compiled_graph: Any,
-    document_id: str,
-    initial_content: str = "",
+    initial_state: DocumentState,
 ) -> DocumentState:
     """Run the pipeline for a single document.
 
     Args:
         compiled_graph: Compiled StateGraph.
-        document_id: UUID string of the document.
-        initial_content: Optional initial parsed content.
+        initial_state: Pre-populated state with document info.
 
     Returns:
         Final DocumentState after pipeline execution.
     """
-    initial_state: DocumentState = {
-        "document_id": document_id,
-        "status": "pending",
-        "parsed_content": initial_content,
-        "classification_result": {},
-        "extraction_results": [],
-        "judge_results": [],
-        "summary": "",
-        "error": None,
-        "start_time_ms": time.time(),
-        "end_time_ms": 0.0,
-        "node_timings": {},
-    }
+    doc_id = initial_state.get("document_id", "unknown")
+    logger.info("[bulk:%s] Starting pipeline for %s", doc_id[:8], initial_state.get("file_name"))
 
     result = await compiled_graph.ainvoke(
         initial_state,
-        config={"configurable": {"thread_id": document_id}},
+        config={"configurable": {"thread_id": doc_id}},
     )
     return result
 
 
 async def run_bulk_pipeline(
-    document_ids: list[str],
+    document_states: list[DocumentState],
     concurrent_limit: int = DEFAULT_CONCURRENCY,
-    checkpointer: Any | None = None,
-    db_url: str | None = None,
 ) -> list[DocumentState]:
     """Run the bulk pipeline for multiple documents concurrently.
 
     Args:
-        document_ids: List of document UUID strings.
-        concurrent_limit: Max concurrent documents.
-        checkpointer: Optional checkpointer instance (MemorySaver or AsyncPostgresSaver).
-        db_url: Optional sync PostgreSQL URL; creates AsyncPostgresSaver if provided.
+        document_states: List of pre-populated DocumentState dicts.
+        concurrent_limit: Max concurrent documents (default 10).
 
     Returns:
         List of final DocumentState results.
     """
-    if checkpointer is None and db_url is not None:
-        checkpointer = await create_checkpointer(db_url)
-    compiled = build_pipeline(checkpointer=checkpointer)
+    compiled = build_pipeline()
     semaphore = asyncio.Semaphore(concurrent_limit)
 
-    async def _process(doc_id: str) -> DocumentState:
-        async with semaphore:
-            return await run_pipeline_for_document(compiled, doc_id)
+    logger.info(
+        "Starting bulk pipeline: %d documents, concurrency=%d",
+        len(document_states),
+        concurrent_limit,
+    )
 
-    tasks = [_process(doc_id) for doc_id in document_ids]
-    results = await asyncio.gather(*tasks, return_exceptions=False)
-    return list(results)
+    async def _process(state: DocumentState) -> DocumentState:
+        async with semaphore:
+            return await run_pipeline_for_document(compiled, state)
+
+    tasks = [_process(s) for s in document_states]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    final: list[DocumentState] = []
+    for i, r in enumerate(results):
+        if isinstance(r, Exception):
+            doc_id = document_states[i].get("document_id", "unknown")
+            logger.error("[bulk:%s] Pipeline exception: %s", doc_id[:8], r)
+            final.append(
+                {
+                    **document_states[i],
+                    "status": "failed",
+                    "error": str(r),
+                    "end_time_ms": time.time(),
+                }
+            )
+        else:
+            final.append(r)
+
+    completed = sum(1 for s in final if s.get("status") == "completed")
+    failed = sum(1 for s in final if s.get("status") == "failed")
+    logger.info("Bulk pipeline finished: %d completed, %d failed", completed, failed)
+    return final

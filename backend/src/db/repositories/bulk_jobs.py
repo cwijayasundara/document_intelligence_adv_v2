@@ -42,7 +42,12 @@ class BulkJobRepository:
         user_id: str | None = None,
     ) -> BulkJob | None:
         """Get a bulk job by ID with its documents eagerly loaded."""
-        stmt = select(BulkJob).where(BulkJob.id == job_id).options(selectinload(BulkJob.documents))
+        from src.db.models.bulk import BulkJobDocument
+        stmt = (
+            select(BulkJob)
+            .where(BulkJob.id == job_id)
+            .options(selectinload(BulkJob.documents).selectinload(BulkJobDocument.document))
+        )
         if user_id is not None:
             stmt = stmt.where(BulkJob.user_id == user_id)
         result = await self._session.execute(stmt)

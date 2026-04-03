@@ -40,9 +40,9 @@ function ProgressBar({
   );
 }
 
-function JobRow({ job }: { job: BulkJob }) {
-  const [expanded, setExpanded] = useState(false);
-  const { data: detail } = useBulkJobDetail(expanded ? job.id : null);
+function JobRow({ job, defaultExpanded = false }: { job: BulkJob; defaultExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(defaultExpanded || job.status === "processing");
+  const { data: detail, isLoading: detailLoading } = useBulkJobDetail(expanded ? job.id : null);
 
   return (
     <div
@@ -85,8 +85,15 @@ function JobRow({ job }: { job: BulkJob }) {
         </div>
       </button>
 
-      {expanded && detail && (
-        <BulkJobDetailView documents={detail.documents} />
+      {expanded && (
+        <>
+          {detailLoading && (
+            <div className="border-t border-gray-200 bg-gray-50 px-6 py-4 text-sm text-gray-500">
+              Loading document details...
+            </div>
+          )}
+          {detail && <BulkJobDetailView documents={detail.documents} />}
+        </>
       )}
     </div>
   );
@@ -107,8 +114,8 @@ export default function BulkJobList({ jobs }: BulkJobListProps) {
 
   return (
     <div className="space-y-4" data-testid="bulk-job-list">
-      {jobs.map((job) => (
-        <JobRow key={job.id} job={job} />
+      {jobs.map((job, i) => (
+        <JobRow key={job.id} job={job} defaultExpanded={i === 0} />
       ))}
     </div>
   );
