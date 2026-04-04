@@ -1,0 +1,94 @@
+{
+  "documents": [
+    {
+      "id": "lpa_horizon",
+      "file_name": "LPA_Horizon_Equity_Partners_IV.pdf",
+      "parsed_path": "data/parsed/LPA_Horizon_Equity_Partners_IV.md",
+      "expected_category": "Limited Partnership Agreement",
+      "expected_min_confidence": 80,
+      "expected_extraction": {
+        "fund_name": "Horizon Equity Partners IV, L.P.",
+        "general_partner": "Horizon Alpha GP, LLC",
+        "management_fee_rate": "2.0%",
+        "carried_interest_rate": "20%",
+        "preferred_return": "8%",
+        "fund_term": "10 years",
+        "commitment_period": "5 years",
+        "governing_law": "Delaware"
+      },
+      "expected_summary_keywords": [
+        "Horizon Equity Partners IV",
+        "management fee",
+        "carried interest",
+        "preferred return",
+        "commitment period",
+        "Delaware"
+      ],
+      "rag_queries": [
+        {
+          "query": "What is the management fee?",
+          "expected_answer_contains": ["2.0%", "per annum"],
+          "expected_min_citations": 1
+        },
+        {
+          "query": "Who is the general partner?",
+          "expected_answer_contains": ["Horizon Alpha GP"],
+          "expected_min_citations": 1
+        },
+        {
+          "query": "What is the total committed capital?",
+          "expected_answer_contains": ["500,000,000", "500 million"],
+          "expected_min_citations": 1
+        }
+      ]
+    },
+    {
+      "id": "lpa_amendment",
+      "file_name": "LPA_Amendment_1_Horizon_Equity_Partners_IV.pdf",
+      "parsed_path": "data/parsed/LPA_Amendment_1_Horizon_Equity_Partners_IV.md",
+      "expected_category": "Limited Partnership Agreement",
+      "expected_min_confidence": 60,
+      "expected_extraction": {
+        "fund_name": "Horizon Equity Partners IV, L.P.",
+        "general_partner": "Horizon Alpha GP, LLC"
+      },
+      "expected_summary_keywords": [
+        "amendment",
+        "Horizon Equity Partners"
+      ],
+      "rag_queries": [
+        {
+          "query": "What changes does this amendment make?",
+          "expected_answer_contains": ["amendment"],
+          "expected_min_citations": 1
+        }
+      ]
+    }
+  ],
+  "analytics_queries": [
+    {
+      "question": "How many documents are in each status?",
+      "expected_sql_contains": ["SELECT", "status", "COUNT", "GROUP BY"],
+      "expected_min_rows": 1,
+      "expected_chart_type": "bar"
+    },
+    {
+      "question": "Show document distribution by category",
+      "expected_sql_contains": ["SELECT", "document_categories", "COUNT"],
+      "expected_min_rows": 1
+    }
+  ],
+  "negative_cases": {
+    "classification": [
+      {
+        "file_name": "random_document.pdf",
+        "content": "Meeting minutes from board meeting on January 5, 2024. Attendees discussed Q4 results.",
+        "expected_category": "Other"
+      }
+    ],
+    "extraction_missing_fields": {
+      "content": "This is a simple letter with no fund details.",
+      "expected_empty_fields": ["fund_name", "management_fee_rate", "carried_interest_rate"]
+    }
+  }
+}
