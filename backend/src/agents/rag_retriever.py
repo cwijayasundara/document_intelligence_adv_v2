@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import logging
 
-from deepagents import SubAgent, create_deep_agent
+from deepagents import SubAgent
 
+from src.agents.factory import create_agent
+
+from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.rag.reranker import rerank
 from src.rag.weaviate_client import SearchResult, WeaviateClient
 
@@ -22,9 +25,11 @@ class RAGRetrieverSubagent:
 
     def __init__(self, weaviate_client: WeaviateClient) -> None:
         self._weaviate = weaviate_client
-        self._agent = create_deep_agent(
+        self._pii_filter = PIIFilterMiddleware()
+        self._agent = create_agent(
             model="openai:gpt-5.4-mini",
             tools=[],
+            name="rag_retriever",
             system_prompt=(
                 "You are a RAG assistant for a Private Equity document intelligence system. "
                 "Given a question and relevant document excerpts, generate a concise, "
@@ -106,6 +111,9 @@ class RAGRetrieverSubagent:
             context_parts.append(f"{header}{section}\n{c.chunk_text}")
 
         context = "\n\n---\n\n".join(context_parts)
+        # Filter PII from context before sending to LLM
+        filtered = self._pii_filter.filter_content(context)
+        context = filtered.redacted_text
 
         history_block = ""
         if conversation_history:

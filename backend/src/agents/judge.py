@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from deepagents import SubAgent, create_deep_agent
+from deepagents import SubAgent
+
+from src.agents.factory import create_agent
 
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.extraction import (
@@ -49,11 +51,12 @@ class JudgeSubagent:
 
     def __init__(self) -> None:
         self._pii_filter = PIIFilterMiddleware()
-        self._agent = create_deep_agent(
+        self._agent = create_agent(
             model="openai:gpt-5.4-mini",
             tools=[],
             system_prompt=_SYSTEM_PROMPT,
             response_format=JudgeResult,
+            name="judge",
         )
 
     async def evaluate(

@@ -94,10 +94,15 @@ class AppSettings(BaseSettings):
     audit_pool_size: int = Field(default=2, description="Audit DB connection pool size")
     audit_max_overflow: int = Field(default=1, description="Audit DB max overflow connections")
 
-    # Observability
+    # Observability — OpenTelemetry
     otel_enabled: bool = Field(default=False, description="Enable OpenTelemetry tracing")
     otel_service_name: str = Field(default="doc-intel", description="OTel service name")
     otel_exporter_endpoint: str = Field(default="", description="OTel collector endpoint")
+
+    # Observability — LangSmith
+    langsmith_api_key: str = Field(default="", description="LangSmith API key")
+    langsmith_project: str = Field(default="pe-doc-intel", description="LangSmith project name")
+    langsmith_tracing: bool = Field(default=False, description="Enable LangSmith tracing")
 
     # Nested config from config.yml
     storage: StorageSettings = Field(default_factory=StorageSettings)

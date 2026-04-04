@@ -10,7 +10,7 @@ import json
 import logging
 from typing import Any
 
-from deepagents import create_deep_agent
+from src.agents.factory import create_agent
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,11 +75,15 @@ class DataAgent:
     """Analytics agent that converts NL questions to SQL + charts."""
 
     def __init__(self) -> None:
-        self._agent = create_deep_agent(
+        from src.agents.middleware.pii_filter import PIIFilterMiddleware
+
+        self._pii_filter = PIIFilterMiddleware()
+        self._agent = create_agent(
             model="openai:gpt-5.3-codex",
             tools=[],
             system_prompt=_SYSTEM_PROMPT,
             response_format=AnalyticsResult,
+            name="data_agent",
         )
 
     async def query(
@@ -121,6 +125,10 @@ class DataAgent:
                     "chart": ChartConfig(chart_type="table", title="Conversation History").model_dump(),
                     "explanation": answer,
                 }
+
+        # Filter PII from question before sending to LLM
+        filtered = self._pii_filter.filter_content(question)
+        question = filtered.redacted_text
 
         schema = await get_schema_description(session)
 

@@ -11,7 +11,9 @@ import re
 import uuid
 from typing import Any
 
-from deepagents import SubAgent, create_deep_agent
+from deepagents import SubAgent
+
+from src.agents.factory import create_agent
 
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.classification import ClassificationResult
@@ -66,11 +68,12 @@ class ClassifierSubagent:
 
     def __init__(self) -> None:
         self._pii_filter = PIIFilterMiddleware()
-        self._agent = create_deep_agent(
+        self._agent = create_agent(
             model="openai:gpt-5.4-mini",
             tools=[],
             system_prompt=_SYSTEM_PROMPT,
             response_format=ClassificationResult,
+            name="classifier",
         )
 
     async def classify(

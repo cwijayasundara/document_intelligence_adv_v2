@@ -89,7 +89,17 @@ async def run_bulk_pipeline(
     Returns:
         List of final DocumentState results.
     """
-    compiled = build_pipeline()
+    # Use persistent checkpointing if DB URL available
+    checkpointer = None
+    try:
+        from src.config.settings import get_settings
+        settings = get_settings()
+        if settings.database_url:
+            checkpointer = await create_checkpointer(settings.database_url_sync)
+    except Exception:
+        logger.warning("Could not create persistent checkpointer, using in-memory")
+
+    compiled = build_pipeline(checkpointer=checkpointer)
     semaphore = asyncio.Semaphore(concurrent_limit)
 
     logger.info(

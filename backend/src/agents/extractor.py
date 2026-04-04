@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from deepagents import SubAgent, create_deep_agent
+from deepagents import SubAgent
+
+from src.agents.factory import create_agent
 from pydantic import BaseModel, Field, create_model
 
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
@@ -97,11 +99,12 @@ class ExtractorSubagent:
 
         dynamic_model = build_dynamic_model(extraction_fields)
 
-        extraction_agent = create_deep_agent(
+        extraction_agent = create_agent(
             model="openai:gpt-5.4-mini",
             tools=[],
             system_prompt=_SYSTEM_PROMPT,
             response_format=dynamic_model,
+            name="extractor",
         )
 
         prompt = self._build_prompt(filtered.redacted_text, extraction_fields)
