@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-from typing import Any
 
 from deepagents import SubAgent, create_deep_agent
 
@@ -81,12 +80,14 @@ class RAGRetrieverSubagent:
         self,
         query: str,
         chunks: list[SearchResult],
+        conversation_history: str = "",
     ) -> str:
         """Generate an answer from retrieved chunks via LLM.
 
         Args:
             query: Original query.
             chunks: Retrieved search results with metadata.
+            conversation_history: Previous Q&A exchanges for context.
 
         Returns:
             Generated answer string.
@@ -106,11 +107,19 @@ class RAGRetrieverSubagent:
 
         context = "\n\n---\n\n".join(context_parts)
 
+        history_block = ""
+        if conversation_history:
+            history_block = (
+                f"## Previous conversation\n{conversation_history}\n\n"
+            )
+
         prompt = (
+            f"{history_block}"
             f"Based on the following document excerpts, answer the question.\n\n"
             f"Question: {query}\n\n"
             f"Document excerpts:\n{context}\n\n"
-            f"Provide a clear answer, citing specific sections where relevant."
+            f"Provide a clear answer, citing specific sections where relevant. "
+            f"If this is a follow-up question, use the conversation context."
         )
         result = await self._agent.ainvoke(
             {"messages": [{"role": "user", "content": prompt}]}

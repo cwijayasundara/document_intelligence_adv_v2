@@ -5,7 +5,11 @@ import apiClient from "./client";
 
 export async function submitAnalyticsQuery(
   question: string,
+  sessionId?: string,
 ): Promise<AnalyticsQueryResponse> {
-  const response = await apiClient.post("/analytics/query", { question });
+  const response = await apiClient.post("/analytics/query", {
+    question,
+    sessionId,
+  });
   return response.data;
 }

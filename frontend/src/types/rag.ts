@@ -18,6 +18,7 @@ export interface RagQueryRequest {
   scopeId?: string;
   searchMode: SearchMode;
   topK?: number;
+  sessionId?: string;
 }
 
 export interface RagQueryResponse {

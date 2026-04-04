@@ -25,6 +25,7 @@ def _get_agent() -> DataAgent:
 
 class AnalyticsQueryRequest(BaseModel):
     question: str = Field(..., description="Natural language question")
+    session_id: str | None = Field(default=None, description="Session ID for conversation memory")
 
 
 class ChartConfigResponse(BaseModel):
@@ -56,7 +57,7 @@ async def analytics_query(
     """Convert a natural language question to SQL, execute, and return chart data."""
     logger.info("Analytics query: %s", body.question[:100])
     agent = _get_agent()
-    result = await agent.query(body.question, session)
+    result = await agent.query(body.question, session, session_id=body.session_id)
 
     from src.audit import emit_audit_event
 

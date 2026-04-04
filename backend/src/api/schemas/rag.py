@@ -28,6 +28,7 @@ class RAGQueryRequest(BaseModel):
         description="semantic, keyword, or hybrid",
     )
     top_k: int = Field(default=5, ge=1, le=50)
+    session_id: str | None = Field(default=None, description="Session ID for conversation memory")
 
 
 class RAGQueryResponse(BaseModel):

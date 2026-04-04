@@ -29,10 +29,12 @@ Your job:
 
 ## Rules
 - ONLY generate SELECT queries — no INSERT, UPDATE, DELETE, DROP, etc.
+- NEVER use bind parameters like :user_id or $1 — always use literal values in queries
 - Always include meaningful column aliases for readability
 - Use appropriate aggregations (COUNT, AVG, SUM, etc.)
 - For time-series data, use DATE_TRUNC for grouping
 - The audit_logs.details column is JSONB — use ->> operator to extract fields
+- The audit_logs table has NO user_id column — do not filter by user_id
 - Return the SQL query, a chart configuration, and a brief explanation
 
 ## Chart Types Available
@@ -84,22 +86,60 @@ class DataAgent:
         self,
         question: str,
         session: AsyncSession,
+        session_id: str | None = None,
     ) -> dict[str, Any]:
         """Process a natural language analytics question.
 
         Args:
             question: The user's question.
             session: Database session for schema introspection and query execution.
+            session_id: Optional session ID for conversation context.
 
         Returns:
             Dict with sql, data (columns + rows), chart config, and explanation.
         """
+        # Check short-term memory first for conversational questions
+        if session_id:
+            from src.agents.memory import get_short_term_memory
+
+            memory = get_short_term_memory()
+            history = memory.get_conversation_summary(session_id)
+
+            # If this is a meta-question about the conversation itself, answer from memory
+            lower_q = question.lower()
+            if history and any(kw in lower_q for kw in [
+                "previous query", "last query", "my previous", "what did i ask",
+                "what was my", "repeat", "show again",
+            ]):
+                logger.info("Answering from short-term memory (conversational question)")
+                memory.add_human_message(session_id, question)
+                answer = f"Here is your recent conversation:\n\n{history}"
+                memory.add_ai_message(session_id, answer)
+                return {
+                    "sql": "-- Answered from conversation memory, no SQL needed",
+                    "data": {"columns": ["conversation"], "rows": [[history]]},
+                    "chart": ChartConfig(chart_type="table", title="Conversation History").model_dump(),
+                    "explanation": answer,
+                }
+
         schema = await get_schema_description(session)
+
+        # Load conversation history for follow-up queries
+        history_block = ""
+        if session_id:
+            from src.agents.memory import get_short_term_memory as _get_mem
+
+            _mem = _get_mem()
+            history = _mem.get_conversation_summary(session_id)
+            if history:
+                history_block = f"## Previous conversation\n{history}\n\n"
 
         prompt = (
             f"## Database Schema\n{schema}\n\n"
+            f"{history_block}"
             f"## User Question\n{question}\n\n"
-            f"Generate a SQL query, chart configuration, and brief explanation."
+            f"Generate a SQL query, chart configuration, and brief explanation. "
+            f"If this is a follow-up, use the conversation context."
         )
 
         result = await self._agent.ainvoke(
@@ -119,6 +159,14 @@ class DataAgent:
                 "chart": analytics.chart.model_dump(),
                 "explanation": analytics.explanation,
             }
+
+        # Save to short-term memory
+        if session_id:
+            from src.agents.memory import get_short_term_memory as _get_stm
+
+            stm = _get_stm()
+            stm.add_human_message(session_id, question)
+            stm.add_ai_message(session_id, f"SQL: {analytics.sql}\n{analytics.explanation}")
 
         return {
             "sql": analytics.sql,

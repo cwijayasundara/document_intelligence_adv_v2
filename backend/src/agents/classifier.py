@@ -102,6 +102,9 @@ class ClassifierSubagent:
                 reasoning="No categories defined in the system.",
             )
 
+        # Load learned corrections from long-term memory
+        learned_context = await self._load_learned_corrections(file_name)
+
         # Use summary if available, otherwise full content
         classification_text = summary if summary else content
         filtered = self._pii_filter.filter_content(classification_text)
@@ -111,6 +114,7 @@ class ClassifierSubagent:
             content=filtered.redacted_text,
             categories=categories,
             is_summary=summary is not None,
+            learned_context=learned_context,
         )
         result = await self._agent.ainvoke(
             {"messages": [{"role": "user", "content": prompt}]}
@@ -124,6 +128,7 @@ class ClassifierSubagent:
         content: str,
         categories: list[dict[str, Any]],
         is_summary: bool,
+        learned_context: str = "",
     ) -> str:
         """Build the classification prompt with file name + content."""
         cat_descriptions = "\n".join(
@@ -142,7 +147,12 @@ class ClassifierSubagent:
 
         content_label = "Document summary" if is_summary else "Document content"
 
+        learned_block = ""
+        if learned_context:
+            learned_block = f"## Learned corrections\n{learned_context}\n\n"
+
         return (
+            f"{learned_block}"
             f"## File Name\n{file_name}\n\n"
             f"{hint_line}"
             f"## Available Categories\n{cat_descriptions}\n\n"
@@ -201,6 +211,31 @@ class ClassifierSubagent:
             confidence=20,
             reasoning=response_text or "Low confidence — no strong category match found.",
         )
+
+    @staticmethod
+    async def _load_learned_corrections(file_name: str) -> str:
+        """Load classification corrections from long-term memory."""
+        try:
+            from src.agents.memory.long_term import PostgresLongTermMemory
+            from src.db.connection import get_session_factory
+
+            factory = get_session_factory()
+            async with factory() as session:
+                ltm = PostgresLongTermMemory(session)
+                entries = await ltm.search("classification_corrections")
+                if not entries:
+                    return ""
+                lines = []
+                for e in entries:
+                    data = e.get("data", {})
+                    lines.append(
+                        f"- File pattern '{data.get('file_pattern', '')}' "
+                        f"should be classified as '{data.get('correct_category', '')}' "
+                        f"(reason: {data.get('reason', 'user correction')})"
+                    )
+                return "\n".join(lines)
+        except Exception:
+            return ""
 
     def as_subagent_config(self) -> SubAgent:
         """Create a subagent config dict for registration with orchestrator."""

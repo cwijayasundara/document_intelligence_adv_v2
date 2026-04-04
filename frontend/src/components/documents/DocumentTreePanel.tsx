@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { DocumentListItem } from "../../types/document";
 import type { RagQueryResponse, Citation, SearchMode } from "../../types/rag";
 import { submitRagQuery } from "../../lib/api/rag";
+import { useSessionId } from "../../hooks/useSession";
 import DocumentStatusBadge from "./DocumentStatusBadge";
 
 interface DocumentTreePanelProps {
@@ -11,6 +12,7 @@ interface DocumentTreePanelProps {
 }
 
 export default function DocumentTreePanel({ documents }: DocumentTreePanelProps) {
+  const sessionId = useSessionId();
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [query, setQuery] = useState("");
   const searchMode: SearchMode = "hybrid";
@@ -56,10 +58,10 @@ export default function DocumentTreePanel({ documents }: DocumentTreePanelProps)
           scope: "single_document",
           scopeId: ids[0],
           searchMode,
+          sessionId,
         });
         setResult(res);
       } else {
-        // Query each document and merge results
         const responses = await Promise.all(
           ids.map((id) =>
             submitRagQuery({
@@ -67,6 +69,7 @@ export default function DocumentTreePanel({ documents }: DocumentTreePanelProps)
               scope: "single_document",
               scopeId: id,
               searchMode,
+              sessionId,
             }),
           ),
         );

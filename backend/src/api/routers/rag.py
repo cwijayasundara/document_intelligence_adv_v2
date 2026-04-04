@@ -44,6 +44,7 @@ async def rag_query(
             scope_id=body.scope_id,
             search_mode=body.search_mode,
             top_k=body.top_k,
+            session_id=body.session_id,
         )
 
         citations = [Citation(**c) for c in result["citations"]]

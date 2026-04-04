@@ -31,6 +31,7 @@ class RAGService:
         scope_id: str | None = None,
         search_mode: str = "hybrid",
         top_k: int = 5,
+        session_id: str | None = None,
     ) -> dict[str, Any]:
         """Execute a RAG query with scope filtering.
 
@@ -75,8 +76,46 @@ class RAGService:
                 "chunks_retrieved": 0,
             }
 
-        logger.info("Generating answer from %d chunks via LLM", len(chunks))
-        answer = await self._retriever.generate_answer(query, chunks)
+        # Load conversation history for multi-turn context
+        conversation_history = ""
+        if session_id:
+            from src.agents.memory import get_short_term_memory
+
+            memory = get_short_term_memory()
+            conversation_history = memory.get_conversation_summary(session_id)
+
+        logger.info(
+            "Generating answer from %d chunks via LLM (session=%s, history=%d chars)",
+            len(chunks),
+            session_id or "none",
+            len(conversation_history),
+        )
+        answer = await self._retriever.generate_answer(
+            query, chunks, conversation_history=conversation_history
+        )
+
+        # Save to short-term memory
+        if session_id:
+            memory = get_short_term_memory()
+            memory.add_human_message(session_id, query)
+            memory.add_ai_message(session_id, answer)
+
+        # Save query pattern to long-term memory (fire-and-forget)
+        try:
+            from src.agents.memory.long_term import PostgresLongTermMemory
+            from src.db.connection import get_session_factory
+
+            factory = get_session_factory()
+            async with factory() as ltm_session:
+                ltm = PostgresLongTermMemory(ltm_session)
+                await ltm.put(
+                    namespace="rag_query_patterns",
+                    key=f"q_{hash(query) % 100000}",
+                    data={"query": query, "scope": scope, "chunks": len(chunks)},
+                )
+                await ltm_session.commit()
+        except Exception:
+            pass  # Non-critical — don't fail the request
 
         citations = []
         for c in chunks:
@@ -85,14 +124,16 @@ class RAGService:
                 val = c.metadata.get(key)
                 if val:
                     section_parts.append(val)
-            citations.append({
-                "chunk_text": c.chunk_text,
-                "document_name": c.document_name,
-                "document_id": str(c.document_id),
-                "chunk_index": c.chunk_index,
-                "relevance_score": float(c.relevance_score),
-                "section": " > ".join(section_parts),
-            })
+            citations.append(
+                {
+                    "chunk_text": c.chunk_text,
+                    "document_name": c.document_name,
+                    "document_id": str(c.document_id),
+                    "chunk_index": c.chunk_index,
+                    "relevance_score": float(c.relevance_score),
+                    "section": " > ".join(section_parts),
+                }
+            )
 
         return {
             "answer": answer,
