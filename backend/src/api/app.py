@@ -10,7 +10,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from src.api.routers import (
+    audit,
     bulk,
+    data_agent,
+    events,
     classify,
     config,
     documents,
@@ -271,10 +274,31 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan handler: initialize DB pool on startup, dispose on shutdown."""
     database_url = app.state.database_url
     if database_url:
+        from src.config.settings import get_settings as _get_settings
+
+        _settings = _get_settings()
         logger.info("Initializing database connection pool")
-        init_engine(database_url)
+        init_engine(
+            database_url,
+            pool_size=_settings.db_pool_size,
+            max_overflow=_settings.db_max_overflow,
+        )
         await _seed_default_categories()
+
+        # Start audit queue background writer
+        from src.audit import get_audit_queue
+
+        audit_queue = get_audit_queue()
+        audit_queue.start(
+            database_url,
+            pool_size=_settings.audit_pool_size,
+            max_overflow=_settings.audit_max_overflow,
+        )
     yield
+    # Graceful shutdown: flush pending audit events
+    from src.audit import get_audit_queue as _get_aq
+
+    _get_aq().stop()
     logger.info("Shutting down, disposing database connections")
     await dispose_engine()
 
@@ -325,5 +349,8 @@ def create_app(database_url: str = "") -> FastAPI:
     app.include_router(rag.router, prefix="/api/v1", tags=["rag"])
     app.include_router(bulk.router, prefix="/api/v1", tags=["bulk"])
     app.include_router(stream.router, prefix="/api/v1", tags=["stream"])
+    app.include_router(audit.router, prefix="/api/v1", tags=["audit"])
+    app.include_router(events.router, prefix="/api/v1", tags=["events"])
+    app.include_router(data_agent.router, prefix="/api/v1", tags=["analytics"])
 
     return app

@@ -1,5 +1,6 @@
 """ORM models re-exported from submodules for backward compatibility."""
 
+from src.db.models.audit import AuditLog
 from src.db.models.base import Base, TimestampMixin
 from src.db.models.bulk import BulkJob, BulkJobDocument
 from src.db.models.documents import Document, DocumentCategory, DocumentSummary
@@ -11,6 +12,7 @@ from src.db.models.extraction import (
 from src.db.models.memory import ConversationSummary, MemoryEntry
 
 __all__ = [
+    "AuditLog",
     "Base",
     "BulkJob",
     "BulkJobDocument",

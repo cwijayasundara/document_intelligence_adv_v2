@@ -142,6 +142,15 @@ async def classify_document(
         doc.status = "classified"
         await session.flush()
 
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="document.classified",
+            entity_id=str(doc_id),
+            document_id=str(doc_id),
+            file_name=doc.file_name,
+            details={"category": result.category_name, "confidence": result.confidence},
+        )
         return ClassifyResponse(
             document_id=doc_id,
             category_id=result.category_id,

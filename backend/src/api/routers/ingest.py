@@ -110,6 +110,16 @@ async def ingest_document(
 
         doc.status = "ingested"
         await session.flush()
+
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="document.ingested",
+            entity_id=str(doc_id),
+            document_id=str(doc_id),
+            file_name=doc.file_name,
+            details={"chunks_created": chunks_created, "collection": COLLECTION_NAME},
+        )
         logger.info(
             "Document %s status updated to 'ingested' (%d chunks in collection %s)",
             doc_id,

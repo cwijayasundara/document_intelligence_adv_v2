@@ -100,11 +100,19 @@ async def upload_document(
             detail=str(exc),
         ) from exc
 
+    from src.audit import emit_audit_event
+
     response = DocumentResponse.model_validate(doc)
+    emit_audit_event(
+        event_type="document.uploaded",
+        entity_id=str(doc.id),
+        document_id=str(doc.id),
+        file_name=filename,
+        details={"file_type": ext, "file_size": len(content), "duplicate": is_duplicate},
+    )
 
     if is_duplicate:
-        # Return 200 for duplicates instead of 201
-        return response  # FastAPI will use the route default 201; override below
+        return response
 
     return response
 
@@ -182,6 +190,14 @@ async def delete_document(
     service = DocumentService(session, storage)
 
     deleted = await service.delete_document(doc_id, user_id=user_id)
+    if deleted:
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="document.deleted",
+            entity_id=str(doc_id),
+            document_id=str(doc_id),
+        )
     if not deleted:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

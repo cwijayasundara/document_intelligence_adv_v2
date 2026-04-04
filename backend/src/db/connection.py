@@ -16,19 +16,25 @@ from sqlalchemy.ext.asyncio import (
 logger = logging.getLogger(__name__)
 
 
-def create_engine(database_url: str) -> AsyncEngine:
+def create_engine(
+    database_url: str,
+    pool_size: int = 5,
+    max_overflow: int = 5,
+) -> AsyncEngine:
     """Create an async SQLAlchemy engine with connection pooling.
 
     Args:
         database_url: PostgreSQL connection URL (postgresql+asyncpg://...).
+        pool_size: Number of persistent connections in the pool.
+        max_overflow: Max additional connections beyond pool_size.
 
     Returns:
-        Configured async engine with pool_size=5, max_overflow=10.
+        Configured async engine.
     """
     engine: AsyncEngine = create_async_engine(
         database_url,
-        pool_size=5,
-        max_overflow=10,
+        pool_size=pool_size,
+        max_overflow=max_overflow,
         echo=False,
     )
     return engine
@@ -55,13 +61,19 @@ _engine: "AsyncEngine | None" = None
 _session_factory: async_sessionmaker[AsyncSession] | None = None
 
 
-def init_engine(database_url: str) -> None:
+def init_engine(
+    database_url: str,
+    pool_size: int = 5,
+    max_overflow: int = 5,
+) -> None:
     """Initialize the module-level engine and session factory."""
     global _engine, _session_factory
-    # Mask password in log output
     masked = database_url.split("@")[-1] if "@" in database_url else database_url
-    logger.info("Initializing database engine -> %s", masked)
-    _engine = create_engine(database_url)
+    logger.info(
+        "Initializing database engine -> %s (pool_size=%d, max_overflow=%d)",
+        masked, pool_size, max_overflow,
+    )
+    _engine = create_engine(database_url, pool_size=pool_size, max_overflow=max_overflow)
     _session_factory = create_session_factory(_engine)
 
 

@@ -1,6 +1,9 @@
 import { Route, Routes } from "react-router-dom";
 import Layout from "./components/ui/Layout";
+import { useEventStream } from "./hooks/useEventStream";
+import AnalyticsPage from "./pages/AnalyticsPage";
 import BulkPage from "./pages/BulkPage";
+import InsightsPage from "./pages/InsightsPage";
 import CategoriesPage from "./pages/CategoriesPage";
 import ChatPage from "./pages/ChatPage";
 import ClassifyPage from "./pages/ClassifyPage";
@@ -12,6 +15,8 @@ import SummaryPage from "./pages/SummaryPage";
 import UploadPage from "./pages/UploadPage";
 
 export default function App() {
+  useEventStream();
+
   return (
     <Routes>
       <Route element={<Layout />}>
@@ -28,6 +33,8 @@ export default function App() {
           element={<ExtractionFieldsPage />}
         />
         <Route path="bulk" element={<BulkPage />} />
+        <Route path="insights" element={<InsightsPage />} />
+        <Route path="analytics" element={<AnalyticsPage />} />
       </Route>
     </Routes>
   );

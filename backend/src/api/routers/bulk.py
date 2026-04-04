@@ -126,6 +126,14 @@ async def bulk_upload(
         upload_dir=settings.storage.upload_dir,
         user_id=user_id,
     )
+    from src.audit import emit_audit_event
+
+    emit_audit_event(
+        event_type="bulk.job_created",
+        entity_type="bulk_job",
+        entity_id=str(job.id),
+        details={"total_documents": len(documents), "file_names": file_names},
+    )
     logger.info("Bulk job %s created, starting background pipeline", job.id)
 
     # Start pipeline in background

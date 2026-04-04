@@ -82,6 +82,15 @@ async def summarize_document(
         doc.status = "summarized"
         await session.flush()
 
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="document.summarized",
+            entity_id=str(doc_id),
+            document_id=str(doc_id),
+            file_name=doc.file_name,
+            details={"cached": result["cached"], "topics": len(result["key_topics"])},
+        )
         return SummarizeResponse(
             document_id=doc_id,
             summary=result["summary"],

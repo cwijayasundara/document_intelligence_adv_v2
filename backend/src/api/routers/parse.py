@@ -74,6 +74,15 @@ async def parse_document(
                 detail=str(exc),
             ) from exc
 
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="document.parsed",
+            entity_id=str(doc.id),
+            document_id=str(doc.id),
+            file_name=doc.file_name,
+            details={"confidence_pct": confidence_pct, "skipped": skipped, "content_length": len(content)},
+        )
         return ParseResponse(
             document_id=doc.id,
             status=doc.status,

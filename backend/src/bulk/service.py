@@ -224,6 +224,14 @@ class BulkJobService:
         )
         await self._session.commit()
 
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="bulk.job_completed" if failed == 0 else "bulk.job_failed",
+            entity_type="bulk_job",
+            entity_id=str(job_id),
+            details={"processed": processed, "failed": failed},
+        )
         logger.info(
             "Bulk job %s finished: %d processed, %d failed",
             job_id, processed, failed,

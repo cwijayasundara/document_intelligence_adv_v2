@@ -124,6 +124,14 @@ async def extract_document(
             )
             for i in range(len(saved))
         ]
+        from src.audit import emit_audit_event
+
+        emit_audit_event(
+            event_type="document.extracted",
+            entity_id=str(doc_id),
+            document_id=str(doc_id),
+            details={"fields_count": len(results), "review_count": review_count},
+        )
         return ExtractionResponse(
             document_id=doc_id, status="extracted",
             results=items, requires_review_count=review_count,

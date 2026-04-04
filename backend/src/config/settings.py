@@ -88,6 +88,12 @@ class AppSettings(BaseSettings):
     agent_max_llm_calls: int = Field(default=50, description="Max LLM calls per pipeline run")
     agent_max_tool_calls: int = Field(default=200, description="Max tool calls per pipeline run")
 
+    # Database connection pool
+    db_pool_size: int = Field(default=5, description="Main DB connection pool size")
+    db_max_overflow: int = Field(default=5, description="Main DB max overflow connections")
+    audit_pool_size: int = Field(default=2, description="Audit DB connection pool size")
+    audit_max_overflow: int = Field(default=1, description="Audit DB max overflow connections")
+
     # Observability
     otel_enabled: bool = Field(default=False, description="Enable OpenTelemetry tracing")
     otel_service_name: str = Field(default="doc-intel", description="OTel service name")

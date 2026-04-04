@@ -17,6 +17,11 @@ const adminItems: NavItem[] = [
   { label: "Extraction Fields", to: "/config/extraction-fields" },
 ];
 
+const managementItems: NavItem[] = [
+  { label: "Analytics", to: "/analytics" },
+  { label: "Insights", to: "/insights" },
+];
+
 function NavItemLink({ item }: { item: NavItem }) {
   return (
     <li>
@@ -59,6 +64,17 @@ export default function Sidebar() {
           </h2>
           <ul className="space-y-1">
             {adminItems.map((item) => (
+              <NavItemLink key={item.to} item={item} />
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <h2 className="px-4 text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
+            Management
+          </h2>
+          <ul className="space-y-1">
+            {managementItems.map((item) => (
               <NavItemLink key={item.to} item={item} />
             ))}
           </ul>
