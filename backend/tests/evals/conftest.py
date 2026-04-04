@@ -18,6 +18,15 @@ from typing import Any
 
 import pytest
 
+# Load .env for API keys (evals make real LLM calls)
+_env_path = Path(__file__).resolve().parent.parent.parent / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, value = line.partition("=")
+            os.environ.setdefault(key.strip(), value.strip())
+
 # Ensure LangSmith tracing for evals
 os.environ.setdefault("LANGCHAIN_TRACING_V2", "true")
 os.environ.setdefault("LANGCHAIN_PROJECT", "pe-doc-intel-evals")
@@ -59,15 +68,51 @@ def lpa_parsed_content(lpa_document: dict) -> str:
 
 @pytest.fixture(scope="session")
 def categories() -> list[dict[str, Any]]:
-    """Standard document categories for classification evals."""
+    """Load categories — use DB if available, fallback to test data."""
+    import uuid
+
+    try:
+        import asyncio
+        import threading
+
+        async def _load() -> list[dict[str, Any]]:
+            from src.config.settings import get_settings
+            from src.db.connection import get_session_factory, init_engine
+
+            settings = get_settings()
+            init_engine(settings.database_url, pool_size=2, max_overflow=1)
+            factory = get_session_factory()
+            async with factory() as session:
+                from src.db.repositories.categories import CategoryRepository
+
+                repo = CategoryRepository(session)
+                cats = await repo.list_all()
+                return [
+                    {"id": c.id, "name": c.name, "classification_criteria": c.classification_criteria}
+                    for c in cats
+                ]
+
+        result: list[dict[str, Any]] = []
+
+        def _run() -> None:
+            nonlocal result
+            result = asyncio.run(_load())
+
+        t = threading.Thread(target=_run)
+        t.start()
+        t.join(timeout=15)
+        if result:
+            return result
+    except Exception:
+        pass
+
+    # Fallback
     return [
-        {"id": "cat-lpa", "name": "Limited Partnership Agreement",
-         "classification_criteria": "Contains fund name, GP, management fee, carried interest, etc."},
-        {"id": "cat-sub", "name": "Subscription Agreement",
-         "classification_criteria": "Capital commitment, investor representations, AML."},
-        {"id": "cat-sl", "name": "Side Letter",
-         "classification_criteria": "References main LPA, fee discounts, MFN clauses."},
-        {"id": "cat-other", "name": "Other/Unclassified",
+        {"id": uuid.uuid4(), "name": "Limited Partnership Agreement",
+         "classification_criteria": "Contains fund name, GP, management fee, carried interest."},
+        {"id": uuid.uuid4(), "name": "Subscription Agreement",
+         "classification_criteria": "Capital commitment, investor representations."},
+        {"id": uuid.uuid4(), "name": "Other/Unclassified",
          "classification_criteria": "Default for non-matching documents."},
     ]
 

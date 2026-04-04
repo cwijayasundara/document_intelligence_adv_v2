@@ -4,11 +4,17 @@ from collections.abc import AsyncGenerator
 from pathlib import Path
 
 import pytest
-from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
-from src.api.app import create_app
-from tests.db_helpers import TEST_BASE_URL, TEST_ENV_DEFAULTS
+try:
+    from fastapi import FastAPI
+    from httpx import ASGITransport, AsyncClient
+
+    from src.api.app import create_app
+    from tests.db_helpers import TEST_BASE_URL, TEST_ENV_DEFAULTS
+
+    _APP_AVAILABLE = True
+except ImportError:
+    _APP_AVAILABLE = False
 
 
 @pytest.fixture

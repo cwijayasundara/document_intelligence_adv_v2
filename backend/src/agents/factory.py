@@ -34,35 +34,23 @@ def create_agent(
     - ToolCallLimitMiddleware (default 200 calls per run)
     - ModelRetryMiddleware (3 retries with exponential backoff)
     - ModelFallbackMiddleware (falls back to configured model)
-
-    Args:
-        model: LLM model identifier.
-        tools: List of tools for the agent.
-        system_prompt: System prompt for the agent.
-        response_format: Pydantic model for structured output.
-        name: Optional agent name for tracing.
-
-    Returns:
-        Compiled DeepAgent graph with middleware.
     """
     from src.config.settings import get_settings
 
     settings = get_settings()
 
-    middleware = [
+    middleware: list[Any] = [
         ModelCallLimitMiddleware(run_limit=settings.agent_max_llm_calls),
         ToolCallLimitMiddleware(run_limit=settings.agent_max_tool_calls),
         ModelRetryMiddleware(
             max_retries=settings.llm_max_retries,
-            wait_exponential_multiplier=settings.llm_base_delay,
+            initial_delay=settings.llm_base_delay,
         ),
     ]
 
     if settings.openai_fallback_model:
         middleware.append(
-            ModelFallbackMiddleware(
-                fallback_model=settings.openai_fallback_model,
-            )
+            ModelFallbackMiddleware(model, settings.openai_fallback_model)
         )
 
     kwargs: dict[str, Any] = {
