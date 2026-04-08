@@ -31,6 +31,7 @@ def configure_logging(level: str) -> None:
 
 settings = get_settings()
 configure_logging(settings.log_level)
+logger = logging.getLogger(__name__)
 
 # Export API keys to environment so third-party SDKs (OpenAI, LangChain) can find them
 os.environ.setdefault("OPENAI_API_KEY", settings.openai_api_key)
@@ -44,7 +45,7 @@ if settings.langsmith_tracing and settings.langsmith_api_key:
 else:
     os.environ.setdefault("LANGCHAIN_TRACING_V2", "false")
 
-logger = logging.getLogger(__name__)
+
 logger.info(
     "Starting PE Document Intelligence Platform (log_level=%s)",
     settings.log_level,

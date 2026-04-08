@@ -44,12 +44,12 @@ export default function AnalyticsPage() {
   const showLanding = !result && !isLoading && !error;
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
+    <div className="flex flex-col h-full w-full bg-gray-50">
       <Header />
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 w-full overflow-y-auto">
         {showLanding && <Landing question={question} setQuestion={setQuestion} onQuery={handleQuery} isLoading={isLoading} />}
         {!showLanding && (
-          <div className="px-8 py-6 space-y-5">
+          <div className="w-full px-8 py-6 space-y-5">
             <SearchBar value={question} onChange={setQuestion} onSubmit={() => handleQuery()} isLoading={isLoading} />
             {isLoading && <Loading />}
             {error && <Error message={error} />}
@@ -83,7 +83,7 @@ function Landing({ question, setQuestion, onQuery, isLoading }: {
   question: string; setQuestion: (v: string) => void; onQuery: (q?: string) => void; isLoading: boolean;
 }) {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[500px] px-8">
+    <div className="flex flex-col w-full min-h-[500px] px-8 py-10">
       <div className="text-center mb-8">
         <div className="inline-flex p-4 bg-primary-50 rounded-2xl mb-4">
           <svg className="w-10 h-10 text-primary-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -93,10 +93,10 @@ function Landing({ question, setQuestion, onQuery, isLoading }: {
         <h2 className="text-xl font-semibold text-gray-800 mb-1">What would you like to know?</h2>
         <p className="text-sm text-gray-500">Ask a question and get instant charts and insights</p>
       </div>
-      <div className="w-full max-w-2xl mb-6">
+      <div className="w-full mb-6">
         <SearchBar value={question} onChange={setQuestion} onSubmit={() => onQuery()} isLoading={isLoading} />
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-w-2xl">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 w-full">
         {SUGGESTED_QUERIES.map((sq) => (
           <button key={sq.label} onClick={() => { setQuestion(sq.query); onQuery(sq.query); }}
             className="flex items-center gap-2 px-4 py-3 text-left text-sm text-gray-600 bg-white border border-gray-200 rounded-xl hover:border-primary-300 hover:bg-primary-50 hover:text-primary-700 transition-all shadow-sm">
@@ -112,23 +112,26 @@ function Landing({ question, setQuestion, onQuery, isLoading }: {
 }
 
 function Results({ result, question }: { result: AnalyticsQueryResponse; question: string }) {
+  const hasChart = result.data.rows.length > 0;
   return (
-    <div className="space-y-5">
+    <div className="w-full space-y-5">
       <div className="flex items-center gap-2">
         <span className="text-xs font-medium text-primary-600 bg-primary-50 px-3 py-1 rounded-full">Q: {question}</span>
         <span className="text-xs text-gray-400">{result.data.rows.length} rows</span>
       </div>
-      <div className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm">
-        <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
-      </div>
-      {result.data.rows.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h3 className="text-sm font-semibold text-gray-900">{result.chart.title}</h3>
-          </div>
-          <div className="p-6"><ChartRenderer data={result.data} chart={result.chart} /></div>
+      <div className={hasChart ? "grid grid-cols-1 xl:grid-cols-3 gap-5" : ""}>
+        <div className={hasChart ? "xl:col-span-1 bg-white border border-gray-200 rounded-xl p-5 shadow-sm" : "bg-white border border-gray-200 rounded-xl p-5 shadow-sm"}>
+          <p className="text-sm text-gray-700 leading-relaxed">{result.explanation}</p>
         </div>
-      )}
+        {hasChart && (
+          <div className="xl:col-span-2 bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h3 className="text-sm font-semibold text-gray-900">{result.chart.title}</h3>
+            </div>
+            <div className="p-6"><ChartRenderer data={result.data} chart={result.chart} /></div>
+          </div>
+        )}
+      </div>
       <details className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
         <summary className="px-5 py-3 text-xs font-medium text-gray-500 cursor-pointer hover:bg-gray-50 select-none">View SQL</summary>
         <pre className="px-5 py-4 text-xs text-gray-300 bg-gray-900 overflow-x-auto font-mono">{result.sql}</pre>
