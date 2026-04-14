@@ -1,64 +1,76 @@
-"""Tests for classifier subagent."""
+"""Tests for classifier module-level function."""
 
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from src.agents.classifier import (
+    _build_prompt,
+    _get_filename_hint,
+    classify_document,
+)
 from src.agents.schemas.classification import ClassificationResult
 
 
-class TestClassifierSubagent:
-    """Tests for ClassifierSubagent."""
+def _mk_llm(result: ClassificationResult | None) -> MagicMock:
+    """Build a mock LLM whose with_structured_output(...).ainvoke returns `result`."""
+    mock_structured = AsyncMock()
+    mock_structured.ainvoke = AsyncMock(return_value=result)
+    mock_llm = MagicMock()
+    mock_llm.with_structured_output.return_value = mock_structured
+    return mock_llm
 
-    def setup_method(self) -> None:
-        # Patch create_deep_agent so ClassifierSubagent.__init__ doesn't call real SDK
-        with patch("src.agents.classifier.create_deep_agent") as mock_create:
-            mock_agent = MagicMock()
-            mock_agent.ainvoke = AsyncMock(
-                return_value={
-                    "structured_response": None,
-                    "response": "Classified as LPA based on partnership terms.",
-                    "messages": [],
-                }
-            )
-            mock_create.return_value = mock_agent
-            from src.agents.classifier import ClassifierSubagent
 
-            self.classifier = ClassifierSubagent()
+class TestClassifyDocument:
+    """Tests for classify_document()."""
 
-        self.sample_categories = [
-            {
-                "id": uuid.uuid4(),
-                "name": "LPA",
-                "classification_criteria": "Limited Partnership Agreement documents",
-            },
-            {
-                "id": uuid.uuid4(),
-                "name": "Subscription Agreement",
-                "classification_criteria": "Investor subscription documents",
-            },
-        ]
-        self.sample_content = (
-            "# Limited Partnership Agreement\n\n"
-            "This agreement establishes Horizon Equity Partners IV..."
-        )
+    sample_categories = [
+        {
+            "id": uuid.uuid4(),
+            "name": "LPA",
+            "classification_criteria": "Limited Partnership Agreement documents",
+        },
+        {
+            "id": uuid.uuid4(),
+            "name": "Subscription Agreement",
+            "classification_criteria": "Investor subscription documents",
+        },
+    ]
+    sample_content = (
+        "# Limited Partnership Agreement\n\n"
+        "This agreement establishes Horizon Equity Partners IV..."
+    )
 
     @pytest.mark.asyncio
     async def test_classify_returns_result(self) -> None:
-        result = await self.classifier.classify(
-            file_name="LPA_Fund.pdf",
-            content=self.sample_content,
-            categories=self.sample_categories,
+        expected = ClassificationResult(
+            category_id=self.sample_categories[0]["id"],
+            category_name="LPA",
+            confidence=95,
+            reasoning="matched based on partnership language",
         )
+        mock_llm = _mk_llm(expected)
+        with (
+            patch("src.agents.classifier.get_llm", return_value=mock_llm),
+            patch(
+                "src.agents.classifier._load_learned_corrections",
+                return_value="",
+            ),
+        ):
+            result = await classify_document(
+                file_name="LPA_Fund.pdf",
+                content=self.sample_content,
+                categories=self.sample_categories,
+            )
         assert isinstance(result, ClassificationResult)
-        assert result.category_name in [c["name"] for c in self.sample_categories]
-        assert result.reasoning
+        assert result.category_name == "LPA"
         assert 0 <= result.confidence <= 100
+        assert result.reasoning
 
     @pytest.mark.asyncio
     async def test_classify_empty_categories(self) -> None:
-        result = await self.classifier.classify(
+        result = await classify_document(
             file_name="doc.pdf",
             content=self.sample_content,
             categories=[],
@@ -68,70 +80,96 @@ class TestClassifierSubagent:
         assert result.confidence == 0
 
     @pytest.mark.asyncio
-    async def test_classify_with_summary(self) -> None:
-        """When summary is provided, it is used for classification."""
-        result = await self.classifier.classify(
-            file_name="LPA_Fund.pdf",
-            content=self.sample_content,
-            categories=self.sample_categories,
-            summary="This is a Limited Partnership Agreement for Horizon Fund.",
-        )
-        assert isinstance(result, ClassificationResult)
-        # Verify the prompt included the summary
-        call_args = self.classifier._agent.ainvoke.call_args
-        prompt = call_args[0][0]["messages"][0]["content"]
-        assert "Document summary" in prompt
-
-    @pytest.mark.asyncio
-    async def test_classify_without_summary_uses_content(self) -> None:
-        """When no summary, full content is used."""
-        result = await self.classifier.classify(
-            file_name="doc.pdf",
-            content=self.sample_content,
-            categories=self.sample_categories,
-        )
-        assert isinstance(result, ClassificationResult)
-        call_args = self.classifier._agent.ainvoke.call_args
-        prompt = call_args[0][0]["messages"][0]["content"]
-        assert "Document content" in prompt
-
-    @pytest.mark.asyncio
-    async def test_classify_returns_valid_category_id(self) -> None:
-        result = await self.classifier.classify(
-            file_name="doc.pdf",
-            content=self.sample_content,
-            categories=self.sample_categories,
-        )
-        cat_ids = [c["id"] for c in self.sample_categories]
-        assert result.category_id in cat_ids
-
-    @pytest.mark.asyncio
-    async def test_classify_with_structured_response(self) -> None:
-        """When structured_response is a ClassificationResult, it is returned directly."""
+    async def test_classify_with_summary_uses_summary_label(self) -> None:
+        """When summary is provided, the prompt uses the summary content."""
         expected = ClassificationResult(
             category_id=self.sample_categories[0]["id"],
             category_name="LPA",
-            confidence=95,
-            reasoning="Matched based on partnership language.",
+            confidence=90,
+            reasoning="from summary",
         )
-        self.classifier._agent.ainvoke = AsyncMock(
-            return_value={
-                "structured_response": expected,
-                "response": "",
-                "messages": [],
-            }
+        mock_llm = _mk_llm(expected)
+        with (
+            patch("src.agents.classifier.get_llm", return_value=mock_llm),
+            patch(
+                "src.agents.classifier._load_learned_corrections",
+                return_value="",
+            ),
+        ):
+            result = await classify_document(
+                file_name="LPA_Fund.pdf",
+                content=self.sample_content,
+                categories=self.sample_categories,
+                summary="This is a Limited Partnership Agreement for Horizon Fund.",
+            )
+
+        assert isinstance(result, ClassificationResult)
+        # Verify the prompt built for the LLM referenced the summary label
+        call_args = mock_llm.with_structured_output.return_value.ainvoke.call_args
+        messages = call_args[0][0]
+        prompt_text = messages[-1].content
+        assert "Document summary" in prompt_text
+
+    @pytest.mark.asyncio
+    async def test_classify_fallback_on_none_result(self) -> None:
+        """If structured output returns None, fallback parser kicks in."""
+        mock_llm = _mk_llm(None)
+        with (
+            patch("src.agents.classifier.get_llm", return_value=mock_llm),
+            patch(
+                "src.agents.classifier._load_learned_corrections",
+                return_value="",
+            ),
+        ):
+            result = await classify_document(
+                file_name="doc.pdf",
+                content=self.sample_content,
+                categories=self.sample_categories,
+            )
+        assert isinstance(result, ClassificationResult)
+        # Fallback uses first category as final fallback when no text match
+        assert result.category_id in [c["id"] for c in self.sample_categories]
+
+
+class TestFilenameHints:
+    """Tests for _get_filename_hint()."""
+
+    def test_lpa(self) -> None:
+        assert (
+            _get_filename_hint("LPA Fund IV.pdf")
+            == "Limited Partnership Agreement"
         )
 
-        result = await self.classifier.classify(
-            file_name="LPA_Fund.pdf",
-            content=self.sample_content,
-            categories=self.sample_categories,
+    def test_subscription(self) -> None:
+        assert (
+            _get_filename_hint("Sub_Agreement_2024.pdf") == "Subscription Agreement"
         )
-        assert result is expected
-        self.classifier._agent.ainvoke.assert_called_once()
 
-    def test_build_prompt_includes_file_name(self) -> None:
-        prompt = self.classifier._build_prompt(
+    def test_side_letter(self) -> None:
+        assert _get_filename_hint("Side Letter LP1.pdf") == "Side Letter"
+
+    def test_no_match(self) -> None:
+        assert _get_filename_hint("Document_001.pdf") is None
+
+
+class TestBuildPrompt:
+    """Tests for _build_prompt()."""
+
+    sample_categories = [
+        {
+            "id": uuid.uuid4(),
+            "name": "LPA",
+            "classification_criteria": "Limited Partnership Agreement",
+        },
+        {
+            "id": uuid.uuid4(),
+            "name": "Subscription Agreement",
+            "classification_criteria": "Investor subscription",
+        },
+    ]
+
+    def test_prompt_includes_file_name_and_content(self) -> None:
+        prompt = _build_prompt(
             file_name="LPA_Horizon.pdf",
             content="test content",
             categories=self.sample_categories,
@@ -143,29 +181,11 @@ class TestClassifierSubagent:
         assert "test content" in prompt
         assert "Document content" in prompt
 
-    def test_build_prompt_summary_label(self) -> None:
-        prompt = self.classifier._build_prompt(
+    def test_prompt_summary_label(self) -> None:
+        prompt = _build_prompt(
             file_name="doc.pdf",
             content="summary text",
             categories=self.sample_categories,
             is_summary=True,
         )
         assert "Document summary" in prompt
-
-    def test_filename_hint_lpa(self) -> None:
-        assert self.classifier._get_filename_hint("LPA_Fund_IV.pdf") == "Limited Partnership Agreement"
-
-    def test_filename_hint_subscription(self) -> None:
-        assert self.classifier._get_filename_hint("Sub_Agreement_2024.pdf") == "Subscription Agreement"
-
-    def test_filename_hint_side_letter(self) -> None:
-        assert self.classifier._get_filename_hint("Side_Letter_LP1.pdf") == "Side Letter"
-
-    def test_filename_hint_none(self) -> None:
-        assert self.classifier._get_filename_hint("Document_001.pdf") is None
-
-    def test_as_subagent_config(self) -> None:
-        config = self.classifier.as_subagent_config()
-        assert config["name"] == "classifier"
-        assert config["description"]
-        assert isinstance(config, dict)

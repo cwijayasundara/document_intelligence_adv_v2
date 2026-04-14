@@ -1,10 +1,10 @@
-"""Tests for extractor subagent."""
+"""Tests for extractor function."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.extractor import build_dynamic_model
+from src.agents.extractor import _build_prompt, build_dynamic_model, extract_fields
 from src.agents.schemas.extraction import ExtractionResult
 
 
@@ -50,113 +50,92 @@ class TestBuildDynamicModel:
         assert instance is not None
 
 
-class TestExtractorSubagent:
-    """Tests for ExtractorSubagent."""
+class TestExtractFields:
+    """Tests for extract_fields()."""
 
-    def setup_method(self) -> None:
-        with patch("src.agents.extractor.create_deep_agent") as mock_create:
-            mock_agent = MagicMock()
-            mock_agent.ainvoke = AsyncMock(
-                return_value={
-                    "structured_response": None,
-                    "response": "Extracted values",
-                }
-            )
-            mock_create.return_value = mock_agent
-            from src.agents.extractor import ExtractorSubagent
+    sample_fields = [
+        {
+            "field_name": "fund_name",
+            "display_name": "Fund Name",
+            "data_type": "string",
+            "description": "Name of the fund",
+        },
+        {
+            "field_name": "management_fee",
+            "display_name": "Management Fee",
+            "data_type": "percentage",
+            "description": "Annual management fee rate",
+        },
+    ]
+    sample_content = (
+        "# LPA Document\n\n"
+        "Fund Name: Horizon Equity Partners IV\n"
+        "Management Fee: 2.0% per annum"
+    )
 
-            self.extractor = ExtractorSubagent()
-
-        self.sample_fields = [
-            {
-                "field_name": "fund_name",
-                "display_name": "Fund Name",
-                "data_type": "string",
-                "description": "Name of the fund",
-            },
-            {
-                "field_name": "management_fee",
-                "display_name": "Management Fee",
-                "data_type": "percentage",
-                "description": "Annual management fee rate",
-            },
-        ]
-        self.sample_content = (
-            "# LPA Document\n\n"
-            "Fund Name: Horizon Equity Partners IV\n"
-            "Management Fee: 2.0% per annum"
-        )
+    def _mk_llm(self, structured_result) -> MagicMock:
+        mock_structured = AsyncMock()
+        mock_structured.ainvoke = AsyncMock(return_value=structured_result)
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured
+        return mock_llm
 
     @pytest.mark.asyncio
     async def test_extract_returns_result(self) -> None:
-        with patch("src.agents.extractor.create_deep_agent") as mock_create:
-            mock_agent = MagicMock()
-            mock_agent.ainvoke = AsyncMock(
-                return_value={
-                    "structured_response": None,
-                    "response": "Extracted",
-                }
-            )
-            mock_create.return_value = mock_agent
-            result = await self.extractor.extract(self.sample_content, self.sample_fields)
+        # Build a dummy structured output object whose attributes match expected fields
+        structured = MagicMock()
+        structured.fund_name = "Horizon Equity Partners IV"
+        structured.fund_name_source = "Fund Name: Horizon Equity Partners IV"
+        structured.management_fee = "2.0%"
+        structured.management_fee_source = "Management Fee: 2.0% per annum"
+
+        mock_llm = self._mk_llm(structured)
+        with patch("src.agents.extractor.get_llm", return_value=mock_llm):
+            result = await extract_fields(self.sample_content, self.sample_fields)
         assert isinstance(result, ExtractionResult)
         assert len(result.fields) == 2
 
     @pytest.mark.asyncio
     async def test_extract_field_names_match(self) -> None:
-        with patch("src.agents.extractor.create_deep_agent") as mock_create:
-            mock_agent = MagicMock()
-            mock_agent.ainvoke = AsyncMock(
-                return_value={
-                    "structured_response": None,
-                    "response": "Extracted",
-                }
-            )
-            mock_create.return_value = mock_agent
-            result = await self.extractor.extract(self.sample_content, self.sample_fields)
+        structured = MagicMock()
+        structured.fund_name = "Horizon Equity Partners IV"
+        structured.fund_name_source = "source"
+        structured.management_fee = "2.0%"
+        structured.management_fee_source = "source"
+
+        mock_llm = self._mk_llm(structured)
+        with patch("src.agents.extractor.get_llm", return_value=mock_llm):
+            result = await extract_fields(self.sample_content, self.sample_fields)
         field_names = {f.field_name for f in result.fields}
         expected = {"fund_name", "management_fee"}
         assert field_names == expected
 
     @pytest.mark.asyncio
     async def test_extract_applies_pii_filter(self) -> None:
-        with patch("src.agents.extractor.create_deep_agent") as mock_create:
-            mock_agent = MagicMock()
-            mock_agent.ainvoke = AsyncMock(
-                return_value={
-                    "structured_response": None,
-                    "response": "Extracted",
-                }
-            )
-            mock_create.return_value = mock_agent
+        structured = MagicMock()
+        structured.fund_name = "Horizon"
+        structured.fund_name_source = "s"
+        structured.management_fee = "2%"
+        structured.management_fee_source = "s"
+
+        mock_llm = self._mk_llm(structured)
+        with patch("src.agents.extractor.get_llm", return_value=mock_llm):
             content = "SSN: 123-45-6789\n" + self.sample_content
-            await self.extractor.extract(content, self.sample_fields)
-        assert "123-45-6789" not in self.extractor._parsed_content
+            await extract_fields(content, self.sample_fields)
+
+        # Inspect the prompt sent to the LLM — SSN should have been redacted
+        call_args = mock_llm.with_structured_output.return_value.ainvoke.call_args
+        messages = call_args[0][0]
+        prompt_text = messages[-1].content
+        assert "123-45-6789" not in prompt_text
 
     @pytest.mark.asyncio
     async def test_extract_empty_fields(self) -> None:
-        result = await self.extractor.extract(self.sample_content, [])
+        result = await extract_fields(self.sample_content, [])
         assert isinstance(result, ExtractionResult)
         assert len(result.fields) == 0
 
-    def test_as_subagent_config(self) -> None:
-        config = self.extractor.as_subagent_config()
-        assert config["name"] == "extractor"
-        assert config["description"]
-
-    @pytest.mark.asyncio
-    async def test_get_extraction_schema_tool(self) -> None:
-        self.extractor._schema_fields = self.sample_fields
-        schema = await self.extractor._get_extraction_schema()
-        assert schema == self.sample_fields
-
-    @pytest.mark.asyncio
-    async def test_get_parsed_content_tool(self) -> None:
-        self.extractor._parsed_content = "test content"
-        content = await self.extractor._get_parsed_content()
-        assert content == "test content"
-
     def test_build_prompt_includes_fields(self) -> None:
-        prompt = self.extractor._build_prompt("test content", self.sample_fields)
+        prompt = _build_prompt("test content", self.sample_fields)
         assert "fund_name" in prompt
         assert "management_fee" in prompt

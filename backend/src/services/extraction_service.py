@@ -6,7 +6,6 @@ Results are saved to both the database and data/extraction/{doc_id}.json.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import uuid
@@ -15,8 +14,8 @@ from typing import Any
 
 import aiofiles
 
-from src.agents.extractor import ExtractorSubagent
-from src.agents.judge import JudgeSubagent
+from src.agents.extractor import extract_fields
+from src.agents.judge import judge_extraction
 
 logger = logging.getLogger(__name__)
 
@@ -29,20 +28,14 @@ class ExtractionService:
     def __init__(
         self,
         extraction_dir: str = "./data/extraction",
-        extractor: ExtractorSubagent | None = None,
-        judge: JudgeSubagent | None = None,
     ) -> None:
-        self._extractor = extractor or ExtractorSubagent()
-        self._judge = judge or JudgeSubagent()
         self._extraction_dir = Path(extraction_dir)
         self._extraction_dir.mkdir(parents=True, exist_ok=True)
 
     def _cache_path(self, doc_id: uuid.UUID) -> Path:
         return self._extraction_dir / f"{doc_id}.json"
 
-    async def get_cached(
-        self, doc_id: uuid.UUID, content_hash: str
-    ) -> list[dict[str, Any]] | None:
+    async def get_cached(self, doc_id: uuid.UUID, content_hash: str) -> list[dict[str, Any]] | None:
         """Return cached extraction results if content hash matches."""
         cached = await self._read_from_disk(doc_id)
         if cached and cached.get("content_hash") == content_hash:
@@ -82,12 +75,10 @@ class ExtractionService:
             len(extraction_fields),
             len(parsed_content),
         )
-        extraction_result = await self._extractor.extract(
-            parsed_content, extraction_fields
-        )
+        extraction_result = await extract_fields(parsed_content, extraction_fields)
 
         logger.info("Judging %d extracted fields", len(extraction_result.fields))
-        judge_result = await self._judge.evaluate(
+        judge_result = await judge_extraction(
             extraction_result.fields,
             parsed_content,
             field_metadata=extraction_fields,
@@ -97,11 +88,7 @@ class ExtractionService:
 
         results = []
         for i, field_def in enumerate(extraction_fields):
-            extracted = (
-                extraction_result.fields[i]
-                if i < len(extraction_result.fields)
-                else None
-            )
+            extracted = extraction_result.fields[i] if i < len(extraction_result.fields) else None
             evaluation = eval_map.get(field_def["field_name"])
 
             confidence = evaluation.confidence if evaluation else "medium"
@@ -166,4 +153,6 @@ class ExtractionService:
 
     @staticmethod
     def _compute_hash(content: str) -> str:
-        return hashlib.sha256(content.encode()).hexdigest()
+        from src.services.hashing import compute_content_hash
+
+        return compute_content_hash(content)

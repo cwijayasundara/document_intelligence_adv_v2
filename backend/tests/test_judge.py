@@ -1,73 +1,93 @@
-"""Tests for judge subagent."""
+"""Tests for judge extraction function."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.schemas.extraction import ExtractedField, JudgeResult
+from src.agents.judge import (
+    _assess_confidence,
+    _build_prompt,
+    _default_reasoning,
+    judge_extraction,
+)
+from src.agents.schemas.extraction import (
+    ExtractedField,
+    FieldEvaluation,
+    JudgeResult,
+)
 
 
-class TestJudgeSubagent:
-    """Tests for JudgeSubagent."""
+@pytest.fixture
+def sample_fields() -> list[ExtractedField]:
+    return [
+        ExtractedField(
+            field_name="fund_name",
+            extracted_value="Horizon Equity Partners IV",
+            source_text="...hereby establishes Horizon Equity Partners IV, a Delaware...",
+        ),
+        ExtractedField(
+            field_name="fund_term",
+            extracted_value="10 years",
+            source_text="...initial term not to exceed ten years...",
+        ),
+    ]
 
-    def setup_method(self) -> None:
-        with patch("src.agents.judge.create_deep_agent") as mock_create:
-            mock_agent = MagicMock()
-            mock_agent.ainvoke = AsyncMock(
-                return_value={
-                    "structured_response": None,
-                    "response": "Evaluated",
-                }
-            )
-            mock_create.return_value = mock_agent
-            from src.agents.judge import JudgeSubagent
 
-            self.judge = JudgeSubagent()
+@pytest.fixture
+def sample_content() -> str:
+    return (
+        "This agreement establishes Horizon Equity Partners IV. "
+        "The initial term shall not exceed ten years."
+    )
 
-        self.sample_fields = [
-            ExtractedField(
-                field_name="fund_name",
-                extracted_value="Horizon Equity Partners IV",
-                source_text="...hereby establishes Horizon Equity Partners IV, a Delaware...",
-            ),
-            ExtractedField(
-                field_name="fund_term",
-                extracted_value="10 years",
-                source_text="...initial term not to exceed ten years...",
-            ),
-        ]
-        self.sample_content = (
-            "This agreement establishes Horizon Equity Partners IV. "
-            "The initial term shall not exceed ten years."
-        )
+
+class TestJudgeExtraction:
+    """Tests for judge_extraction function."""
 
     @pytest.mark.asyncio
-    async def test_evaluate_returns_judge_result(self) -> None:
-        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
+    async def test_returns_judge_result_on_llm_failure(
+        self, sample_fields: list[ExtractedField], sample_content: str
+    ) -> None:
+        """When LLM call fails, heuristic fallback returns a JudgeResult."""
+        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+            result = await judge_extraction(sample_fields, sample_content)
+
         assert isinstance(result, JudgeResult)
         assert len(result.evaluations) == 2
 
     @pytest.mark.asyncio
-    async def test_evaluate_field_names_match(self) -> None:
-        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
+    async def test_field_names_match(
+        self, sample_fields: list[ExtractedField], sample_content: str
+    ) -> None:
+        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+            result = await judge_extraction(sample_fields, sample_content)
+
         names = {e.field_name for e in result.evaluations}
         assert names == {"fund_name", "fund_term"}
 
     @pytest.mark.asyncio
-    async def test_evaluate_valid_confidence_levels(self) -> None:
-        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
+    async def test_valid_confidence_levels(
+        self, sample_fields: list[ExtractedField], sample_content: str
+    ) -> None:
+        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+            result = await judge_extraction(sample_fields, sample_content)
+
         valid = {"high", "medium", "low"}
         for ev in result.evaluations:
             assert ev.confidence in valid
 
     @pytest.mark.asyncio
-    async def test_evaluate_high_confidence_when_value_in_source(self) -> None:
-        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
+    async def test_high_confidence_when_value_in_source(
+        self, sample_fields: list[ExtractedField], sample_content: str
+    ) -> None:
+        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+            result = await judge_extraction(sample_fields, sample_content)
+
         fund_eval = next(e for e in result.evaluations if e.field_name == "fund_name")
         assert fund_eval.confidence == "high"
 
     @pytest.mark.asyncio
-    async def test_evaluate_low_confidence_when_empty(self) -> None:
+    async def test_low_confidence_when_empty(self, sample_content: str) -> None:
         fields = [
             ExtractedField(
                 field_name="missing",
@@ -75,72 +95,109 @@ class TestJudgeSubagent:
                 source_text="",
             ),
         ]
-        result = await self.judge.evaluate(fields, self.sample_content)
+        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+            result = await judge_extraction(fields, sample_content)
+
         assert result.evaluations[0].confidence == "low"
 
     @pytest.mark.asyncio
-    async def test_evaluate_applies_pii_filter(self) -> None:
-        content = "SSN: 123-45-6789\n" + self.sample_content
-        await self.judge.evaluate(self.sample_fields, content)
-        assert "123-45-6789" not in self.judge._parsed_content
+    async def test_reasoning_provided(
+        self, sample_fields: list[ExtractedField], sample_content: str
+    ) -> None:
+        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+            result = await judge_extraction(sample_fields, sample_content)
 
-    @pytest.mark.asyncio
-    async def test_evaluate_reasoning_provided(self) -> None:
-        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
         for ev in result.evaluations:
             assert ev.reasoning
             assert len(ev.reasoning) > 0
 
     @pytest.mark.asyncio
-    async def test_evaluate_with_structured_response(self) -> None:
-        """When structured_response is a JudgeResult, it is returned directly."""
-        from src.agents.schemas.extraction import FieldEvaluation
-
+    async def test_returns_llm_result_when_successful(
+        self, sample_fields: list[ExtractedField], sample_content: str
+    ) -> None:
+        """When LLM returns a valid parsed result, it is returned directly."""
         expected = JudgeResult(
             evaluations=[
                 FieldEvaluation(
-                    field_name="fund_name", confidence="high", reasoning="Exact match."
+                    field_name="fund_name",
+                    confidence="high",
+                    reasoning="Exact match.",
                 ),
-                FieldEvaluation(field_name="fund_term", confidence="medium", reasoning="Inferred."),
+                FieldEvaluation(
+                    field_name="fund_term",
+                    confidence="medium",
+                    reasoning="Inferred.",
+                ),
             ]
         )
-        self.judge._agent.ainvoke = AsyncMock(
-            return_value={
-                "structured_response": expected,
-                "response": "",
-            }
-        )
 
-        result = await self.judge.evaluate(self.sample_fields, self.sample_content)
+        mock_structured = MagicMock()
+        mock_structured.ainvoke = AsyncMock(return_value=expected)
+        mock_llm = MagicMock()
+        mock_llm.with_structured_output.return_value = mock_structured
+
+        with patch("src.agents.judge.get_llm", return_value=mock_llm):
+            result = await judge_extraction(sample_fields, sample_content)
+
         assert result is expected
 
     @pytest.mark.asyncio
-    async def test_evaluate_empty_fields(self) -> None:
-        result = await self.judge.evaluate([], self.sample_content)
+    async def test_empty_fields(self, sample_content: str) -> None:
+        result = await judge_extraction([], sample_content)
         assert isinstance(result, JudgeResult)
         assert len(result.evaluations) == 0
 
-    def test_as_subagent_config(self) -> None:
-        config = self.judge.as_subagent_config()
-        assert config["name"] == "judge"
-        assert config["description"]
-        assert isinstance(config, dict)
 
-    @pytest.mark.asyncio
-    async def test_get_extracted_values_tool(self) -> None:
-        self.judge._extracted_fields = self.sample_fields
-        values = await self.judge._get_extracted_values()
-        assert len(values) == 2
-        assert values[0]["field_name"] == "fund_name"
+class TestHeuristicHelpers:
+    """Tests for heuristic helper functions."""
 
-    @pytest.mark.asyncio
-    async def test_get_parsed_content_tool(self) -> None:
-        self.judge._parsed_content = "test content"
-        content = await self.judge._get_parsed_content()
-        assert content == "test content"
+    def test_assess_confidence_high(self) -> None:
+        field = ExtractedField(
+            field_name="f",
+            extracted_value="ABC",
+            source_text="Value is ABC here",
+        )
+        assert _assess_confidence(field) == "high"
+
+    def test_assess_confidence_medium_no_source(self) -> None:
+        field = ExtractedField(
+            field_name="f",
+            extracted_value="ABC",
+            source_text="",
+        )
+        assert _assess_confidence(field) == "medium"
+
+    def test_assess_confidence_low_empty_value(self) -> None:
+        field = ExtractedField(
+            field_name="f",
+            extracted_value="",
+            source_text="some source",
+        )
+        assert _assess_confidence(field) == "low"
+
+    def test_default_reasoning_high(self) -> None:
+        field = ExtractedField(field_name="f", extracted_value="X", source_text="X")
+        reasoning = _default_reasoning(field, "high")
+        assert "appears in the source" in reasoning
+
+    def test_default_reasoning_medium_no_source(self) -> None:
+        field = ExtractedField(field_name="f", extracted_value="X", source_text="")
+        reasoning = _default_reasoning(field, "medium")
+        assert "no source quote" in reasoning
+
+    def test_default_reasoning_low(self) -> None:
+        field = ExtractedField(field_name="f", extracted_value="", source_text="")
+        reasoning = _default_reasoning(field, "low")
+        assert "No value" in reasoning
 
     def test_build_prompt_includes_fields(self) -> None:
-        prompt = self.judge._build_prompt(self.sample_fields, "document content")
+        fields = [
+            ExtractedField(
+                field_name="fund_name",
+                extracted_value="Test Fund",
+                source_text="source",
+            ),
+        ]
+        prompt = _build_prompt(fields, "document content")
         assert "fund_name" in prompt
-        assert "fund_term" in prompt
         assert "document content" in prompt

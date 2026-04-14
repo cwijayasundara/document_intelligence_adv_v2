@@ -6,8 +6,6 @@ and judge calibration accuracy.
 
 from __future__ import annotations
 
-from typing import Any
-
 import pytest
 
 from tests.evals.conftest import EvalMetrics
@@ -28,7 +26,7 @@ class TestPipelineBehavior:
         Category: pipeline, judge
         """
         from src.agents.extractor import ExtractorSubagent
-        from src.agents.judge import JudgeSubagent
+        from src.agents.judge import judge_extraction
 
         fields = [
             {"field_name": "fund_name", "data_type": "string",
@@ -38,8 +36,7 @@ class TestPipelineBehavior:
         extractor = ExtractorSubagent()
         extraction = await extractor.extract(lpa_parsed_content, fields)
 
-        judge = JudgeSubagent()
-        judge_result = await judge.evaluate(
+        judge_result = await judge_extraction(
             extraction.fields, lpa_parsed_content, field_metadata=fields
         )
 

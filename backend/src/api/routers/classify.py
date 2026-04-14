@@ -8,7 +8,7 @@ import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.classifier import ClassifierSubagent
+from src.agents.classifier import classify_document as run_classifier  # noqa: E402
 from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.classify import ClassifyResponse
@@ -20,16 +20,6 @@ from src.services.summarize_service import SummaryService
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
-
-_classifier: ClassifierSubagent | None = None
-
-
-def _get_classifier() -> ClassifierSubagent:
-    """Get or create the singleton ClassifierSubagent."""
-    global _classifier
-    if _classifier is None:
-        _classifier = ClassifierSubagent()
-    return _classifier
 
 
 @router.post(
@@ -116,7 +106,6 @@ async def classify_document(
             for c in categories
         ]
 
-        classifier = _get_classifier()
         source = "summary" if summary_text else "full content"
         logger.info(
             "Classifying document %s (%s) against %d categories using %s",
@@ -125,7 +114,7 @@ async def classify_document(
             len(cat_dicts),
             source,
         )
-        result = await classifier.classify(
+        result = await run_classifier(
             file_name=doc.file_name,
             content=content,
             categories=cat_dicts,

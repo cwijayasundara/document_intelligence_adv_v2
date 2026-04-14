@@ -1,4 +1,4 @@
-"""Extractor subagent for structured field extraction.
+"""Extractor function for structured field extraction.
 
 Dynamically builds Pydantic models from extraction field schemas
 and extracts values with source text citations from parsed document content.
@@ -8,11 +8,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from deepagents import SubAgent
-
-from src.agents.factory import create_agent
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field, create_model
 
+from src.agents.llm import get_llm
+from src.agents.middleware.decorators import with_retry, with_telemetry
 from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.agents.schemas.extraction import ExtractedField, ExtractionResult
 
@@ -39,6 +39,8 @@ Rules:
 - For percentage fields, include the % symbol
 - For date fields, preserve the original format from the document
 """
+
+_pii_filter = PIIFilterMiddleware()
 
 
 def build_dynamic_model(
@@ -72,104 +74,85 @@ def build_dynamic_model(
     return create_model("DynamicExtractionModel", **field_definitions)
 
 
-class ExtractorSubagent:
-    """Subagent that extracts structured fields with source citations."""
-
-    def __init__(self) -> None:
-        self._pii_filter = PIIFilterMiddleware()
-
-    async def extract(
-        self,
-        parsed_content: str,
-        extraction_fields: list[dict[str, Any]],
-    ) -> ExtractionResult:
-        """Extract fields from parsed document content.
-
-        Args:
-            parsed_content: The parsed markdown content.
-            extraction_fields: Field definitions from the extraction schema.
-
-        Returns:
-            ExtractionResult with extracted values and source text.
-        """
-        filtered = self._pii_filter.filter_content(parsed_content)
-
-        if not extraction_fields:
-            return ExtractionResult(fields=[])
-
-        dynamic_model = build_dynamic_model(extraction_fields)
-
-        extraction_agent = create_agent(
-            model="openai:gpt-5.4-mini",
-            tools=[],
-            system_prompt=_SYSTEM_PROMPT,
-            response_format=dynamic_model,
-            name="extractor",
+def _build_prompt(content: str, fields: list[dict[str, Any]]) -> str:
+    """Build the extraction prompt."""
+    parts = []
+    for f in fields:
+        line = (
+            f"- **{f['field_name']}** ({f.get('data_type', 'string')}): "
+            f"{f.get('description', 'N/A')}"
         )
+        examples = f.get("examples")
+        if examples:
+            line += f" — Examples: {examples}"
+        parts.append(line)
+    field_desc = "\n".join(parts)
+    return (
+        f"Extract the following fields from the document. "
+        f"For each field, provide the extracted value AND a verbatim quote "
+        f"from the document that contains or supports the value.\n\n"
+        f"## Fields to extract\n{field_desc}\n\n"
+        f"## Document\n{content}\n\n"
+        f"Return each field's value and its source quote from the document."
+    )
 
-        prompt = self._build_prompt(filtered.redacted_text, extraction_fields)
-        result = await extraction_agent.ainvoke(
-            {"messages": [{"role": "user", "content": prompt}]}
-        )
 
-        return self._build_result(result, extraction_fields)
+def _build_result(
+    structured: BaseModel | None,
+    fields: list[dict[str, Any]],
+) -> ExtractionResult:
+    """Build ExtractionResult from the parsed structured output."""
+    extracted = []
 
-    def _build_prompt(self, content: str, fields: list[dict[str, Any]]) -> str:
-        """Build the extraction prompt."""
-        parts = []
-        for f in fields:
-            line = (
-                f"- **{f['field_name']}** ({f.get('data_type', 'string')}): "
-                f"{f.get('description', 'N/A')}"
+    for f in fields:
+        name = f["field_name"]
+        if structured is not None:
+            value = getattr(structured, name, None)
+            source = getattr(structured, f"{name}_source", None)
+        else:
+            value = None
+            source = None
+
+        extracted.append(
+            ExtractedField(
+                field_name=name,
+                extracted_value=str(value) if value is not None else "",
+                source_text=str(source) if source is not None else "",
             )
-            examples = f.get("examples")
-            if examples:
-                line += f" — Examples: {examples}"
-            parts.append(line)
-        field_desc = "\n".join(parts)
-        return (
-            f"Extract the following fields from the document. "
-            f"For each field, provide the extracted value AND a verbatim quote "
-            f"from the document that contains or supports the value.\n\n"
-            f"## Fields to extract\n{field_desc}\n\n"
-            f"## Document\n{content}\n\n"
-            f"Return each field's value and its source quote from the document."
         )
 
-    def _build_result(
-        self,
-        result: dict[str, Any],
-        fields: list[dict[str, Any]],
-    ) -> ExtractionResult:
-        """Build ExtractionResult from the LLM response."""
-        structured = result.get("structured_response")
-        extracted = []
+    return ExtractionResult(fields=extracted)
 
-        for f in fields:
-            name = f["field_name"]
-            if structured is not None:
-                value = getattr(structured, name, None)
-                source = getattr(structured, f"{name}_source", None)
-            else:
-                value = None
-                source = None
 
-            extracted.append(
-                ExtractedField(
-                    field_name=name,
-                    extracted_value=str(value) if value is not None else "",
-                    source_text=str(source) if source is not None else "",
-                )
-            )
+@with_retry(max_retries=3)
+@with_telemetry(node_name="extract")
+async def extract_fields(
+    parsed_content: str,
+    extraction_fields: list[dict[str, Any]],
+) -> ExtractionResult:
+    """Extract structured fields from parsed document content.
 
-        return ExtractionResult(fields=extracted)
+    Args:
+        parsed_content: The parsed markdown content.
+        extraction_fields: Field definitions from the extraction schema.
 
-    def as_subagent_config(self) -> SubAgent:
-        """Create a subagent config dict for registration with orchestrator."""
-        return SubAgent(
-            name="extractor",
-            description="Extracts structured fields from documents",
-            system_prompt="You are a field extractor.",
-            tools=[],
-            model="openai:gpt-5.4-mini",
-        )
+    Returns:
+        ExtractionResult with extracted values and source text.
+    """
+    filtered = _pii_filter.filter_content(parsed_content)
+
+    if not extraction_fields:
+        return ExtractionResult(fields=[])
+
+    dynamic_model = build_dynamic_model(extraction_fields)
+    prompt = _build_prompt(filtered.redacted_text, extraction_fields)
+
+    llm = get_llm()
+    structured = await llm.with_structured_output(dynamic_model).ainvoke(
+        [
+            SystemMessage(content=_SYSTEM_PROMPT),
+            HumanMessage(content=prompt),
+        ]
+    )
+
+    return _build_result(structured, extraction_fields)

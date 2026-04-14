@@ -1,4 +1,4 @@
-"""Data analytics agent using DeepAgents with gpt-5.3-codex.
+"""Data analytics agent using OpenAI with gpt-5.3-codex.
 
 Converts natural language questions to SQL, executes them,
 and suggests chart configurations for the frontend.
@@ -6,14 +6,15 @@ and suggests chart configurations for the frontend.
 
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 
-from src.agents.factory import create_agent
+from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from src.agents.llm import get_llm
+from src.agents.middleware.pii_filter import PIIFilterMiddleware
 from src.data_agent.executor import SQLExecutionError, execute_query
 from src.data_agent.schema import get_schema_description
 
@@ -71,20 +72,126 @@ class AnalyticsResult(BaseModel):
     chart: ChartConfig = Field(description="Chart configuration")
 
 
+_pii_filter = PIIFilterMiddleware()
+
+
+async def run_analytics_query(
+    question: str,
+    session: AsyncSession,
+    session_id: str | None = None,
+) -> dict[str, Any]:
+    """Process a natural language analytics question.
+
+    Args:
+        question: The user's question.
+        session: Database session for schema introspection and query execution.
+        session_id: Optional session ID for conversation context.
+
+    Returns:
+        Dict with sql, data (columns + rows), chart config, and explanation.
+    """
+    # Check short-term memory first for conversational questions
+    if session_id:
+        from src.agents.memory import get_short_term_memory
+
+        memory = get_short_term_memory()
+        history = memory.get_conversation_summary(session_id)
+
+        # If this is a meta-question about the conversation itself, answer from memory
+        lower_q = question.lower()
+        if history and any(kw in lower_q for kw in [
+            "previous query", "last query", "my previous", "what did i ask",
+            "what was my", "repeat", "show again",
+        ]):
+            logger.info("Answering from short-term memory (conversational question)")
+            memory.add_human_message(session_id, question)
+            answer = f"Here is your recent conversation:\n\n{history}"
+            memory.add_ai_message(session_id, answer)
+            return {
+                "sql": "-- Answered from conversation memory, no SQL needed",
+                "data": {"columns": ["conversation"], "rows": [[history]]},
+                "chart": ChartConfig(chart_type="table", title="Conversation History").model_dump(),
+                "explanation": answer,
+            }
+
+    # Filter PII from question before sending to LLM
+    filtered = _pii_filter.filter_content(question)
+    question = filtered.redacted_text
+
+    schema = await get_schema_description(session)
+
+    # Load conversation history for follow-up queries
+    history_block = ""
+    if session_id:
+        from src.agents.memory import get_short_term_memory as _get_mem
+
+        _mem = _get_mem()
+        history = _mem.get_conversation_summary(session_id)
+        if history:
+            history_block = f"## Previous conversation\n{history}\n\n"
+
+    prompt = (
+        f"## Database Schema\n{schema}\n\n"
+        f"{history_block}"
+        f"## User Question\n{question}\n\n"
+        f"Generate a SQL query, chart configuration, and brief explanation. "
+        f"If this is a follow-up, use the conversation context."
+    )
+
+    try:
+        from src.config.settings import get_settings as _settings
+
+        data_agent_model = getattr(_settings(), "data_agent_model", "gpt-5.3-codex")
+        llm = get_llm(model=data_agent_model)
+        analytics = await llm.with_structured_output(AnalyticsResult).ainvoke([
+            SystemMessage(content=_SYSTEM_PROMPT),
+            HumanMessage(content=prompt),
+        ])
+        if analytics is None:
+            analytics = AnalyticsResult(
+                sql="SELECT 'No query generated' as message",
+                explanation="Could not generate a query for this question.",
+                chart=ChartConfig(chart_type="table", title="Error"),
+            )
+    except Exception as exc:
+        logger.error("Data agent LLM call failed: %s", exc)
+        analytics = AnalyticsResult(
+            sql="SELECT 'No query generated' as message",
+            explanation=f"Could not generate a query: {exc}",
+            chart=ChartConfig(chart_type="table", title="Error"),
+        )
+
+    # Execute the SQL
+    try:
+        data = await execute_query(session, analytics.sql)
+    except SQLExecutionError as exc:
+        return {
+            "sql": analytics.sql,
+            "error": str(exc),
+            "data": {"columns": [], "rows": []},
+            "chart": analytics.chart.model_dump(),
+            "explanation": analytics.explanation,
+        }
+
+    # Save to short-term memory
+    if session_id:
+        from src.agents.memory import get_short_term_memory as _get_stm
+
+        stm = _get_stm()
+        stm.add_human_message(session_id, question)
+        stm.add_ai_message(session_id, f"SQL: {analytics.sql}\n{analytics.explanation}")
+
+    return {
+        "sql": analytics.sql,
+        "data": data,
+        "chart": analytics.chart.model_dump(),
+        "explanation": analytics.explanation,
+    }
+
+
+# Backward compatibility: DataAgent class wrapping the function
 class DataAgent:
     """Analytics agent that converts NL questions to SQL + charts."""
-
-    def __init__(self) -> None:
-        from src.agents.middleware.pii_filter import PIIFilterMiddleware
-
-        self._pii_filter = PIIFilterMiddleware()
-        self._agent = create_agent(
-            model="openai:gpt-5.3-codex",
-            tools=[],
-            system_prompt=_SYSTEM_PROMPT,
-            response_format=AnalyticsResult,
-            name="data_agent",
-        )
 
     async def query(
         self,
@@ -92,123 +199,5 @@ class DataAgent:
         session: AsyncSession,
         session_id: str | None = None,
     ) -> dict[str, Any]:
-        """Process a natural language analytics question.
-
-        Args:
-            question: The user's question.
-            session: Database session for schema introspection and query execution.
-            session_id: Optional session ID for conversation context.
-
-        Returns:
-            Dict with sql, data (columns + rows), chart config, and explanation.
-        """
-        # Check short-term memory first for conversational questions
-        if session_id:
-            from src.agents.memory import get_short_term_memory
-
-            memory = get_short_term_memory()
-            history = memory.get_conversation_summary(session_id)
-
-            # If this is a meta-question about the conversation itself, answer from memory
-            lower_q = question.lower()
-            if history and any(kw in lower_q for kw in [
-                "previous query", "last query", "my previous", "what did i ask",
-                "what was my", "repeat", "show again",
-            ]):
-                logger.info("Answering from short-term memory (conversational question)")
-                memory.add_human_message(session_id, question)
-                answer = f"Here is your recent conversation:\n\n{history}"
-                memory.add_ai_message(session_id, answer)
-                return {
-                    "sql": "-- Answered from conversation memory, no SQL needed",
-                    "data": {"columns": ["conversation"], "rows": [[history]]},
-                    "chart": ChartConfig(chart_type="table", title="Conversation History").model_dump(),
-                    "explanation": answer,
-                }
-
-        # Filter PII from question before sending to LLM
-        filtered = self._pii_filter.filter_content(question)
-        question = filtered.redacted_text
-
-        schema = await get_schema_description(session)
-
-        # Load conversation history for follow-up queries
-        history_block = ""
-        if session_id:
-            from src.agents.memory import get_short_term_memory as _get_mem
-
-            _mem = _get_mem()
-            history = _mem.get_conversation_summary(session_id)
-            if history:
-                history_block = f"## Previous conversation\n{history}\n\n"
-
-        prompt = (
-            f"## Database Schema\n{schema}\n\n"
-            f"{history_block}"
-            f"## User Question\n{question}\n\n"
-            f"Generate a SQL query, chart configuration, and brief explanation. "
-            f"If this is a follow-up, use the conversation context."
-        )
-
-        result = await self._agent.ainvoke(
-            {"messages": [{"role": "user", "content": prompt}]}
-        )
-
-        analytics = self._parse_result(result)
-
-        # Execute the SQL
-        try:
-            data = await execute_query(session, analytics.sql)
-        except SQLExecutionError as exc:
-            return {
-                "sql": analytics.sql,
-                "error": str(exc),
-                "data": {"columns": [], "rows": []},
-                "chart": analytics.chart.model_dump(),
-                "explanation": analytics.explanation,
-            }
-
-        # Save to short-term memory
-        if session_id:
-            from src.agents.memory import get_short_term_memory as _get_stm
-
-            stm = _get_stm()
-            stm.add_human_message(session_id, question)
-            stm.add_ai_message(session_id, f"SQL: {analytics.sql}\n{analytics.explanation}")
-
-        return {
-            "sql": analytics.sql,
-            "data": data,
-            "chart": analytics.chart.model_dump(),
-            "explanation": analytics.explanation,
-        }
-
-    def _parse_result(self, result: dict[str, Any]) -> AnalyticsResult:
-        """Parse LLM response into AnalyticsResult."""
-        structured = result.get("structured_response")
-        if structured is not None and isinstance(structured, AnalyticsResult):
-            return structured
-
-        # Fallback: try to extract from messages
-        messages = result.get("messages", [])
-        if messages:
-            last = messages[-1]
-            content = getattr(last, "content", "")
-            if isinstance(content, list):
-                content = " ".join(
-                    b.get("text", "") if isinstance(b, dict) else str(b)
-                    for b in content
-                )
-            if isinstance(content, str):
-                try:
-                    parsed = json.loads(content)
-                    return AnalyticsResult(**parsed)
-                except (json.JSONDecodeError, TypeError):
-                    pass
-
-        # Final fallback
-        return AnalyticsResult(
-            sql="SELECT 'No query generated' as message",
-            explanation="Could not generate a query for this question.",
-            chart=ChartConfig(chart_type="table", title="Error"),
-        )
+        """Process a natural language analytics question."""
+        return await run_analytics_query(question, session, session_id)

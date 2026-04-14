@@ -29,10 +29,9 @@ class TestSummarizationBehavior:
         financially significant details for downstream classification.
         Category: summarization
         """
-        from src.agents.summarizer import SummarizerSubagent
+        from src.agents.summarizer import summarize_document
 
-        summarizer = SummarizerSubagent()
-        result = await summarizer.summarize(lpa_parsed_content)
+        result = await summarize_document(lpa_parsed_content)
 
         summary_lower = result.summary.lower()
         keywords = lpa_document["expected_summary_keywords"]
@@ -46,9 +45,7 @@ class TestSummarizationBehavior:
         eval_metrics.finish()
 
         coverage = len(found) / len(keywords)
-        assert coverage >= 0.6, (
-            f"Only {coverage:.0%} keyword coverage. Missing: {missing}"
-        )
+        assert coverage >= 0.6, f"Only {coverage:.0%} keyword coverage. Missing: {missing}"
 
     async def test_summary_not_empty_or_trivial(
         self,
@@ -60,18 +57,13 @@ class TestSummarizationBehavior:
         Measures: Summary completeness — must provide meaningful detail.
         Category: summarization
         """
-        from src.agents.summarizer import SummarizerSubagent
+        from src.agents.summarizer import summarize_document
 
-        summarizer = SummarizerSubagent()
-        result = await summarizer.summarize(lpa_parsed_content)
+        result = await summarize_document(lpa_parsed_content)
 
         eval_metrics.record("summary_length", len(result.summary))
         eval_metrics.record("topics_count", len(result.key_topics))
         eval_metrics.finish()
 
-        assert len(result.summary) > 200, (
-            f"Summary too short: {len(result.summary)} chars"
-        )
-        assert len(result.key_topics) >= 2, (
-            f"Too few topics: {result.key_topics}"
-        )
+        assert len(result.summary) > 200, f"Summary too short: {len(result.summary)} chars"
+        assert len(result.key_topics) >= 2, f"Too few topics: {result.key_topics}"

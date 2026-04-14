@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import hashlib
 import json
 import logging
 import uuid
@@ -11,7 +10,7 @@ from typing import Any
 
 import aiofiles
 
-from src.agents.summarizer import SummarizerSubagent
+from src.agents.summarizer import summarize_document
 
 logger = logging.getLogger(__name__)
 
@@ -22,9 +21,7 @@ class SummaryService:
     def __init__(
         self,
         summary_dir: str = "./data/summary",
-        summarizer: SummarizerSubagent | None = None,
     ) -> None:
-        self._summarizer = summarizer or SummarizerSubagent()
         self._summary_dir = Path(summary_dir)
         self._summary_dir.mkdir(parents=True, exist_ok=True)
 
@@ -52,7 +49,7 @@ class SummaryService:
             doc_id,
             len(parsed_content),
         )
-        result = await self._summarizer.summarize(parsed_content)
+        result = await summarize_document(parsed_content)
 
         summary_data: dict[str, Any] = {
             "document_id": str(doc_id),
@@ -89,4 +86,6 @@ class SummaryService:
 
     @staticmethod
     def _compute_hash(content: str) -> str:
-        return hashlib.sha256(content.encode()).hexdigest()
+        from src.services.hashing import compute_content_hash
+
+        return compute_content_hash(content)

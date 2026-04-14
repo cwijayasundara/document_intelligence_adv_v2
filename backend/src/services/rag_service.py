@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from src.agents.rag_retriever import RAGRetrieverSubagent
+from src.agents.rag_retriever import generate_answer, retrieve_chunks
 from src.rag.weaviate_client import WeaviateClient
 
 logger = logging.getLogger(__name__)
@@ -22,7 +22,6 @@ class RAGService:
 
     def __init__(self, weaviate_client: WeaviateClient) -> None:
         self._weaviate = weaviate_client
-        self._retriever = RAGRetrieverSubagent(weaviate_client)
 
     async def query(
         self,
@@ -58,7 +57,8 @@ class RAGService:
             top_k,
         )
 
-        chunks = self._retriever.retrieve(
+        chunks = retrieve_chunks(
+            weaviate_client=self._weaviate,
             query=query,
             top_k=top_k,
             document_id=doc_id,
@@ -90,9 +90,20 @@ class RAGService:
             session_id or "none",
             len(conversation_history),
         )
-        answer = await self._retriever.generate_answer(
-            query, chunks, conversation_history=conversation_history
-        )
+        # Use agentic RAG for richer answers (query reformulation, multi-tool)
+        try:
+            from src.rag.agent import agentic_rag_query
+
+            answer = await agentic_rag_query(
+                query=query,
+                weaviate_client=self._weaviate,
+                document_id=doc_id,
+                category_filter=category,
+                conversation_history=conversation_history,
+            )
+        except Exception as exc:
+            logger.warning("Agentic RAG failed, falling back to basic: %s", exc)
+            answer = await generate_answer(query, chunks, conversation_history=conversation_history)
 
         # Save to short-term memory
         if session_id:
@@ -102,38 +113,20 @@ class RAGService:
 
         # Save query pattern to long-term memory (fire-and-forget)
         try:
-            from src.agents.memory.long_term import PostgresLongTermMemory
-            from src.db.connection import get_session_factory
+            from src.agents.memory.store import save_correction
 
-            factory = get_session_factory()
-            async with factory() as ltm_session:
-                ltm = PostgresLongTermMemory(ltm_session)
-                await ltm.put(
-                    namespace="rag_query_patterns",
-                    key=f"q_{hash(query) % 100000}",
-                    data={"query": query, "scope": scope, "chunks": len(chunks)},
-                )
-                await ltm_session.commit()
+            await save_correction(
+                user_id="system",
+                correction_type="rag_query_patterns",
+                key=f"q_{hash(query) % 100000}",
+                data={"query": query, "scope": scope, "chunks": len(chunks)},
+            )
         except Exception:
             pass  # Non-critical — don't fail the request
 
-        citations = []
-        for c in chunks:
-            section_parts = []
-            for key in ("header_1", "header_2", "header_3"):
-                val = c.metadata.get(key)
-                if val:
-                    section_parts.append(val)
-            citations.append(
-                {
-                    "chunk_text": c.chunk_text,
-                    "document_name": c.document_name,
-                    "document_id": str(c.document_id),
-                    "chunk_index": c.chunk_index,
-                    "relevance_score": float(c.relevance_score),
-                    "section": " > ".join(section_parts),
-                }
-            )
+        from src.rag.formatting import build_citation
+
+        citations = [build_citation(c) for c in chunks]
 
         return {
             "answer": answer,

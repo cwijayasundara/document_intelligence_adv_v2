@@ -23,6 +23,10 @@ backend/data/
 
 # Node
 node_modules/
+node_modules */
+
+# Internal planning artifacts
+plans/
 
 # Vite
 frontend/dist/
