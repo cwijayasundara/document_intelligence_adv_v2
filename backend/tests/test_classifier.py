@@ -5,12 +5,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.classifier import (
+from src.graph_nodes.classifier import (
     _build_prompt,
     _get_filename_hint,
     classify_document,
 )
-from src.agents.schemas.classification import ClassificationResult
+from src.graph_nodes.schemas.classification import ClassificationResult
 
 
 def _mk_llm(result: ClassificationResult | None) -> MagicMock:
@@ -52,9 +52,9 @@ class TestClassifyDocument:
         )
         mock_llm = _mk_llm(expected)
         with (
-            patch("src.agents.classifier.get_llm", return_value=mock_llm),
+            patch("src.graph_nodes.classifier.get_llm", return_value=mock_llm),
             patch(
-                "src.agents.classifier._load_learned_corrections",
+                "src.graph_nodes.classifier._load_learned_corrections",
                 return_value="",
             ),
         ):
@@ -90,9 +90,9 @@ class TestClassifyDocument:
         )
         mock_llm = _mk_llm(expected)
         with (
-            patch("src.agents.classifier.get_llm", return_value=mock_llm),
+            patch("src.graph_nodes.classifier.get_llm", return_value=mock_llm),
             patch(
-                "src.agents.classifier._load_learned_corrections",
+                "src.graph_nodes.classifier._load_learned_corrections",
                 return_value="",
             ),
         ):
@@ -115,9 +115,9 @@ class TestClassifyDocument:
         """If structured output returns None, fallback parser kicks in."""
         mock_llm = _mk_llm(None)
         with (
-            patch("src.agents.classifier.get_llm", return_value=mock_llm),
+            patch("src.graph_nodes.classifier.get_llm", return_value=mock_llm),
             patch(
-                "src.agents.classifier._load_learned_corrections",
+                "src.graph_nodes.classifier._load_learned_corrections",
                 return_value="",
             ),
         ):

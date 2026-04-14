@@ -119,7 +119,7 @@ class TestRAGBehavior:
         Measures: Multi-turn memory — agent remembers previous Q&A.
         Category: rag, memory
         """
-        from src.agents.memory import get_short_term_memory
+        from src.graph_nodes.memory import get_short_term_memory
 
         memory = get_short_term_memory()
         session_id = "eval_multiturn_test"

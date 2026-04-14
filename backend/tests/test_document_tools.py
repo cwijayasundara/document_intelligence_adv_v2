@@ -1,6 +1,6 @@
 """Tests for placeholder document tools."""
 
-from src.agents.tools.document_tools import (
+from src.graph_nodes.tools.document_tools import (
     get_document_status,
     get_parsed_content,
     list_documents,

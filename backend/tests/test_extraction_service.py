@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.schemas.extraction import (
+from src.graph_nodes.schemas.extraction import (
     ExtractedField,
     ExtractionResult,
     FieldEvaluation,
@@ -163,8 +163,8 @@ class TestExtractionService:
     async def test_default_constructor(self) -> None:
         """Test default constructor creates real subagents."""
         with (
-            patch("src.agents.extractor.create_deep_agent", return_value=MagicMock()),
-            patch("src.agents.judge.create_deep_agent", return_value=MagicMock()),
+            patch("src.graph_nodes.extractor.create_deep_agent", return_value=MagicMock()),
+            patch("src.graph_nodes.judge.create_deep_agent", return_value=MagicMock()),
         ):
             service = ExtractionService()
             assert service._extractor is not None

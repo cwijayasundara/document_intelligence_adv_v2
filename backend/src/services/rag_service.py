@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from src.agents.rag_retriever import generate_answer, retrieve_chunks
+from src.graph_nodes.rag_retriever import generate_answer, retrieve_chunks
 from src.rag.weaviate_client import WeaviateClient
 
 logger = logging.getLogger(__name__)
@@ -79,7 +79,7 @@ class RAGService:
         # Load conversation history for multi-turn context
         conversation_history = ""
         if session_id:
-            from src.agents.memory import get_short_term_memory
+            from src.graph_nodes.memory import get_short_term_memory
 
             memory = get_short_term_memory()
             conversation_history = memory.get_conversation_summary(session_id)
@@ -113,7 +113,7 @@ class RAGService:
 
         # Save query pattern to long-term memory (fire-and-forget)
         try:
-            from src.agents.memory.store import save_correction
+            from src.graph_nodes.memory.store import save_correction
 
             await save_correction(
                 user_id="system",

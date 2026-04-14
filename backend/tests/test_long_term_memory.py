@@ -3,7 +3,7 @@
 import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.agents.memory.long_term import PostgresLongTermMemory
+from src.graph_nodes.memory.long_term import PostgresLongTermMemory
 from src.db.repositories.memory import (
     ConversationSummaryRepository,
     MemoryEntryRepository,

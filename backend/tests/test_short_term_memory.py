@@ -1,6 +1,6 @@
 """Tests for short-term memory."""
 
-from src.agents.memory.short_term import MessageRole, ShortTermMemory
+from src.graph_nodes.memory.short_term import MessageRole, ShortTermMemory
 
 
 class TestShortTermMemory:

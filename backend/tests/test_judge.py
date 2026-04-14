@@ -4,13 +4,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.judge import (
+from src.graph_nodes.judge import (
     _assess_confidence,
     _build_prompt,
     _default_reasoning,
     judge_extraction,
 )
-from src.agents.schemas.extraction import (
+from src.graph_nodes.schemas.extraction import (
     ExtractedField,
     FieldEvaluation,
     JudgeResult,
@@ -49,7 +49,7 @@ class TestJudgeExtraction:
         self, sample_fields: list[ExtractedField], sample_content: str
     ) -> None:
         """When LLM call fails, heuristic fallback returns a JudgeResult."""
-        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+        with patch("src.graph_nodes.judge.get_llm", side_effect=Exception("LLM unavailable")):
             result = await judge_extraction(sample_fields, sample_content)
 
         assert isinstance(result, JudgeResult)
@@ -59,7 +59,7 @@ class TestJudgeExtraction:
     async def test_field_names_match(
         self, sample_fields: list[ExtractedField], sample_content: str
     ) -> None:
-        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+        with patch("src.graph_nodes.judge.get_llm", side_effect=Exception("LLM unavailable")):
             result = await judge_extraction(sample_fields, sample_content)
 
         names = {e.field_name for e in result.evaluations}
@@ -69,7 +69,7 @@ class TestJudgeExtraction:
     async def test_valid_confidence_levels(
         self, sample_fields: list[ExtractedField], sample_content: str
     ) -> None:
-        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+        with patch("src.graph_nodes.judge.get_llm", side_effect=Exception("LLM unavailable")):
             result = await judge_extraction(sample_fields, sample_content)
 
         valid = {"high", "medium", "low"}
@@ -80,7 +80,7 @@ class TestJudgeExtraction:
     async def test_high_confidence_when_value_in_source(
         self, sample_fields: list[ExtractedField], sample_content: str
     ) -> None:
-        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+        with patch("src.graph_nodes.judge.get_llm", side_effect=Exception("LLM unavailable")):
             result = await judge_extraction(sample_fields, sample_content)
 
         fund_eval = next(e for e in result.evaluations if e.field_name == "fund_name")
@@ -95,7 +95,7 @@ class TestJudgeExtraction:
                 source_text="",
             ),
         ]
-        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+        with patch("src.graph_nodes.judge.get_llm", side_effect=Exception("LLM unavailable")):
             result = await judge_extraction(fields, sample_content)
 
         assert result.evaluations[0].confidence == "low"
@@ -104,7 +104,7 @@ class TestJudgeExtraction:
     async def test_reasoning_provided(
         self, sample_fields: list[ExtractedField], sample_content: str
     ) -> None:
-        with patch("src.agents.judge.get_llm", side_effect=Exception("LLM unavailable")):
+        with patch("src.graph_nodes.judge.get_llm", side_effect=Exception("LLM unavailable")):
             result = await judge_extraction(sample_fields, sample_content)
 
         for ev in result.evaluations:
@@ -136,7 +136,7 @@ class TestJudgeExtraction:
         mock_llm = MagicMock()
         mock_llm.with_structured_output.return_value = mock_structured
 
-        with patch("src.agents.judge.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.judge.get_llm", return_value=mock_llm):
             result = await judge_extraction(sample_fields, sample_content)
 
         assert result is expected

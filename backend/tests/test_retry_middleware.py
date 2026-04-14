@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.middleware.retry import (
+from src.graph_nodes.middleware.retry import (
     LLMRetryError,
     LLMRetryMiddleware,
 )

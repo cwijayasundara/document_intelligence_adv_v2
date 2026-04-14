@@ -4,8 +4,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.extractor import _build_prompt, build_dynamic_model, extract_fields
-from src.agents.schemas.extraction import ExtractionResult
+from src.graph_nodes.extractor import _build_prompt, build_dynamic_model, extract_fields
+from src.graph_nodes.schemas.extraction import ExtractionResult
 
 
 class TestBuildDynamicModel:
@@ -90,7 +90,7 @@ class TestExtractFields:
         structured.management_fee_source = "Management Fee: 2.0% per annum"
 
         mock_llm = self._mk_llm(structured)
-        with patch("src.agents.extractor.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.extractor.get_llm", return_value=mock_llm):
             result = await extract_fields(self.sample_content, self.sample_fields)
         assert isinstance(result, ExtractionResult)
         assert len(result.fields) == 2
@@ -104,7 +104,7 @@ class TestExtractFields:
         structured.management_fee_source = "source"
 
         mock_llm = self._mk_llm(structured)
-        with patch("src.agents.extractor.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.extractor.get_llm", return_value=mock_llm):
             result = await extract_fields(self.sample_content, self.sample_fields)
         field_names = {f.field_name for f in result.fields}
         expected = {"fund_name", "management_fee"}
@@ -119,7 +119,7 @@ class TestExtractFields:
         structured.management_fee_source = "s"
 
         mock_llm = self._mk_llm(structured)
-        with patch("src.agents.extractor.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.extractor.get_llm", return_value=mock_llm):
             content = "SSN: 123-45-6789\n" + self.sample_content
             await extract_fields(content, self.sample_fields)
 

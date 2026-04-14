@@ -98,7 +98,7 @@ class TestAnalyticsBehavior:
         Measures: Memory-first routing — conversational questions skip SQL.
         Category: analytics, memory
         """
-        from src.agents.memory import get_short_term_memory
+        from src.graph_nodes.memory import get_short_term_memory
 
         memory = get_short_term_memory()
         session_id = "eval_analytics_memory"

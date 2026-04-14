@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from src.agents.middleware.pii_filter import PIIFilterMiddleware
+from src.graph_nodes.middleware.pii_filter import PIIFilterMiddleware
 
 
 class PIILogFilter(logging.Filter):

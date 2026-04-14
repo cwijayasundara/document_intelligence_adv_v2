@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from src.agents.schemas.summary import SummaryResult
-from src.agents.summarizer import _extract_topics, summarize_document
+from src.graph_nodes.schemas.summary import SummaryResult
+from src.graph_nodes.summarizer import _extract_topics, summarize_document
 from src.services.summarize_service import SummaryService
 
 
@@ -35,7 +35,7 @@ class TestSummarizeDocument:
     async def test_summarize_returns_result(self) -> None:
         expected = SummaryResult(summary="Test summary", key_topics=["fund"])
         mock_llm = _mk_llm(expected)
-        with patch("src.agents.summarizer.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.summarizer.get_llm", return_value=mock_llm):
             result = await summarize_document(self.sample_content)
         assert isinstance(result, SummaryResult)
         assert result.summary == "Test summary"
@@ -43,7 +43,7 @@ class TestSummarizeDocument:
     @pytest.mark.asyncio
     async def test_summarize_fallback_on_error(self) -> None:
         mock_llm = _mk_llm(None, raise_exc=Exception("parse error"))
-        with patch("src.agents.summarizer.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.summarizer.get_llm", return_value=mock_llm):
             result = await summarize_document(self.sample_content)
         assert isinstance(result, SummaryResult)
         assert len(result.key_topics) > 0
@@ -52,7 +52,7 @@ class TestSummarizeDocument:
     async def test_summarize_applies_pii_filter(self) -> None:
         expected = SummaryResult(summary="Redacted summary", key_topics=["general"])
         mock_llm = _mk_llm(expected)
-        with patch("src.agents.summarizer.get_llm", return_value=mock_llm):
+        with patch("src.graph_nodes.summarizer.get_llm", return_value=mock_llm):
             content = "SSN: 123-45-6789\n" + self.sample_content
             await summarize_document(content)
 

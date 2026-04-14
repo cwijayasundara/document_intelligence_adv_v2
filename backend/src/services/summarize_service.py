@@ -10,7 +10,7 @@ from typing import Any
 
 import aiofiles
 
-from src.agents.summarizer import summarize_document
+from src.graph_nodes.summarizer import summarize_document
 
 logger = logging.getLogger(__name__)
 

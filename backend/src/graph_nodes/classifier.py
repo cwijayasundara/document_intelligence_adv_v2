@@ -14,10 +14,10 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from src.agents.llm import get_llm
-from src.agents.middleware.decorators import with_retry, with_telemetry
-from src.agents.middleware.pii_filter import PIIFilterMiddleware
-from src.agents.schemas.classification import ClassificationResult
+from src.graph_nodes.llm import get_llm
+from src.graph_nodes.middleware.decorators import with_retry, with_telemetry
+from src.graph_nodes.middleware.pii_filter import PIIFilterMiddleware
+from src.graph_nodes.schemas.classification import ClassificationResult
 
 logger = logging.getLogger(__name__)
 
@@ -203,7 +203,7 @@ def _parse_fallback(
 async def _load_learned_corrections(file_name: str) -> str:
     """Load classification corrections from long-term memory."""
     try:
-        from src.agents.memory.store import load_corrections
+        from src.graph_nodes.memory.store import load_corrections
 
         entries = await load_corrections(
             user_id="system", correction_type="classification"

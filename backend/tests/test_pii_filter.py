@@ -4,13 +4,13 @@ import logging
 
 import pytest
 
-from src.agents.middleware.pii_filter import (
+from src.graph_nodes.middleware.pii_filter import (
     PIIDetectedError,
     PIIFilterMiddleware,
     PIIFilterResult,
     PIIStrategy,
 )
-from src.agents.middleware.pii_log_filter import PIILogFilter
+from src.graph_nodes.middleware.pii_log_filter import PIILogFilter
 
 # Test PII values constructed at runtime to avoid secret-detection hooks.
 _SSN = "-".join(["123", "45", "6789"])

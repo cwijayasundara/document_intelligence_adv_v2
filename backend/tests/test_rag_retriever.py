@@ -29,7 +29,7 @@ class TestRetrieveChunks:
             ]
         )
 
-        from src.agents.rag_retriever import retrieve_chunks
+        from src.graph_nodes.rag_retriever import retrieve_chunks
 
         results = retrieve_chunks(weaviate, query="management fee", top_k=5, document_id="doc-1")
         assert len(results) == 1
@@ -41,7 +41,7 @@ class TestRetrieveChunks:
         weaviate = WeaviateClient(url="http://test:8080")
         await weaviate.connect()
 
-        from src.agents.rag_retriever import retrieve_chunks
+        from src.graph_nodes.rag_retriever import retrieve_chunks
 
         results = retrieve_chunks(weaviate, query="test", top_k=5)
         assert results == []
@@ -63,12 +63,12 @@ class TestRetrieveChunks:
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "The fee is 2% per annum based on the LPA."
 
-        with patch("src.agents.rag_retriever.AsyncOpenAI") as mock_openai_cls:
+        with patch("src.graph_nodes.rag_retriever.AsyncOpenAI") as mock_openai_cls:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai_cls.return_value = mock_client
 
-            from src.agents.rag_retriever import generate_answer
+            from src.graph_nodes.rag_retriever import generate_answer
 
             answer = await generate_answer("What is the fee?", chunks)
 
@@ -101,7 +101,7 @@ class TestRAGService:
         mock_response.choices = [MagicMock()]
         mock_response.choices[0].message.content = "Commitment period is 5 years."
 
-        with patch("src.agents.rag_retriever.AsyncOpenAI") as mock_openai_cls:
+        with patch("src.graph_nodes.rag_retriever.AsyncOpenAI") as mock_openai_cls:
             mock_client = AsyncMock()
             mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
             mock_openai_cls.return_value = mock_client

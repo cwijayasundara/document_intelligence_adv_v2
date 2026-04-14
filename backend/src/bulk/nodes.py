@@ -125,7 +125,7 @@ async def classify_node(state: DocumentState) -> dict[str, Any]:
     doc_id = state.get("document_id", "")
 
     try:
-        from src.agents.classifier import classify_document
+        from src.graph_nodes.classifier import classify_document
 
         result = await classify_document(
             file_name=state.get("file_name", "unknown"),

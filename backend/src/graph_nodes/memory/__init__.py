@@ -4,7 +4,7 @@ Short-term: in-memory per-session conversation history (singleton).
 Long-term: PostgreSQL-backed persistent storage (per DB session).
 """
 
-from src.agents.memory.short_term import ShortTermMemory
+from src.graph_nodes.memory.short_term import ShortTermMemory
 
 # Global singleton — shared across all requests, scoped by session_id
 _short_term: ShortTermMemory | None = None

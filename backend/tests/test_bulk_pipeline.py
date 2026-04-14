@@ -84,7 +84,7 @@ class TestNodes:
         """Classify node calls ClassifierSubagent and returns result."""
         import uuid
 
-        from src.agents.schemas.classification import ClassificationResult
+        from src.graph_nodes.schemas.classification import ClassificationResult
 
         mock_instance = AsyncMock()
         mock_instance.classify.return_value = ClassificationResult(
@@ -108,7 +108,7 @@ class TestNodes:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ExtractorSubagent")
     async def test_extract_node(self, mock_cls: AsyncMock) -> None:
-        from src.agents.schemas.extraction import ExtractionResult
+        from src.graph_nodes.schemas.extraction import ExtractionResult
 
         mock_instance = AsyncMock()
         mock_instance.extract.return_value = ExtractionResult(fields=[])
@@ -125,9 +125,9 @@ class TestNodes:
         assert result["extraction_results"] == []
 
     @pytest.mark.asyncio
-    @patch("src.agents.judge.judge_extraction")
+    @patch("src.graph_nodes.judge.judge_extraction")
     async def test_judge_node(self, mock_judge: AsyncMock) -> None:
-        from src.agents.schemas.extraction import JudgeResult
+        from src.graph_nodes.schemas.extraction import JudgeResult
 
         mock_judge.return_value = JudgeResult(evaluations=[])
 
@@ -144,7 +144,7 @@ class TestNodes:
     @pytest.mark.asyncio
     @patch("src.services.summarize_service.summarize_document")
     async def test_summarize_node(self, mock_cls: AsyncMock) -> None:
-        from src.agents.schemas.summary import SummaryResult
+        from src.graph_nodes.schemas.summary import SummaryResult
 
         mock_instance = AsyncMock()
         mock_instance.summarize.return_value = SummaryResult(
@@ -211,7 +211,7 @@ class TestNodes:
     async def test_classify_node_result_shape(self, mock_cls: AsyncMock) -> None:
         import uuid
 
-        from src.agents.schemas.classification import ClassificationResult
+        from src.graph_nodes.schemas.classification import ClassificationResult
 
         mock_instance = AsyncMock()
         mock_instance.classify.return_value = ClassificationResult(
@@ -234,7 +234,7 @@ class TestNodes:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ExtractorSubagent")
     async def test_extract_node_result_shape(self, mock_cls: AsyncMock) -> None:
-        from src.agents.schemas.extraction import ExtractionResult
+        from src.graph_nodes.schemas.extraction import ExtractionResult
 
         mock_instance = AsyncMock()
         mock_instance.extract.return_value = ExtractionResult(fields=[])
@@ -251,9 +251,9 @@ class TestNodes:
         assert "extract" in result["node_timings"]
 
     @pytest.mark.asyncio
-    @patch("src.agents.judge.judge_extraction")
+    @patch("src.graph_nodes.judge.judge_extraction")
     async def test_judge_node_result_shape(self, mock_judge: AsyncMock) -> None:
-        from src.agents.schemas.extraction import JudgeResult
+        from src.graph_nodes.schemas.extraction import JudgeResult
 
         mock_judge.return_value = JudgeResult(evaluations=[])
 
@@ -302,7 +302,7 @@ class TestPipeline:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.agents.judge.judge_extraction")
+    @patch("src.graph_nodes.judge.judge_extraction")
     @patch("src.services.summarize_service.summarize_document")
     async def test_run_single_document(
         self,
@@ -313,9 +313,9 @@ class TestPipeline:
     ) -> None:
         import uuid
 
-        from src.agents.schemas.classification import ClassificationResult
-        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
-        from src.agents.schemas.summary import SummaryResult
+        from src.graph_nodes.schemas.classification import ClassificationResult
+        from src.graph_nodes.schemas.extraction import ExtractionResult, JudgeResult
+        from src.graph_nodes.schemas.summary import SummaryResult
 
         # Setup mocks
         mock_classifier.return_value.classify = AsyncMock(
@@ -340,7 +340,7 @@ class TestPipeline:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.agents.judge.judge_extraction")
+    @patch("src.graph_nodes.judge.judge_extraction")
     @patch("src.services.summarize_service.summarize_document")
     async def test_run_bulk_pipeline(
         self,
@@ -351,9 +351,9 @@ class TestPipeline:
     ) -> None:
         import uuid
 
-        from src.agents.schemas.classification import ClassificationResult
-        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
-        from src.agents.schemas.summary import SummaryResult
+        from src.graph_nodes.schemas.classification import ClassificationResult
+        from src.graph_nodes.schemas.extraction import ExtractionResult, JudgeResult
+        from src.graph_nodes.schemas.summary import SummaryResult
 
         mock_classifier.return_value.classify = AsyncMock(
             return_value=ClassificationResult(
@@ -384,7 +384,7 @@ class TestPipeline:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.agents.judge.judge_extraction")
+    @patch("src.graph_nodes.judge.judge_extraction")
     @patch("src.services.summarize_service.summarize_document")
     async def test_pipeline_timing(
         self,
@@ -395,9 +395,9 @@ class TestPipeline:
     ) -> None:
         import uuid
 
-        from src.agents.schemas.classification import ClassificationResult
-        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
-        from src.agents.schemas.summary import SummaryResult
+        from src.graph_nodes.schemas.classification import ClassificationResult
+        from src.graph_nodes.schemas.extraction import ExtractionResult, JudgeResult
+        from src.graph_nodes.schemas.summary import SummaryResult
 
         mock_classifier.return_value.classify = AsyncMock(
             return_value=ClassificationResult(
@@ -432,7 +432,7 @@ class TestPipeline:
     @patch("src.bulk.pipeline.create_checkpointer", new_callable=AsyncMock)
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.agents.judge.judge_extraction")
+    @patch("src.graph_nodes.judge.judge_extraction")
     @patch("src.services.summarize_service.summarize_document")
     async def test_run_bulk_pipeline_with_db_url(
         self,
@@ -447,9 +447,9 @@ class TestPipeline:
 
         from langgraph.checkpoint.memory import MemorySaver
 
-        from src.agents.schemas.classification import ClassificationResult
-        from src.agents.schemas.extraction import ExtractionResult, JudgeResult
-        from src.agents.schemas.summary import SummaryResult
+        from src.graph_nodes.schemas.classification import ClassificationResult
+        from src.graph_nodes.schemas.extraction import ExtractionResult, JudgeResult
+        from src.graph_nodes.schemas.summary import SummaryResult
 
         mock_create_cp.return_value = MemorySaver()
 

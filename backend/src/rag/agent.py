@@ -19,8 +19,8 @@ import uuid
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import tool
 
-from src.agents.llm import get_llm
-from src.agents.middleware.pii_filter import PIIFilterMiddleware
+from src.graph_nodes.llm import get_llm
+from src.graph_nodes.middleware.pii_filter import PIIFilterMiddleware
 from src.rag.weaviate_client import WeaviateClient
 
 logger = logging.getLogger(__name__)
@@ -69,7 +69,7 @@ def _create_tools(
     category_filter: str | None = None,
 ) -> list:
     """Create tools for the RAG agent scoped to the query context."""
-    from src.agents.rag_retriever import retrieve_chunks
+    from src.graph_nodes.rag_retriever import retrieve_chunks
 
     @tool
     async def search_documents(query: str) -> str:

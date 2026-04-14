@@ -29,7 +29,7 @@ class TestClassificationBehavior:
         Measures: Core classification accuracy for the primary document type.
         Category: classification
         """
-        from src.agents.classifier import ClassifierSubagent
+        from src.graph_nodes.classifier import ClassifierSubagent
 
         classifier = ClassifierSubagent()
         result = await classifier.classify(
@@ -62,7 +62,7 @@ class TestClassificationBehavior:
         Measures: File name heuristic contributes positively to classification.
         Category: classification
         """
-        from src.agents.classifier import ClassifierSubagent
+        from src.graph_nodes.classifier import ClassifierSubagent
 
         classifier = ClassifierSubagent()
 
@@ -96,7 +96,7 @@ class TestClassificationBehavior:
         Measures: Classifier doesn't force-fit non-PE content into PE categories.
         Category: classification
         """
-        from src.agents.classifier import ClassifierSubagent
+        from src.graph_nodes.classifier import ClassifierSubagent
 
         neg = ground_truth["negative_cases"]["classification"][0]
         classifier = ClassifierSubagent()

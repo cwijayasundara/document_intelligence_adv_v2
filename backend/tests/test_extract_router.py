@@ -48,8 +48,8 @@ class TestExtractHelpers:
 
         extract_mod._extraction_service = None  # reset singleton
         with (
-            patch("src.agents.extractor.create_deep_agent", return_value=MagicMock()),
-            patch("src.agents.judge.create_deep_agent", return_value=MagicMock()),
+            patch("src.graph_nodes.extractor.create_deep_agent", return_value=MagicMock()),
+            patch("src.graph_nodes.judge.create_deep_agent", return_value=MagicMock()),
         ):
             from src.api.routers.extract import _get_extraction_service
 

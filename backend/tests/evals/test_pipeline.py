@@ -25,8 +25,8 @@ class TestPipelineBehavior:
         Measures: Confidence calibration — high confidence should mean correct.
         Category: pipeline, judge
         """
-        from src.agents.extractor import ExtractorSubagent
-        from src.agents.judge import judge_extraction
+        from src.graph_nodes.extractor import ExtractorSubagent
+        from src.graph_nodes.judge import judge_extraction
 
         fields = [
             {"field_name": "fund_name", "data_type": "string",

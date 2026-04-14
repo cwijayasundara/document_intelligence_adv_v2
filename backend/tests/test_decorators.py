@@ -2,20 +2,20 @@
 
 These tests cover the decorator-like middleware behaviours that wrap
 agent and LLM calls: retry with backoff, rate limiting, and PII
-redaction. The underlying classes live in src.agents.middleware.
+redaction. The underlying classes live in src.graph_nodes.middleware.
 """
 
 from __future__ import annotations
 
 import pytest
 
-from src.agents.middleware.pii_filter import (
+from src.graph_nodes.middleware.pii_filter import (
     PIIDetectedError,
     PIIFilterMiddleware,
     PIIStrategy,
 )
-from src.agents.middleware.rate_limit import AgentRateLimiter, AgentRateLimitError
-from src.agents.middleware.retry import LLMRetryError, LLMRetryMiddleware
+from src.graph_nodes.middleware.rate_limit import AgentRateLimiter, AgentRateLimitError
+from src.graph_nodes.middleware.retry import LLMRetryError, LLMRetryMiddleware
 
 # ---------------------------------------------------------------------------
 # Helpers

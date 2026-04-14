@@ -7,7 +7,7 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
-from src.agents.schemas.classification import ClassificationResult
+from src.graph_nodes.schemas.classification import ClassificationResult
 from src.api.app import create_app
 from src.api.dependencies import get_session
 from tests.db_helpers import TEST_BASE_URL

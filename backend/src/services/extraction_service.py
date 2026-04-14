@@ -14,8 +14,8 @@ from typing import Any
 
 import aiofiles
 
-from src.agents.extractor import extract_fields
-from src.agents.judge import judge_extraction
+from src.graph_nodes.extractor import extract_fields
+from src.graph_nodes.judge import judge_extraction
 
 logger = logging.getLogger(__name__)
 

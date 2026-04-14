@@ -4,7 +4,7 @@ Provides a provider-agnostic way to create chat models with
 structured output, tool binding, and built-in retry support.
 
 Usage:
-    from src.agents.llm import get_llm
+    from src.graph_nodes.llm import get_llm
 
     # Plain LLM
     llm = get_llm()

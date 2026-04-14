@@ -29,7 +29,7 @@ class TestSummarizationBehavior:
         financially significant details for downstream classification.
         Category: summarization
         """
-        from src.agents.summarizer import summarize_document
+        from src.graph_nodes.summarizer import summarize_document
 
         result = await summarize_document(lpa_parsed_content)
 
@@ -57,7 +57,7 @@ class TestSummarizationBehavior:
         Measures: Summary completeness — must provide meaningful detail.
         Category: summarization
         """
-        from src.agents.summarizer import summarize_document
+        from src.graph_nodes.summarizer import summarize_document
 
         result = await summarize_document(lpa_parsed_content)
 

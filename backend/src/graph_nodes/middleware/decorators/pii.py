@@ -6,7 +6,7 @@ import functools
 import logging
 from typing import Any, Callable, ParamSpec, TypeVar
 
-from src.agents.middleware.pii_filter import PIIFilterMiddleware, PIIStrategy
+from src.graph_nodes.middleware.pii_filter import PIIFilterMiddleware, PIIStrategy
 
 logger = logging.getLogger(__name__)
 

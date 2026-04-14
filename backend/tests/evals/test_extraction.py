@@ -28,7 +28,7 @@ class TestExtractionBehavior:
         Measures: Extraction completeness — no fields left empty.
         Category: extraction
         """
-        from src.agents.extractor import ExtractorSubagent
+        from src.graph_nodes.extractor import ExtractorSubagent
 
         fields = [
             {"field_name": k, "data_type": "string", "description": f"Extract {k}"}
@@ -60,7 +60,7 @@ class TestExtractionBehavior:
         Measures: Critical field accuracy — fund name is the document identifier.
         Category: extraction
         """
-        from src.agents.extractor import ExtractorSubagent
+        from src.graph_nodes.extractor import ExtractorSubagent
 
         fields = [{"field_name": "fund_name", "data_type": "string",
                     "description": "The full legal name of the fund."}]
@@ -88,7 +88,7 @@ class TestExtractionBehavior:
         Measures: Source text quality — not fabricated or paraphrased.
         Category: extraction
         """
-        from src.agents.extractor import ExtractorSubagent
+        from src.graph_nodes.extractor import ExtractorSubagent
 
         fields = [{"field_name": "management_fee_rate", "data_type": "percentage",
                     "description": "Annual management fee rate."}]
@@ -125,7 +125,7 @@ class TestExtractionBehavior:
         Measures: Format validity for percentage data type fields.
         Category: extraction
         """
-        from src.agents.extractor import ExtractorSubagent
+        from src.graph_nodes.extractor import ExtractorSubagent
 
         pct_fields = ["management_fee_rate", "carried_interest_rate", "preferred_return"]
         fields = [

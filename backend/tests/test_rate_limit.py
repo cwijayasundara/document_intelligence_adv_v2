@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from src.agents.middleware.rate_limit import AgentRateLimiter, AgentRateLimitError
+from src.graph_nodes.middleware.rate_limit import AgentRateLimiter, AgentRateLimitError
 
 
 class TestAgentRateLimiterLLMCalls:
