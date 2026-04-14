@@ -4,13 +4,11 @@ import { useCallback, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import SummaryDisplay from "../components/summary/SummaryDisplay";
 import TopicTags from "../components/summary/TopicTags";
+import WorkflowStepper from "../components/documents/WorkflowStepper";
 import PageHeader from "../components/ui/PageHeader";
 import { useDocument } from "../hooks/useDocuments";
-import {
-  useGenerateSummary,
-  useIngestDocument,
-  useSummary,
-} from "../hooks/useSummary";
+import { useGenerateSummary, useSummary } from "../hooks/useSummary";
+import type { DocumentStatus } from "../types/common";
 
 export default function SummaryPage() {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +18,6 @@ export default function SummaryPage() {
   const { data: document } = useDocument(documentId);
   const { data: summaryData, isLoading: summaryLoading } = useSummary(documentId);
   const generateSummary = useGenerateSummary();
-  const ingestDocument = useIngestDocument();
 
   const [localSummary, setLocalSummary] = useState<string>("");
   const [localTopics, setLocalTopics] = useState<string[]>([]);
@@ -39,21 +36,22 @@ export default function SummaryPage() {
     });
   }, [documentId, generateSummary]);
 
-  const handleProceed = useCallback(async () => {
-    ingestDocument.mutate(documentId, {
-      onSuccess: () => {
-        navigate(`/documents/${documentId}/chat`);
-      },
-    });
-  }, [documentId, ingestDocument, navigate]);
+  const handleProceed = useCallback(() => {
+    navigate(`/documents/${documentId}/classify`);
+  }, [documentId, navigate]);
 
   const hasSummary = displaySummary.length > 0;
   const isGenerating = generateSummary.isPending;
-  const isIngesting = ingestDocument.isPending;
 
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Document Summary" />
+
+      <WorkflowStepper
+        documentId={documentId}
+        documentStatus={document?.status as DocumentStatus | undefined}
+        currentStep="summarize"
+      />
 
       <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-200">
         <button
@@ -72,11 +70,10 @@ export default function SummaryPage() {
         {hasSummary && (
           <button
             onClick={handleProceed}
-            disabled={isIngesting}
-            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
             data-testid="proceed-button"
           >
-            {isIngesting ? "Ingesting..." : "Proceed to Ingest & Chat"}
+            Proceed to Classify
           </button>
         )}
       </div>

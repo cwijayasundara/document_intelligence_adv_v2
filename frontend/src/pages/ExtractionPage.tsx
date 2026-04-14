@@ -3,13 +3,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ExtractionTable from "../components/extraction/ExtractionTable";
+import WorkflowStepper from "../components/documents/WorkflowStepper";
 import PageHeader from "../components/ui/PageHeader";
+import type { DocumentStatus } from "../types/common";
 import { useDocument } from "../hooks/useDocuments";
 import {
   useExtractionResults,
   useTriggerExtract,
   useUpdateExtractionResults,
 } from "../hooks/useExtraction";
+import { useIngestDocument } from "../hooks/useSummary";
 import type { ExtractionResult } from "../types/extraction";
 
 export default function ExtractionPage() {
@@ -22,6 +25,7 @@ export default function ExtractionPage() {
     useExtractionResults(documentId);
   const triggerExtract = useTriggerExtract();
   const updateResults = useUpdateExtractionResults();
+  const ingestDocument = useIngestDocument();
 
   const [localResults, setLocalResults] = useState<ExtractionResult[]>([]);
 
@@ -70,8 +74,12 @@ export default function ExtractionPage() {
   );
 
   const handleProceed = useCallback(() => {
-    navigate(`/documents/${documentId}/summary`);
-  }, [documentId, navigate]);
+    ingestDocument.mutate(documentId, {
+      onSuccess: () => {
+        navigate(`/documents/${documentId}/chat`);
+      },
+    });
+  }, [documentId, ingestDocument, navigate]);
 
   const canExtract = document?.status === "classified";
 
@@ -87,6 +95,12 @@ export default function ExtractionPage() {
     <div className="flex flex-col h-full">
       <PageHeader title="Extract Fields" />
 
+      <WorkflowStepper
+        documentId={documentId}
+        documentStatus={document?.status as DocumentStatus | undefined}
+        currentStep="extract"
+      />
+
       <div className="flex items-center gap-3 px-6 py-3 border-b border-gray-200">
         <button
           onClick={handleExtract}
@@ -100,11 +114,11 @@ export default function ExtractionPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={handleProceed}
-            disabled={!canProceed}
+            disabled={!canProceed || ingestDocument.isPending}
             className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed"
             data-testid="proceed-button"
           >
-            Save &amp; Proceed to Summary
+            {ingestDocument.isPending ? "Ingesting..." : "Ingest & Proceed to Chat"}
           </button>
           {!canProceed && localResults.length > 0 && (
             <span

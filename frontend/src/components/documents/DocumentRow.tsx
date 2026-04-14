@@ -56,6 +56,24 @@ export default function DocumentRow({
   const hasParsed = document.status !== "uploaded";
   const confidence = document.parseConfidencePct;
 
+  // Gate buttons by workflow order: Parse → Summarize → Classify → Extract → Ingest
+  const canSummarize = hasParsed && document.status !== "uploaded";
+  const hasSummary =
+    document.status === "summarized" ||
+    document.status === "classified" ||
+    document.status === "extracted" ||
+    document.status === "ingested";
+  const canClassify = hasSummary || document.status === "classified";
+  const hasClassified =
+    document.status === "classified" ||
+    document.status === "extracted" ||
+    document.status === "ingested";
+  const canExtract = hasClassified;
+  const hasExtracted =
+    document.status === "extracted" || document.status === "ingested";
+  const canIngest = hasExtracted;
+  const hasIngested = document.status === "ingested";
+
   return (
     <tr className="hover:bg-gray-50 transition-colors">
       <td className="px-6 py-4 whitespace-nowrap">
@@ -117,27 +135,12 @@ export default function DocumentRow({
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-right">
         <div className="flex items-center justify-end gap-1">
-          {hasParsed && onClassify && (
-            <button
-              onClick={() => onClassify(document.id)}
-              disabled={isClassifying}
-              className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={isClassifying ? "Classifying..." : "Classify"}
-            >
-              {isClassifying ? <SpinnerIcon /> : <TagIcon />}
-            </button>
-          )}
-          {document.documentCategoryId && onExtract && (
-            <button
-              onClick={() => onExtract(document.id)}
-              disabled={isExtracting}
-              className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={isExtracting ? "Extracting..." : "Extract"}
-            >
-              {isExtracting ? <SpinnerIcon /> : <ExtractIcon />}
-            </button>
-          )}
-          {hasParsed && document.status !== "summarized" && document.status !== "ingested" && onSummarize && (
+          {/* Step 1: Summarize (or check if done) */}
+          {hasSummary ? (
+            <span className="p-1.5 text-green-600" title="Summarized">
+              <CheckCircleIcon />
+            </span>
+          ) : canSummarize && onSummarize ? (
             <button
               onClick={() => onSummarize(document.id)}
               disabled={isSummarizing}
@@ -146,13 +149,46 @@ export default function DocumentRow({
             >
               {isSummarizing ? <SpinnerIcon /> : <SummarizeIcon />}
             </button>
-          )}
-          {(document.status === "summarized" || document.status === "ingested") && (
-            <span className="p-1.5 text-green-600" title="Summarized">
+          ) : null}
+
+          {/* Step 2: Classify (or check if done) */}
+          {hasClassified ? (
+            <span className="p-1.5 text-green-600" title="Classified">
               <CheckCircleIcon />
             </span>
-          )}
-          {hasParsed && onIngest && (
+          ) : canClassify && onClassify ? (
+            <button
+              onClick={() => onClassify(document.id)}
+              disabled={isClassifying}
+              className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={isClassifying ? "Classifying..." : "Classify"}
+            >
+              {isClassifying ? <SpinnerIcon /> : <TagIcon />}
+            </button>
+          ) : null}
+
+          {/* Step 3: Extract (or check if done) */}
+          {hasExtracted ? (
+            <span className="p-1.5 text-green-600" title="Extracted">
+              <CheckCircleIcon />
+            </span>
+          ) : canExtract && onExtract ? (
+            <button
+              onClick={() => onExtract(document.id)}
+              disabled={isExtracting}
+              className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={isExtracting ? "Extracting..." : "Extract"}
+            >
+              {isExtracting ? <SpinnerIcon /> : <ExtractIcon />}
+            </button>
+          ) : null}
+
+          {/* Step 4: Ingest (or check if done) */}
+          {hasIngested ? (
+            <span className="p-1.5 text-green-600" title="Ingested">
+              <DatabaseCheckIcon />
+            </span>
+          ) : canIngest && onIngest ? (
             <button
               onClick={() => onIngest(document.id)}
               disabled={isIngesting}
@@ -161,11 +197,13 @@ export default function DocumentRow({
             >
               {isIngesting ? <SpinnerIcon /> : <IngestIcon />}
             </button>
-          )}
+          ) : null}
+
+          {/* Continue to current step */}
           <Link
             to={actionRoute}
-            className="p-1.5 rounded-md text-primary-600 hover:bg-primary-50 hover:text-primary-800 transition-colors"
-            title="Continue"
+            className="ml-1 p-1.5 rounded-md text-primary-600 hover:bg-primary-50 hover:text-primary-800 transition-colors"
+            title="Continue workflow"
           >
             <ArrowRightIcon />
           </Link>

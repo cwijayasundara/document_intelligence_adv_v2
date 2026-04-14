@@ -34,18 +34,24 @@ export interface DocumentListResponse {
   total: number;
 }
 
-/** Map a document status to its next action route. */
+/** Map a document status to its next action route.
+ *
+ * Workflow order: Parse → Summarize → Classify → Extract → Ingest → Chat.
+ */
 export function getNextActionRoute(
   docId: string,
   status: DocumentStatus,
 ): string {
   const routes: Record<DocumentStatus, string> = {
     uploaded: `/documents/${docId}/parse`,
-    parsed: `/documents/${docId}/classify`,
-    edited: `/documents/${docId}/classify`,
+    processing: `/documents/${docId}/parse`,
+    parsed: `/documents/${docId}/summary`,
+    edited: `/documents/${docId}/summary`,
+    awaiting_parse_review: `/documents/${docId}/parse`,
+    summarized: `/documents/${docId}/classify`,
     classified: `/documents/${docId}/extract`,
-    extracted: `/documents/${docId}/summary`,
-    summarized: `/documents/${docId}/summary`,
+    extracted: `/documents/${docId}/extract`,
+    awaiting_extraction_review: `/documents/${docId}/extract`,
     ingested: `/documents/${docId}/chat`,
   };
   return routes[status] || `/documents/${docId}/parse`;

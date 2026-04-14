@@ -34,6 +34,18 @@ const statusConfig: Record<
     label: "Ingested",
     className: "bg-green-100 text-green-700",
   },
+  processing: {
+    label: "Processing",
+    className: "bg-blue-100 text-blue-700",
+  },
+  awaiting_parse_review: {
+    label: "Awaiting Parse Review",
+    className: "bg-amber-100 text-amber-700",
+  },
+  awaiting_extraction_review: {
+    label: "Awaiting Extraction Review",
+    className: "bg-amber-100 text-amber-700",
+  },
 };
 
 interface DocumentStatusBadgeProps {

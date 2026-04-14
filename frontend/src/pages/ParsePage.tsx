@@ -13,7 +13,9 @@ import ConfidenceBanner, {
 } from "../components/parse/ConfidenceBanner";
 import DocumentInfo from "../components/parse/DocumentInfo";
 import MarkdownEditor from "../components/parse/MarkdownEditor";
+import WorkflowStepper from "../components/documents/WorkflowStepper";
 import PageHeader from "../components/ui/PageHeader";
+import type { DocumentStatus } from "../types/common";
 import { useDocument } from "../hooks/useDocuments";
 import { useParseContent, useSaveEdits, useTriggerParse } from "../hooks/useParse";
 
@@ -45,7 +47,7 @@ export default function ParsePage() {
   }, [documentId, editorContent, saveEdits]);
 
   const handleProceed = useCallback(() => {
-    navigate(`/documents/${documentId}/classify`);
+    navigate(`/documents/${documentId}/summary`);
   }, [documentId, navigate]);
 
   const isParsed = document?.status === "parsed" || document?.status === "edited";
@@ -57,6 +59,12 @@ export default function ParsePage() {
   return (
     <div className="flex flex-col h-full">
       <PageHeader title="Parse & Edit Document" />
+
+      <WorkflowStepper
+        documentId={documentId}
+        documentStatus={document?.status as DocumentStatus | undefined}
+        currentStep="parse"
+      />
 
       {/* Confidence banner — shown when document is parsed */}
       {isParsed && <ConfidenceBanner confidencePct={confidencePct} />}
@@ -89,7 +97,7 @@ export default function ParsePage() {
             className="px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700"
             data-testid="proceed-button"
           >
-            Proceed to Classify
+            Proceed to Summarize
           </button>
         )}
       </div>

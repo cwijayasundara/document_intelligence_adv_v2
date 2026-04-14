@@ -107,6 +107,24 @@ function DocumentCard({
   const hasParsed = document.status !== "uploaded";
   const confidence = document.parseConfidencePct;
 
+  // Gate buttons by workflow order: Parse → Summarize → Classify → Extract → Ingest
+  const canSummarize = hasParsed;
+  const hasSummary =
+    document.status === "summarized" ||
+    document.status === "classified" ||
+    document.status === "extracted" ||
+    document.status === "ingested";
+  const canClassify = hasSummary || document.status === "classified";
+  const hasClassified =
+    document.status === "classified" ||
+    document.status === "extracted" ||
+    document.status === "ingested";
+  const canExtract = hasClassified;
+  const hasExtracted =
+    document.status === "extracted" || document.status === "ingested";
+  const canIngest = hasExtracted;
+  const hasIngested = document.status === "ingested";
+
   return (
     <div
       className={`bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow ${isSelected ? "border-primary-400 ring-2 ring-primary-100" : "border-gray-200"}`}
@@ -191,27 +209,12 @@ function DocumentCard({
       {/* Footer */}
       <div className="px-4 py-3 border-t border-gray-100 flex items-center justify-between">
         <div className="flex items-center gap-1">
-          {hasParsed && onClassify && (
-            <button
-              onClick={() => onClassify(document.id)}
-              disabled={isClassifying}
-              className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={isClassifying ? "Classifying..." : "Classify"}
-            >
-              {isClassifying ? <SpinnerIcon /> : <TagIcon />}
-            </button>
-          )}
-          {document.documentCategoryId && onExtract && (
-            <button
-              onClick={() => onExtract(document.id)}
-              disabled={isExtracting}
-              className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              title={isExtracting ? "Extracting..." : "Extract"}
-            >
-              {isExtracting ? <SpinnerIcon /> : <ExtractIcon />}
-            </button>
-          )}
-          {hasParsed && document.status !== "summarized" && document.status !== "ingested" && onSummarize && (
+          {/* Step 1: Summarize */}
+          {hasSummary ? (
+            <span className="p-1.5 text-green-600" title="Summarized">
+              <CheckCircleIcon />
+            </span>
+          ) : canSummarize && onSummarize ? (
             <button
               onClick={() => onSummarize(document.id)}
               disabled={isSummarizing}
@@ -220,13 +223,46 @@ function DocumentCard({
             >
               {isSummarizing ? <SpinnerIcon /> : <SummarizeIcon />}
             </button>
-          )}
-          {(document.status === "summarized" || document.status === "ingested") && (
-            <span className="p-1.5 text-green-600" title="Summarized">
+          ) : null}
+
+          {/* Step 2: Classify */}
+          {hasClassified ? (
+            <span className="p-1.5 text-green-600" title="Classified">
               <CheckCircleIcon />
             </span>
-          )}
-          {hasParsed && onIngest && (
+          ) : canClassify && onClassify ? (
+            <button
+              onClick={() => onClassify(document.id)}
+              disabled={isClassifying}
+              className="p-1.5 rounded-md text-indigo-600 hover:bg-indigo-50 hover:text-indigo-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={isClassifying ? "Classifying..." : "Classify"}
+            >
+              {isClassifying ? <SpinnerIcon /> : <TagIcon />}
+            </button>
+          ) : null}
+
+          {/* Step 3: Extract */}
+          {hasExtracted ? (
+            <span className="p-1.5 text-green-600" title="Extracted">
+              <CheckCircleIcon />
+            </span>
+          ) : canExtract && onExtract ? (
+            <button
+              onClick={() => onExtract(document.id)}
+              disabled={isExtracting}
+              className="p-1.5 rounded-md text-amber-600 hover:bg-amber-50 hover:text-amber-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title={isExtracting ? "Extracting..." : "Extract"}
+            >
+              {isExtracting ? <SpinnerIcon /> : <ExtractIcon />}
+            </button>
+          ) : null}
+
+          {/* Step 4: Ingest */}
+          {hasIngested ? (
+            <span className="p-1.5 text-green-600" title="Ingested">
+              <CheckCircleIcon />
+            </span>
+          ) : canIngest && onIngest ? (
             <button
               onClick={() => onIngest(document.id)}
               disabled={isIngesting}
@@ -235,7 +271,9 @@ function DocumentCard({
             >
               {isIngesting ? <SpinnerIcon /> : <IngestIcon />}
             </button>
-          )}
+          ) : null}
+
+          {/* Re-parse (always available after parse) */}
           {hasParsed && onReparse && (
             <button
               onClick={() => onReparse(document.id)}

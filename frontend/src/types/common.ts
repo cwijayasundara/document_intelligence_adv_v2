@@ -18,4 +18,7 @@ export type DocumentStatus =
   | "classified"
   | "extracted"
   | "summarized"
-  | "ingested";
+  | "ingested"
+  | "processing"
+  | "awaiting_parse_review"
+  | "awaiting_extraction_review";
