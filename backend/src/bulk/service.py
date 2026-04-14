@@ -164,6 +164,7 @@ class BulkJobService:
         # Persist results
         processed = 0
         failed = 0
+        awaiting_review = 0
 
         for result in results:
             doc_id = result.get("document_id", "")
@@ -175,8 +176,12 @@ class BulkJobService:
             if doc is None:
                 continue
 
-            is_failed = result.get("status") == "failed"
-            elapsed = int((result.get("end_time_ms", 0) - result.get("start_time_ms", 0)) * 1000)
+            result_status = result.get("status", "")
+            is_failed = result_status == "failed"
+            is_paused = result_status.startswith("awaiting_")
+            elapsed = int(
+                (result.get("end_time_ms", 0) - result.get("start_time_ms", 0)) * 1000
+            )
 
             if is_failed:
                 await self._doc_repo.update_status(
@@ -186,6 +191,14 @@ class BulkJobService:
                     processing_time_ms=elapsed,
                 )
                 failed += 1
+            elif is_paused:
+                await self._doc_repo.update_status(
+                    doc_record.id,
+                    status=result_status,
+                    processing_time_ms=elapsed,
+                )
+                doc.status = result_status
+                awaiting_review += 1
             else:
                 await self._doc_repo.update_status(
                     doc_record.id,
@@ -210,17 +223,33 @@ class BulkJobService:
                 extraction_results = result.get("extraction_results", [])
                 if extraction_results:
                     from src.db.repositories.extracted_values import ExtractedValuesRepository
+
                     ev_repo = ExtractedValuesRepository(self._session)
                     await ev_repo.save_results(uuid.UUID(doc_id), extraction_results)
 
+            # Persist pipeline node status
+            doc.pipeline_node_status = result.get("node_statuses", {})
+
             await self._session.flush()
+
+        # Determine job-level status
+        if awaiting_review > 0 and failed == 0 and processed == 0:
+            job_status = "awaiting_review"
+        elif awaiting_review > 0:
+            job_status = "awaiting_review"
+        elif failed == 0:
+            job_status = "completed"
+        elif processed > 0:
+            job_status = "partial_failure"
+        else:
+            job_status = "failed"
 
         await self._job_repo.update_status(
             job_id,
-            status="completed" if failed == 0 else "partial_failure" if processed > 0 else "failed",
+            status=job_status,
             processed_count=processed,
             failed_count=failed,
-            completed_at=datetime.now(timezone.utc),
+            completed_at=datetime.now(timezone.utc) if awaiting_review == 0 else None,
         )
         await self._session.commit()
 

@@ -181,14 +181,24 @@ async def update_extraction_results(
     unreviewed = await ev_repo.get_unreviewed_fields(doc_id)
     review_count = len(unreviewed)
 
-    if review_count > 0:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Cannot proceed: {review_count} fields require review",
-        )
+    all_reviewed = review_count == 0
+
+    # Auto-resume pipeline if all fields reviewed and pipeline is paused
+    if all_reviewed:
+        doc = await doc_repo.get_by_id(doc_id)
+        if doc and doc.pipeline_thread_id and doc.status == "awaiting_extraction_review":
+            try:
+                from src.pipeline.runner import PipelineRunner
+
+                runner = PipelineRunner()
+                await runner.resume(doc_id)
+                logger.info("Auto-resumed pipeline for document %s after extraction review", doc_id)
+            except Exception as exc:
+                logger.warning("Could not auto-resume pipeline for %s: %s", doc_id, exc)
+
     return ExtractionUpdateResponse(
         document_id=doc_id, updated_count=updated_count,
-        requires_review_count=0, all_reviewed=True, can_proceed=True,
+        requires_review_count=review_count, all_reviewed=all_reviewed, can_proceed=all_reviewed,
     )
 
 

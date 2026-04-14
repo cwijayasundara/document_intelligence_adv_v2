@@ -151,6 +151,17 @@ async def save_edited_content(
     except InvalidTransitionError as exc:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
 
+    # Auto-resume pipeline if paused at parse review gate
+    if doc.status == "edited" and doc.pipeline_thread_id:
+        try:
+            from src.pipeline.runner import PipelineRunner
+
+            runner = PipelineRunner()
+            await runner.resume(doc.id)
+            logger.info("Auto-resumed pipeline for document %s after edit", doc_id)
+        except Exception as exc:
+            logger.warning("Could not auto-resume pipeline for %s: %s", doc_id, exc)
+
     return EditContentResponse(
         document_id=doc.id,
         status=doc.status,

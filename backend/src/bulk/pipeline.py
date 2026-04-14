@@ -1,7 +1,18 @@
-"""LangGraph-based bulk processing pipeline.
+"""Unified LangGraph pipeline for document processing.
 
-Node order: parse → summarize → classify → extract → ingest → finalize.
-Supports concurrent processing of 10 documents via asyncio.Semaphore.
+Handles both single-document and bulk flows with confidence-based
+routing gates. Low-confidence documents pause for human review;
+high-confidence documents flow through automatically.
+
+Graph structure:
+    parse → [route_after_parse] → summarize → classify → extract
+                │                                           │
+                └→ await_parse_review → summarize    [route_after_extract]
+                                                            │
+                                                     ┌──────┴──────┐
+                                                  ingest    await_extraction_review
+                                                     │             │
+                                                  finalize      ingest → finalize
 """
 
 from __future__ import annotations
@@ -14,6 +25,7 @@ from typing import Any
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph
 
+from src.bulk.gates import route_after_extract, route_after_parse
 from src.bulk.nodes import (
     classify_node,
     extract_node,
@@ -23,6 +35,10 @@ from src.bulk.nodes import (
     summarize_node,
 )
 from src.bulk.state import DocumentState
+from src.bulk.wait_nodes import (
+    await_extraction_review_node,
+    await_parse_review_node,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,27 +46,51 @@ DEFAULT_CONCURRENCY = 10
 
 
 def build_pipeline(checkpointer: Any | None = None) -> Any:
-    """Build and compile the bulk processing StateGraph."""
+    """Build and compile the unified processing StateGraph."""
     graph = StateGraph(DocumentState)
 
+    # Processing nodes
     graph.add_node("parse", parse_node)
+    graph.add_node("await_parse_review", await_parse_review_node)
     graph.add_node("summarize", summarize_node)
     graph.add_node("classify", classify_node)
     graph.add_node("extract", extract_node)
+    graph.add_node("await_extraction_review", await_extraction_review_node)
     graph.add_node("ingest", ingest_node)
     graph.add_node("finalize", finalize_node)
 
-    graph.add_edge("parse", "summarize")
+    # Entry point
+    graph.set_entry_point("parse")
+
+    # Conditional edge after parse: check confidence
+    graph.add_conditional_edges(
+        "parse",
+        route_after_parse,
+        {"summarize": "summarize", "await_parse_review": "await_parse_review"},
+    )
+    graph.add_edge("await_parse_review", "summarize")
+
+    # Linear edges through classify and extract
     graph.add_edge("summarize", "classify")
     graph.add_edge("classify", "extract")
-    graph.add_edge("extract", "ingest")
-    graph.add_edge("ingest", "finalize")
 
-    graph.set_entry_point("parse")
+    # Conditional edge after extract: check review flags
+    graph.add_conditional_edges(
+        "extract",
+        route_after_extract,
+        {"ingest": "ingest", "await_extraction_review": "await_extraction_review"},
+    )
+    graph.add_edge("await_extraction_review", "ingest")
+
+    # Final edges
+    graph.add_edge("ingest", "finalize")
     graph.set_finish_point("finalize")
 
     saver = checkpointer or MemorySaver()
-    return graph.compile(checkpointer=saver)
+    return graph.compile(
+        checkpointer=saver,
+        interrupt_before=["await_parse_review", "await_extraction_review"],
+    )
 
 
 async def run_pipeline_for_document(
@@ -64,10 +104,14 @@ async def run_pipeline_for_document(
         initial_state: Pre-populated state with document info.
 
     Returns:
-        Final DocumentState after pipeline execution.
+        Final DocumentState after pipeline execution (or interrupt).
     """
     doc_id = initial_state.get("document_id", "unknown")
-    logger.info("[bulk:%s] Starting pipeline for %s", doc_id[:8], initial_state.get("file_name"))
+    logger.info(
+        "[pipeline:%s] Starting for %s",
+        doc_id[:8],
+        initial_state.get("file_name"),
+    )
 
     result = await compiled_graph.ainvoke(
         initial_state,
@@ -80,7 +124,7 @@ async def run_bulk_pipeline(
     document_states: list[DocumentState],
     concurrent_limit: int = DEFAULT_CONCURRENCY,
 ) -> list[DocumentState]:
-    """Run the bulk pipeline for multiple documents concurrently.
+    """Run the pipeline for multiple documents concurrently.
 
     Args:
         document_states: List of pre-populated DocumentState dicts.
@@ -89,15 +133,7 @@ async def run_bulk_pipeline(
     Returns:
         List of final DocumentState results.
     """
-    # Use persistent checkpointing if DB URL available
-    checkpointer = None
-    try:
-        from src.config.settings import get_settings
-        settings = get_settings()
-        if settings.database_url:
-            checkpointer = await create_checkpointer(settings.database_url_sync)
-    except Exception:
-        logger.warning("Could not create persistent checkpointer, using in-memory")
+    checkpointer = MemorySaver()
 
     compiled = build_pipeline(checkpointer=checkpointer)
     semaphore = asyncio.Semaphore(concurrent_limit)
@@ -133,5 +169,11 @@ async def run_bulk_pipeline(
 
     completed = sum(1 for s in final if s.get("status") == "completed")
     failed = sum(1 for s in final if s.get("status") == "failed")
-    logger.info("Bulk pipeline finished: %d completed, %d failed", completed, failed)
+    paused = sum(1 for s in final if s.get("status", "").startswith("awaiting_"))
+    logger.info(
+        "Bulk pipeline finished: %d completed, %d failed, %d awaiting review",
+        completed,
+        failed,
+        paused,
+    )
     return final

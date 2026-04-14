@@ -7,10 +7,13 @@ class DocumentStatus(str, enum.Enum):
     """Status states for the document processing pipeline."""
 
     UPLOADED = "uploaded"
+    PROCESSING = "processing"
     PARSED = "parsed"
     EDITED = "edited"
+    AWAITING_PARSE_REVIEW = "awaiting_parse_review"
     CLASSIFIED = "classified"
     EXTRACTED = "extracted"
+    AWAITING_EXTRACTION_REVIEW = "awaiting_extraction_review"
     SUMMARIZED = "summarized"
     INGESTED = "ingested"
 
@@ -23,6 +26,7 @@ class BulkJobStatus(str, enum.Enum):
     COMPLETED = "completed"
     FAILED = "failed"
     PARTIAL_FAILURE = "partial_failure"
+    AWAITING_REVIEW = "awaiting_review"
 
 
 class BulkJobDocumentStatus(str, enum.Enum):

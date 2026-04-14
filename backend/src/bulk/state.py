@@ -32,3 +32,10 @@ class DocumentState(TypedDict, total=False):
     start_time_ms: float
     end_time_ms: float
     node_timings: dict[str, float]
+
+    # Pipeline tracking
+    parse_confidence_pct: float
+    requires_parse_review: bool
+    requires_extraction_review: bool
+    node_statuses: dict[str, dict[str, Any]]
+    pipeline_context: dict[str, Any]

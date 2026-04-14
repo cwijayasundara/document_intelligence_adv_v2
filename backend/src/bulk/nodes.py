@@ -21,12 +21,11 @@ def _timing(state: DocumentState, name: str, start: float) -> dict[str, float]:
 
 
 def _lookup_extraction_fields(
-    state: DocumentState, category_id: str,
+    state: DocumentState,
+    category_id: str,
 ) -> list[dict[str, Any]]:
     """Look up extraction fields for a category from the state's fields map."""
-    fields_map: dict[str, list[dict[str, Any]]] = state.get(
-        "extraction_fields_map", {}
-    )  # type: ignore[assignment]
+    fields_map: dict[str, list[dict[str, Any]]] = state.get("extraction_fields_map", {})  # type: ignore[assignment]
     fields = fields_map.get(category_id, [])
     logger.info("[bulk] Found %d extraction fields for category %s", len(fields), category_id[:8])
     return fields
@@ -61,24 +60,32 @@ async def parse_node(state: DocumentState) -> dict[str, Any]:
 
             logger.info("[bulk:%s] Parsing via Reducto", doc_id[:8])
             doc, content, was_skipped, confidence = await service.parse_document(
-                uuid.UUID(doc_id), force=False,
+                uuid.UUID(doc_id),
+                force=False,
             )
             await session.commit()
 
             logger.info(
                 "[bulk:%s] Parsed %d chars (skipped=%s, confidence=%.1f%%)",
-                doc_id[:8], len(content), was_skipped, confidence,
+                doc_id[:8],
+                len(content),
+                was_skipped,
+                confidence,
             )
             return {
                 "parsed_content": content,
                 "parsed_path": doc.parsed_path or "",
+                "parse_confidence_pct": confidence,
                 "status": "parsed",
                 "node_timings": _timing(state, "parse", start),
             }
     except Exception as exc:
         logger.error("[bulk:%s] Parse failed: %s", doc_id[:8], exc)
-        return {"status": "failed", "error": str(exc),
-                "node_timings": _timing(state, "parse", start)}
+        return {
+            "status": "failed",
+            "error": str(exc),
+            "node_timings": _timing(state, "parse", start),
+        }
 
 
 async def summarize_node(state: DocumentState) -> dict[str, Any]:
@@ -104,20 +111,23 @@ async def summarize_node(state: DocumentState) -> dict[str, Any]:
         }
     except Exception as exc:
         logger.error("[bulk:%s] Summarize failed: %s", doc_id[:8], exc)
-        return {"summary_text": "", "status": "summarized", "error": str(exc),
-                "node_timings": _timing(state, "summarize", start)}
+        return {
+            "summary_text": "",
+            "status": "summarized",
+            "error": str(exc),
+            "node_timings": _timing(state, "summarize", start),
+        }
 
 
 async def classify_node(state: DocumentState) -> dict[str, Any]:
-    """Classify document using ClassifierSubagent (same as single-doc)."""
+    """Classify document using the classifier module (same as single-doc)."""
     start = time.time()
     doc_id = state.get("document_id", "")
 
     try:
-        from src.agents.classifier import ClassifierSubagent
+        from src.agents.classifier import classify_document
 
-        classifier = ClassifierSubagent()
-        result = await classifier.classify(
+        result = await classify_document(
             file_name=state.get("file_name", "unknown"),
             content=state.get("parsed_content", ""),
             categories=state.get("categories", []),  # type: ignore[arg-type]
@@ -129,7 +139,9 @@ async def classify_node(state: DocumentState) -> dict[str, Any]:
 
         logger.info(
             "[bulk:%s] Classified as '%s' (confidence=%d%%)",
-            doc_id[:8], result.category_name, result.confidence,
+            doc_id[:8],
+            result.category_name,
+            result.confidence,
         )
         return {
             "classification_result": {
@@ -148,7 +160,8 @@ async def classify_node(state: DocumentState) -> dict[str, Any]:
         logger.error("[bulk:%s] Classify failed: %s", doc_id[:8], exc)
         return {
             "classification_result": {"category_name": "Other/Unclassified", "reasoning": str(exc)},
-            "status": "classified", "error": str(exc),
+            "status": "classified",
+            "error": str(exc),
             "node_timings": _timing(state, "classify", start),
         }
 
@@ -163,14 +176,15 @@ async def extract_node(state: DocumentState) -> dict[str, Any]:
         from src.services.extraction_service import ExtractionService
 
         settings = get_settings()
-        extraction_fields: list[dict[str, Any]] = state.get(
-            "extraction_fields", []
-        )  # type: ignore[assignment]
+        extraction_fields: list[dict[str, Any]] = state.get("extraction_fields", [])  # type: ignore[assignment]
 
         if not extraction_fields:
             logger.info("[bulk:%s] No extraction fields, skipping", doc_id[:8])
-            return {"extraction_results": [], "status": "extracted",
-                    "node_timings": _timing(state, "extract", start)}
+            return {
+                "extraction_results": [],
+                "status": "extracted",
+                "node_timings": _timing(state, "extract", start),
+            }
 
         service = ExtractionService(extraction_dir=settings.storage.extraction_dir)
         results = await service.extract_and_judge(
@@ -186,8 +200,12 @@ async def extract_node(state: DocumentState) -> dict[str, Any]:
         }
     except Exception as exc:
         logger.error("[bulk:%s] Extract failed: %s", doc_id[:8], exc)
-        return {"extraction_results": [], "status": "extracted", "error": str(exc),
-                "node_timings": _timing(state, "extract", start)}
+        return {
+            "extraction_results": [],
+            "status": "extracted",
+            "error": str(exc),
+            "node_timings": _timing(state, "extract", start),
+        }
 
 
 async def ingest_node(state: DocumentState) -> dict[str, Any]:
@@ -205,20 +223,22 @@ async def ingest_node(state: DocumentState) -> dict[str, Any]:
         weaviate = WeaviateClient(url=settings.weaviate_url)
         weaviate.connect()
 
-        chunker = DocumentChunker(
-            max_tokens=settings.chunking.max_tokens,
-            overlap_tokens=settings.chunking.overlap_tokens,
-        )
-        service = IngestionService(weaviate_client=weaviate, chunker=chunker)
+        try:
+            chunker = DocumentChunker(
+                max_tokens=settings.chunking.max_tokens,
+                overlap_tokens=settings.chunking.overlap_tokens,
+            )
+            service = IngestionService(weaviate_client=weaviate, chunker=chunker)
 
-        chunks_created = service.ingest_document(
-            document_id=uuid.UUID(doc_id),
-            document_name=state.get("file_name", ""),
-            document_category=state.get("category_name", ""),
-            file_name=state.get("file_name", ""),
-            parsed_content=state.get("parsed_content", ""),
-        )
-        weaviate.disconnect()
+            chunks_created = service.ingest_document(
+                document_id=uuid.UUID(doc_id),
+                document_name=state.get("file_name", ""),
+                document_category=state.get("category_name", ""),
+                file_name=state.get("file_name", ""),
+                parsed_content=state.get("parsed_content", ""),
+            )
+        finally:
+            weaviate.disconnect()
 
         logger.info("[bulk:%s] Ingested %d chunks", doc_id[:8], chunks_created)
         return {
@@ -228,8 +248,11 @@ async def ingest_node(state: DocumentState) -> dict[str, Any]:
         }
     except Exception as exc:
         logger.error("[bulk:%s] Ingest failed: %s", doc_id[:8], exc)
-        return {"status": "ingested", "error": str(exc),
-                "node_timings": _timing(state, "ingest", start)}
+        return {
+            "status": "ingested",
+            "error": str(exc),
+            "node_timings": _timing(state, "ingest", start),
+        }
 
 
 async def finalize_node(state: DocumentState) -> dict[str, Any]:
@@ -238,7 +261,9 @@ async def finalize_node(state: DocumentState) -> dict[str, Any]:
     final_status = "failed" if error else "completed"
     logger.info(
         "[bulk:%s] Finalized: %s (timings: %s)",
-        state.get("document_id", "")[:8], final_status, state.get("node_timings", {}),
+        state.get("document_id", "")[:8],
+        final_status,
+        state.get("node_timings", {}),
     )
     return {
         "status": final_status,

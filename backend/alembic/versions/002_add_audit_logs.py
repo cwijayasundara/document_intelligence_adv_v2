@@ -1,7 +1,7 @@
 """Add audit_logs table.
 
-Revision ID: 002
-Revises: 001
+Revision ID: 002a
+Revises: 002
 Create Date: 2026-04-04
 """
 
@@ -10,8 +10,8 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 from alembic import op
 
-revision = "002"
-down_revision = "001"
+revision = "002a"
+down_revision = "002"
 branch_labels = None
 depends_on = None
 

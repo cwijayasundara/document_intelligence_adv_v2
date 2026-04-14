@@ -125,13 +125,11 @@ class TestNodes:
         assert result["extraction_results"] == []
 
     @pytest.mark.asyncio
-    @patch("src.bulk.nodes.JudgeSubagent")
-    async def test_judge_node(self, mock_cls: AsyncMock) -> None:
+    @patch("src.agents.judge.judge_extraction")
+    async def test_judge_node(self, mock_judge: AsyncMock) -> None:
         from src.agents.schemas.extraction import JudgeResult
 
-        mock_instance = AsyncMock()
-        mock_instance.evaluate.return_value = JudgeResult(evaluations=[])
-        mock_cls.return_value = mock_instance
+        mock_judge.return_value = JudgeResult(evaluations=[])
 
         state: DocumentState = {
             "document_id": "doc-1",
@@ -144,7 +142,7 @@ class TestNodes:
         assert result["status"] == "judged"
 
     @pytest.mark.asyncio
-    @patch("src.bulk.nodes.SummarizerSubagent")
+    @patch("src.services.summarize_service.summarize_document")
     async def test_summarize_node(self, mock_cls: AsyncMock) -> None:
         from src.agents.schemas.summary import SummaryResult
 
@@ -253,13 +251,11 @@ class TestNodes:
         assert "extract" in result["node_timings"]
 
     @pytest.mark.asyncio
-    @patch("src.bulk.nodes.JudgeSubagent")
-    async def test_judge_node_result_shape(self, mock_cls: AsyncMock) -> None:
+    @patch("src.agents.judge.judge_extraction")
+    async def test_judge_node_result_shape(self, mock_judge: AsyncMock) -> None:
         from src.agents.schemas.extraction import JudgeResult
 
-        mock_instance = AsyncMock()
-        mock_instance.evaluate.return_value = JudgeResult(evaluations=[])
-        mock_cls.return_value = mock_instance
+        mock_judge.return_value = JudgeResult(evaluations=[])
 
         state: DocumentState = {
             "document_id": "doc-1",
@@ -306,8 +302,8 @@ class TestPipeline:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.bulk.nodes.JudgeSubagent")
-    @patch("src.bulk.nodes.SummarizerSubagent")
+    @patch("src.agents.judge.judge_extraction")
+    @patch("src.services.summarize_service.summarize_document")
     async def test_run_single_document(
         self,
         mock_summarizer: AsyncMock,
@@ -330,7 +326,7 @@ class TestPipeline:
             )
         )
         mock_extractor.return_value.extract = AsyncMock(return_value=ExtractionResult(fields=[]))
-        mock_judge.return_value.evaluate = AsyncMock(return_value=JudgeResult(evaluations=[]))
+        mock_judge.return_value = JudgeResult(evaluations=[])
         mock_summarizer.return_value.summarize = AsyncMock(
             return_value=SummaryResult(summary="test summary", key_topics=["general"])
         )
@@ -344,8 +340,8 @@ class TestPipeline:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.bulk.nodes.JudgeSubagent")
-    @patch("src.bulk.nodes.SummarizerSubagent")
+    @patch("src.agents.judge.judge_extraction")
+    @patch("src.services.summarize_service.summarize_document")
     async def test_run_bulk_pipeline(
         self,
         mock_summarizer: AsyncMock,
@@ -367,7 +363,7 @@ class TestPipeline:
             )
         )
         mock_extractor.return_value.extract = AsyncMock(return_value=ExtractionResult(fields=[]))
-        mock_judge.return_value.evaluate = AsyncMock(return_value=JudgeResult(evaluations=[]))
+        mock_judge.return_value = JudgeResult(evaluations=[])
         mock_summarizer.return_value.summarize = AsyncMock(
             return_value=SummaryResult(summary="test summary", key_topics=["general"])
         )
@@ -388,8 +384,8 @@ class TestPipeline:
     @pytest.mark.asyncio
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.bulk.nodes.JudgeSubagent")
-    @patch("src.bulk.nodes.SummarizerSubagent")
+    @patch("src.agents.judge.judge_extraction")
+    @patch("src.services.summarize_service.summarize_document")
     async def test_pipeline_timing(
         self,
         mock_summarizer: AsyncMock,
@@ -411,7 +407,7 @@ class TestPipeline:
             )
         )
         mock_extractor.return_value.extract = AsyncMock(return_value=ExtractionResult(fields=[]))
-        mock_judge.return_value.evaluate = AsyncMock(return_value=JudgeResult(evaluations=[]))
+        mock_judge.return_value = JudgeResult(evaluations=[])
         mock_summarizer.return_value.summarize = AsyncMock(
             return_value=SummaryResult(summary="test", key_topics=[])
         )
@@ -436,8 +432,8 @@ class TestPipeline:
     @patch("src.bulk.pipeline.create_checkpointer", new_callable=AsyncMock)
     @patch("src.bulk.nodes.ClassifierSubagent")
     @patch("src.bulk.nodes.ExtractorSubagent")
-    @patch("src.bulk.nodes.JudgeSubagent")
-    @patch("src.bulk.nodes.SummarizerSubagent")
+    @patch("src.agents.judge.judge_extraction")
+    @patch("src.services.summarize_service.summarize_document")
     async def test_run_bulk_pipeline_with_db_url(
         self,
         mock_summarizer: AsyncMock,
