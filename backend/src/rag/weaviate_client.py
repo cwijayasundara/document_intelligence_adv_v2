@@ -14,12 +14,29 @@ import weaviate
 from langchain_core.documents import Document
 from langchain_openai import OpenAIEmbeddings
 from langchain_weaviate import WeaviateVectorStore
+from weaviate.classes.config import Configure, DataType, Property
 from weaviate.classes.query import Filter
 
 logger = logging.getLogger(__name__)
 
 COLLECTION_NAME = "DocumentChunks"
 EMBEDDING_MODEL = "text-embedding-3-small"
+
+# Properties the ingestion and query code rely on. Declared explicitly so
+# the collection is never left in a half-built state (auto-schema would
+# only register the `text` property on its first write, which breaks
+# filters like `document_id`).
+_COLLECTION_PROPERTIES: list[Property] = [
+    Property(name="text", data_type=DataType.TEXT),
+    Property(name="document_id", data_type=DataType.TEXT),
+    Property(name="document_name", data_type=DataType.TEXT),
+    Property(name="document_category", data_type=DataType.TEXT),
+    Property(name="file_name", data_type=DataType.TEXT),
+    Property(name="chunk_index", data_type=DataType.INT),
+    Property(name="header_1", data_type=DataType.TEXT),
+    Property(name="header_2", data_type=DataType.TEXT),
+    Property(name="header_3", data_type=DataType.TEXT),
+]
 
 
 @dataclass
@@ -60,11 +77,57 @@ class WeaviateClient:
             host=self._url.replace("http://", "").split(":")[0],
             port=int(self._url.split(":")[-1]) if ":" in self._url.rsplit("/", 1)[-1] else 8080,
         )
+        self._ensure_schema()
         self._store = WeaviateVectorStore(
             client=self._client,
             index_name=COLLECTION_NAME,
             text_key="text",
             embedding=self._embeddings,
+        )
+
+    def _ensure_schema(self) -> None:
+        """Ensure DocumentChunks has the expected properties.
+
+        Creates the collection if missing. If the collection exists but
+        lacks any of the expected properties (e.g. it was auto-created by
+        langchain-weaviate with only ``text``), the missing properties are
+        added. The collection is only recreated when it is empty and its
+        schema diverges — never when it already holds ingested data.
+        """
+        assert self._client is not None
+        existing_names: set[str] = set()
+        if self._client.collections.exists(COLLECTION_NAME):
+            collection = self._client.collections.get(COLLECTION_NAME)
+            config = collection.config.get()
+            existing_names = {p.name for p in config.properties}
+
+            missing = [p for p in _COLLECTION_PROPERTIES if p.name not in existing_names]
+            if not missing:
+                return
+
+            if collection.aggregate.over_all(total_count=True).total_count:
+                logger.info(
+                    "Collection %s missing %d properties (%s); adding in place",
+                    COLLECTION_NAME,
+                    len(missing),
+                    [p.name for p in missing],
+                )
+                for prop in missing:
+                    collection.config.add_property(prop)
+                return
+
+            logger.info(
+                "Collection %s is empty and missing properties (%s); recreating with full schema",
+                COLLECTION_NAME,
+                [p.name for p in missing],
+            )
+            self._client.collections.delete(COLLECTION_NAME)
+
+        logger.info("Creating Weaviate collection %s with explicit schema", COLLECTION_NAME)
+        self._client.collections.create(
+            name=COLLECTION_NAME,
+            properties=_COLLECTION_PROPERTIES,
+            vectorizer_config=Configure.Vectorizer.none(),
         )
 
     def disconnect(self) -> None:

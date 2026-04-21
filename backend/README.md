@@ -318,6 +318,181 @@ Current test coverage:
 - **Agent functions** (classifier, extractor, judge, summarizer) — 30+ tests
 - **PII filter** — full pattern coverage
 
+## Pipeline Checkpointer
+
+The LangGraph pipeline persists its state through **`langgraph-checkpoint-asyncpg`** — a first-party Apache-2.0 package (sibling to `backend/`) that implements LangGraph's checkpointer on top of asyncpg. It replaces the upstream `langgraph-checkpoint-postgres`, which depends on psycopg3 (LGPL-3.0).
+
+Key properties:
+- **Schema-identical** to upstream (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`) — you can switch to/from the official saver without data migration.
+- **Shared connection pool** — the saver uses the same `AsyncEngine` as the rest of the backend (`src/db/connection.py`), so no new pool configuration is required.
+- **Lazy setup** — migrations run idempotently on first use; no manual step required at startup.
+- **Durable interrupts** — a document paused at `interrupt_before=await_parse_review` survives a process restart and resumes cleanly via `Command(resume=...)`.
+
+No env vars to configure. The saver reads from the existing `DATABASE_URL`.
+
+### Testing the pipeline with the new checkpointer
+
+#### 1. Start the infrastructure
+
+```bash
+# From the repo root
+docker compose up -d postgres
+```
+
+#### 2. Install deps and fix a macOS-only .pth flag
+
+```bash
+cd backend
+uv sync
+# macOS + Python 3.13 only — uv marks editable-install .pth files as
+# hidden, and Python 3.13 skips hidden .pth files. Clear the flag:
+chflags nohidden .venv/lib/python3.13/site-packages/*.pth
+```
+
+Rerun `chflags nohidden` after any `uv sync`/`uv add` that rewrites the `.pth` file. Linux and CI are unaffected.
+
+#### 3. Apply backend migrations (unrelated to the checkpointer tables)
+
+```bash
+uv run alembic upgrade head
+```
+
+#### 4. Quick smoke test — the saver imports and talks to Postgres
+
+Save as `/tmp/smoke_checkpointer.py` (or run inline):
+
+```python
+import asyncio, os
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import create_async_engine
+from langgraph_checkpoint_asyncpg import create_checkpointer
+from langgraph_checkpoint_asyncpg.sql import LATEST_VERSION
+
+
+async def main() -> None:
+    engine = create_async_engine(os.environ["DATABASE_URL"])
+    saver = await create_checkpointer(engine)  # runs migrations idempotently
+
+    async with engine.connect() as conn:
+        v = (await conn.execute(text("SELECT MAX(v) FROM checkpoint_migrations"))).scalar_one()
+    assert v == LATEST_VERSION, f"schema at v{v}, expected v{LATEST_VERSION}"
+    print(f"checkpointer ready: schema v{v}, 4 tables created")
+    await engine.dispose()
+
+
+asyncio.run(main())
+```
+
+```bash
+DATABASE_URL="$(grep ^DATABASE_URL .env | cut -d= -f2-)" uv run python /tmp/smoke_checkpointer.py
+```
+
+Expected output:
+
+```
+checkpointer ready: schema v9, 4 tables created
+```
+
+#### 5. End-to-end interrupt / resume test
+
+Proves state durability across process restarts — the main thing the new saver gives you over `MemorySaver`.
+
+```python
+# /tmp/e2e_interrupt.py
+import asyncio, os
+from typing import TypedDict
+from sqlalchemy.ext.asyncio import create_async_engine
+from langgraph.graph import END, StateGraph
+from langgraph.types import Command, interrupt
+from langgraph_checkpoint_asyncpg import create_checkpointer
+
+
+class S(TypedDict, total=False):
+    step: int
+    note: str
+
+
+def start(s: S) -> S:     return {"step": (s.get("step") or 0) + 1, "note": "started"}
+def review(s: S) -> S:    return {"step": s["step"] + 1, "note": f"resumed:{interrupt({'approve?': True})}"}
+def finish(s: S) -> S:    return {"step": s["step"] + 1, "note": s["note"] + "+done"}
+
+
+async def main() -> None:
+    engine = create_async_engine(os.environ["DATABASE_URL"])
+
+    g = StateGraph(S)
+    for name, fn in [("start", start), ("review", review), ("finish", finish)]:
+        g.add_node(name, fn)
+    g.set_entry_point("start")
+    g.add_edge("start", "review")
+    g.add_edge("review", "finish")
+    g.add_edge("finish", END)
+
+    cfg = {"configurable": {"thread_id": "smoke-e2e"}}
+
+    # Process "A": run up to the interrupt.
+    saver_a = await create_checkpointer(engine)
+    app_a = g.compile(checkpointer=saver_a)
+    await app_a.ainvoke({"step": 0}, cfg)
+
+    # Process "B" — simulated fresh process, new saver instance, same DB.
+    saver_b = await create_checkpointer(engine)
+    app_b = g.compile(checkpointer=saver_b)
+    result = await app_b.ainvoke(Command(resume="approved"), cfg)
+    assert result["step"] == 3 and "resumed:approved+done" in result["note"]
+    print("interrupt/resume across saver instances: OK")
+    await engine.dispose()
+
+
+asyncio.run(main())
+```
+
+```bash
+DATABASE_URL="$(grep ^DATABASE_URL .env | cut -d= -f2-)" uv run python /tmp/e2e_interrupt.py
+```
+
+#### 6. Start the backend and exercise a real pipeline
+
+```bash
+uv run uvicorn src.main:app --reload
+```
+
+Then, in another shell:
+
+```bash
+# Upload a document (starts the pipeline automatically)
+curl -F 'file=@docs/LPA_Horizon_Equity_Partners_IV.pdf' \
+     http://localhost:8000/api/v1/documents/upload
+
+# Get the document id from the response, then:
+curl http://localhost:8000/api/v1/pipeline/<doc-id>/status
+```
+
+Restart the uvicorn process mid-pipeline. Hit `/status` again — the returned `next_nodes` and `node_statuses` should survive the restart (this was lost with `MemorySaver`).
+
+#### 7. Run the checkpointer package's own tests (optional)
+
+The package ships its own test suite against a real Postgres via `testcontainers`. Requires a running Docker daemon.
+
+```bash
+cd ../langgraph-checkpoint-asyncpg
+uv sync --all-extras
+chflags nohidden .venv/lib/python*/site-packages/*.pth 2>/dev/null   # macOS only
+uv run pytest
+```
+
+Tests cover migrations (cold-start, rerun, resume-from-partial), saver behavior (round-trip, filter/before/limit, pending_writes, thread delete), and schema compatibility with the upstream table layout.
+
+#### 8. Verify the LGPL dependency is gone
+
+```bash
+uv pip list | grep -i psycopg
+# (no output expected)
+uv pip list | grep -i langgraph-checkpoint
+# langgraph-checkpoint           2.x.y       (MIT)
+# langgraph-checkpoint-asyncpg   0.1.0       (Apache-2.0, local editable)
+```
+
 ## Creating New Migrations
 
 ```bash
@@ -336,6 +511,6 @@ uv run alembic downgrade -1                # Rollback last migration
 
 3. **Decorators over framework middleware** — LangGraph has no built-in middleware system. Python decorators give composable cross-cutting concerns that wrap agent functions directly.
 
-4. **LangGraph interrupts for human review** — Native `interrupt()` pauses execution and persists state via checkpointer. Clean resume with `Command(resume=...)`.
+4. **LangGraph interrupts for human review** — Native `interrupt()` pauses execution and persists state via a custom asyncpg-backed checkpointer (`langgraph-checkpoint-asyncpg`, sibling package). Clean resume with `Command(resume=...)`; state survives process restarts.
 
 5. **Agentic RAG with fallback** — `create_react_agent` with tools (search, lookup extractions, get summary) for rich RAG. Falls back to basic retrieve+generate if agent fails.

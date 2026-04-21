@@ -110,13 +110,6 @@ class AppSettings(BaseSettings):
     bulk: BulkSettings = Field(default_factory=BulkSettings)
     rag: RAGSettings = Field(default_factory=RAGSettings)
 
-    @property
-    def database_url_sync(self) -> str:
-        """Sync postgres URL for checkpointer (strips +asyncpg driver suffix)."""
-        _async_scheme = "postgresql+asyncpg"
-        _sync_scheme = "postgresql"
-        return self.database_url.replace(_async_scheme, _sync_scheme, 1)
-
     @classmethod
     def from_yaml_and_env(cls, env_file: str | None = None) -> "AppSettings":
         """Create settings from config.yml merged with .env values."""

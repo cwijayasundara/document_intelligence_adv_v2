@@ -11,32 +11,41 @@ import time
 import uuid
 from typing import Any
 
-from langgraph.checkpoint.memory import MemorySaver
 from langgraph.types import Command
 
-from src.bulk.pipeline import build_pipeline
+from src.bulk.pipeline import build_pipeline, create_checkpointer
 from src.bulk.state import DocumentState
+from src.db.connection import get_engine
 
 logger = logging.getLogger(__name__)
 
-# Module-level compiled graph (lazy-initialized)
+# Module-level compiled graph and checkpointer (lazy-initialized on first use).
 _compiled_graph: Any | None = None
 _checkpointer: Any | None = None
+_checkpointer_lock: Any | None = None
 
 
-def _get_checkpointer() -> Any:
-    """Get or create a persistent checkpointer."""
-    global _checkpointer
-    if _checkpointer is None:
-        _checkpointer = MemorySaver()
+async def _get_checkpointer() -> Any:
+    """Return a process-wide asyncpg-backed checkpointer, initializing on first call."""
+    global _checkpointer, _checkpointer_lock
+    if _checkpointer is not None:
+        return _checkpointer
+
+    import asyncio
+
+    if _checkpointer_lock is None:
+        _checkpointer_lock = asyncio.Lock()
+    async with _checkpointer_lock:
+        if _checkpointer is None:
+            _checkpointer = await create_checkpointer(get_engine())
     return _checkpointer
 
 
-def _get_compiled_graph() -> Any:
-    """Get or create the compiled pipeline graph."""
+async def _get_compiled_graph() -> Any:
+    """Return the compiled pipeline graph, initializing on first call."""
     global _compiled_graph
     if _compiled_graph is None:
-        _compiled_graph = build_pipeline(checkpointer=_get_checkpointer())
+        _compiled_graph = build_pipeline(checkpointer=await _get_checkpointer())
     return _compiled_graph
 
 
@@ -48,7 +57,12 @@ class PipelineRunner:
     """
 
     def __init__(self, compiled_graph: Any | None = None) -> None:
-        self._graph = compiled_graph or _get_compiled_graph()
+        self._graph = compiled_graph
+
+    async def _ensure_graph(self) -> Any:
+        if self._graph is None:
+            self._graph = await _get_compiled_graph()
+        return self._graph
 
     async def start(
         self,
@@ -91,7 +105,8 @@ class PipelineRunner:
 
         logger.info("[runner:%s] Starting pipeline for %s", doc_id[:8], file_name)
 
-        result = await self._graph.ainvoke(
+        graph = await self._ensure_graph()
+        result = await graph.ainvoke(
             initial_state,
             config={"configurable": {"thread_id": thread_id}},
         )
@@ -122,7 +137,8 @@ class PipelineRunner:
 
         logger.info("[runner:%s] Resuming pipeline", doc_id[:8])
 
-        result = await self._graph.ainvoke(
+        graph = await self._ensure_graph()
+        result = await graph.ainvoke(
             Command(resume=resume_data or {"approved": True}),
             config={"configurable": {"thread_id": thread_id}},
         )
@@ -157,10 +173,10 @@ class PipelineRunner:
 
         logger.info("[runner:%s] Retrying node '%s'", doc_id[:8], node_name)
 
+        graph = await self._ensure_graph()
         # Find the checkpoint just before the failed node
-        history = list(self._graph.get_state_history(config))
         target = None
-        for snapshot in history:
+        async for snapshot in graph.aget_state_history(config):
             if snapshot.next and node_name in snapshot.next:
                 target = snapshot
                 break
@@ -174,7 +190,7 @@ class PipelineRunner:
             raise ValueError(f"No checkpoint found before node '{node_name}' for document {doc_id}")
 
         # Re-invoke from that checkpoint
-        result = await self._graph.ainvoke(None, target.config)
+        result = await graph.ainvoke(None, target.config)
 
         logger.info(
             "[runner:%s] Retry result: status=%s",
@@ -189,7 +205,8 @@ class PipelineRunner:
         thread_id = await self._get_thread_id(document_id) or doc_id
         config = {"configurable": {"thread_id": thread_id}}
 
-        snapshot = self._graph.get_state(config)
+        graph = await self._ensure_graph()
+        snapshot = await graph.aget_state(config)
         if snapshot and snapshot.values:
             return {
                 "status": snapshot.values.get("status"),

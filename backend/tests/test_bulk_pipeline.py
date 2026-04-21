@@ -484,33 +484,19 @@ class TestCreateCheckpointer:
     """Tests for the create_checkpointer helper."""
 
     @pytest.mark.asyncio
-    async def test_create_checkpointer_calls_setup(self) -> None:
-        """create_checkpointer calls from_conn_string and setup."""
-        import sys
-        import types
+    async def test_create_checkpointer_delegates_to_package(self) -> None:
+        """create_checkpointer forwards its engine to the asyncpg package factory."""
         from unittest.mock import MagicMock
 
-        mock_instance = MagicMock()
-        mock_instance.setup = AsyncMock()
-        mock_saver_cls = MagicMock()
-        mock_saver_cls.from_conn_string.return_value = mock_instance
+        mock_saver = MagicMock()
+        fake_factory = AsyncMock(return_value=mock_saver)
+        fake_engine = MagicMock()
 
-        # Build fake module hierarchy so the lazy import inside create_checkpointer resolves.
-        fake_postgres = types.ModuleType("langgraph.checkpoint.postgres")
-        fake_aio = types.ModuleType("langgraph.checkpoint.postgres.aio")
-        fake_aio.AsyncPostgresSaver = mock_saver_cls  # type: ignore[attr-defined]
-        fake_postgres.aio = fake_aio  # type: ignore[attr-defined]
-
-        test_dsn = _make_test_dsn()
-        with patch.dict(
-            sys.modules,
-            {
-                "langgraph.checkpoint.postgres": fake_postgres,
-                "langgraph.checkpoint.postgres.aio": fake_aio,
-            },
+        with patch(
+            "langgraph_checkpoint_asyncpg.create_checkpointer",
+            fake_factory,
         ):
-            result = await create_checkpointer(test_dsn)
+            result = await create_checkpointer(fake_engine)
 
-        mock_saver_cls.from_conn_string.assert_called_once_with(test_dsn)
-        mock_instance.setup.assert_awaited_once()
-        assert result is mock_instance
+        fake_factory.assert_awaited_once_with(fake_engine, auto_setup=True)
+        assert result is mock_saver

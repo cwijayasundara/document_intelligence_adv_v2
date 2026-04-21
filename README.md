@@ -162,21 +162,105 @@ frontend/
 └── tailwind.config.ts          # Design tokens
 ```
 
-## Running Tests
+## Testing
+
+The platform has four independent test layers. Running all four gives high confidence the app is healthy.
+
+### 1. Unit tests
 
 ```bash
-# Backend (511 tests, 97% coverage)
+# Backend — pytest (511 tests, 97% coverage)
 cd backend && uv run pytest -x -q
 cd backend && uv run pytest --cov=src --cov-report=term-missing
 
-# Lint + type check
+# Frontend — Vitest
+cd frontend && npm test
+```
+
+Lint + type check:
+
+```bash
 cd backend && uv run ruff check .
 cd backend && uv run mypy src/
-
-# Frontend
-cd frontend && npm test
 cd frontend && npx tsc --noEmit
 ```
+
+### 2. Checkpointer package tests
+
+The `langgraph-checkpoint-asyncpg/` sibling package ships its own test suite, backed by a real PostgreSQL container via `testcontainers`. Requires Docker.
+
+```bash
+cd langgraph-checkpoint-asyncpg
+uv sync --all-extras
+chflags nohidden .venv/lib/python*/site-packages/*.pth 2>/dev/null   # macOS only, see note below
+uv run pytest
+```
+
+Covers migrations (cold-start, idempotent rerun, resume-from-partial), saver round-trip with real JSONB/BYTEA, and schema compatibility with the upstream `langgraph-checkpoint-postgres` layout.
+
+### 3. End-to-end checkpointer verification against your dev DB
+
+Confirms the asyncpg-backed LangGraph checkpointer writes durable state that survives a process restart — the key behavior change versus the old `MemorySaver`.
+
+```bash
+# Start PostgreSQL (from repo root)
+docker compose up -d postgres
+
+cd backend
+uv sync
+chflags nohidden .venv/lib/python3.13/site-packages/*.pth 2>/dev/null   # macOS only
+uv run alembic upgrade head
+```
+
+Then run the two scripts in [`backend/README.md` → "Pipeline Checkpointer → Testing the pipeline with the new checkpointer"](backend/README.md#testing-the-pipeline-with-the-new-checkpointer) — a one-shot smoke test (imports + schema at v9) and an end-to-end interrupt / resume across saver instances.
+
+Verify no LGPL dep remains:
+
+```bash
+cd backend
+uv pip list | grep -i psycopg          # no output
+uv pip list | grep langgraph-checkpoint
+# langgraph-checkpoint           2.x.y  (MIT)
+# langgraph-checkpoint-asyncpg   0.1.0  (Apache-2.0, local editable)
+```
+
+### 4. Manual app smoke test
+
+Exercises the full stack: upload → pipeline → review → RAG.
+
+```bash
+# Start the full stack
+docker compose up -d postgres weaviate
+cd backend && uv run alembic upgrade head && uv run uvicorn src.main:app --port 8000 &
+cd frontend && npm run dev &
+
+# Health
+curl http://localhost:8000/api/v1/health
+# → {"status": "healthy"}
+
+# Upload a sample doc (starts the pipeline)
+curl -F 'file=@docs/LPA_Horizon_Equity_Partners_IV.pdf' \
+     http://localhost:8000/api/v1/documents/upload
+
+# Get the document id from the response, then watch pipeline progress:
+curl http://localhost:8000/api/v1/pipeline/<doc-id>/status
+
+# Restart the backend mid-pipeline (kill the uvicorn process and restart it).
+# Hit /status again — next_nodes and node_statuses persist across the restart.
+# That's the asyncpg checkpointer doing its job; MemorySaver would have lost them.
+```
+
+Then open the UI at http://localhost:5173, upload a document, and walk through the classify / extract / summarize / chat flow.
+
+### macOS + Python 3.13 gotcha
+
+uv marks editable-install `.pth` files as "hidden" on macOS, and Python 3.13 silently skips hidden `.pth` files — so after `uv sync`, `import langgraph_checkpoint_asyncpg` fails with `ModuleNotFoundError`. Fix:
+
+```bash
+chflags nohidden .venv/lib/python*/site-packages/*.pth
+```
+
+Rerun after any `uv sync` / `uv add` that rewrites the `.pth` file. Linux and CI are unaffected.
 
 ## Environment Variables
 
@@ -185,7 +269,7 @@ cd frontend && npx tsc --noEmit
 | ----------------- | ------------------------------------------ | -------- | ----------------------------------------------------------------------- |
 | `OPENAI_API_KEY`  | OpenAI API key for LLM calls               | Yes      | `sk-...`                                                                |
 | `REDUCTO_API_KEY` | Reducto Cloud API key for document parsing | Yes      | `...`                                                                   |
-| `DATABASE_URL`    | PostgreSQL connection string               | Yes      | `postgresql+asyncpg://doc_intel:doc_intel_dev@localhost:5432/doc_intel` |
+| `DATABASE_URL`    | PostgreSQL async connection string         | Yes      | see `.env.example` (format: `postgresql+asyncpg` scheme)                |
 | `WEAVIATE_URL`    | Weaviate instance URL                      | Yes      | `http://localhost:8080`                                                 |
 | `OPENAI_MODEL`    | OpenAI model to use                        | Yes      | `gpt-5.4-mini`                                                          |
 
