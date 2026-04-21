@@ -111,6 +111,12 @@ async def extract_document(
 
         doc.status = "extracted"
         await session.flush()
+        # Commit before returning so the subsequent GET /results sees the rows.
+        # FastAPI yield dependencies run post-yield code AFTER the response is
+        # sent, so relying on the get_session dependency's commit would leave
+        # a short window where the client has the 200 but the data isn't
+        # visible to any new session started by a follow-up request.
+        await session.commit()
 
         items = [
             ExtractionResultItem(
