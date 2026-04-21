@@ -46,6 +46,28 @@ The DSN must use the `postgresql+asyncpg://` scheme.
 
 This package implements the async interface only (`aget_tuple`, `alist`, `aput`, `aput_writes`, `adelete_thread`, `setup`). Sync methods raise `NotImplementedError`.
 
+## Testing
+
+The test suite runs against a real PostgreSQL instance booted by `testcontainers`. A running Docker daemon is required.
+
+```bash
+uv sync --all-extras
+uv run pytest
+```
+
+On macOS + Python 3.13, uv marks editable-install `.pth` files as "hidden", which Python then skips. If `import langgraph_checkpoint_asyncpg` fails right after `uv sync`, run:
+
+```bash
+chflags nohidden .venv/lib/python*/site-packages/*.pth
+```
+
+Linux and CI are unaffected.
+
+Test suites:
+- `tests/test_migrations.py` — cold-start, idempotent rerun, resume-from-partial.
+- `tests/test_saver.py` — round-trip, filtering, pending_writes, thread delete.
+- `tests/test_schema_compat.py` — column/type/index snapshot against upstream's schema.
+
 ## License
 
 Apache-2.0. See `LICENSE`.
