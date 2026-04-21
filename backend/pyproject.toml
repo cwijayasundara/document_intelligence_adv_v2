@@ -21,7 +21,7 @@ dependencies = [
     "langchain-text-splitters>=0.3.0",
     "weaviate-client>=4.9.0",
     "openai>=1.60.0",
-    "langgraph-checkpoint-postgres>=2.0.0",
+    "langgraph-checkpoint-asyncpg",
     "opentelemetry-api>=1.20.0",
     "opentelemetry-sdk>=1.20.0",
     "opentelemetry-instrumentation-fastapi>=0.41b0",
@@ -38,6 +38,9 @@ dev = [
     "httpx>=0.28.0",
     "ruff>=0.9.0",
 ]
+
+[tool.uv.sources]
+langgraph-checkpoint-asyncpg = { path = "../langgraph-checkpoint-asyncpg", editable = true }
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

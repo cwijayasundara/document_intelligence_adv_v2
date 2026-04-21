@@ -93,6 +93,17 @@ def build_pipeline(checkpointer: Any | None = None) -> Any:
     )
 
 
+async def create_checkpointer(engine: AsyncEngine) -> Any:
+    """Build an asyncpg-backed LangGraph checkpointer from a shared engine.
+
+    Thin adapter around ``langgraph_checkpoint_asyncpg.create_checkpointer``
+    so callers don't need to import the third-party package directly.
+    """
+    from langgraph_checkpoint_asyncpg import create_checkpointer as _make
+
+    return await _make(engine, auto_setup=True)
+
+
 async def run_pipeline_for_document(
     compiled_graph: Any,
     initial_state: DocumentState,
