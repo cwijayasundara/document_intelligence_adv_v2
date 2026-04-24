@@ -164,7 +164,7 @@ frontend/
 
 ## Testing
 
-The platform has four independent test layers. Running all four gives high confidence the app is healthy.
+The platform has five independent test layers. Running all five gives high confidence the app is healthy.
 
 ### 1. Unit tests
 
@@ -224,7 +224,66 @@ uv pip list | grep langgraph-checkpoint
 # langgraph-checkpoint-asyncpg   0.1.0  (Apache-2.0, local editable)
 ```
 
-### 4. Manual app smoke test
+### 4. Evaluation framework (LangGraph pipeline · RAG · data agent)
+
+Production-grade evals for every LLM touchpoint — classifier, extractor, judge, summarizer, RAG (basic + agentic), data agent (NL→SQL), and the full pipeline graph. Four evaluator layers (metric-based, LLM-as-judge, YAML rubric, trajectory) write to `eval_runs` / `eval_results` and surface in the `/evals` dashboard. Full design doc: [`docs/eval-framework.md`](docs/eval-framework.md). Slides: [`docs/eval-framework.pptx`](docs/eval-framework.pptx) (Google-Slides ready).
+
+```bash
+# Migrate (adds eval_runs + eval_results — Alembic 004)
+cd backend && uv run alembic upgrade head
+
+# Required env (set in backend/.env or your shell)
+#   OPENAI_API_KEY        — production model (judges + predict)
+#   DATABASE_URL          — for run persistence (else in-memory)
+#   LANGSMITH_API_KEY     — for sync-datasets + experiment traces
+#   LANGCHAIN_TRACING_V2=true
+#   LANGCHAIN_PROJECT=pe-doc-intel-evals
+#   EVAL_JUDGE_MODEL      — optional override (defaults: one tier above prod)
+
+# What stages exist + how many goldens per stage
+uv run python -m backend.evals.cli list-stages
+
+# Push local JSONL goldens to LangSmith (idempotent: pe-doc-intel/<stage>)
+uv run python -m backend.evals.cli sync-datasets
+
+# Smoke-run one stage on the first N examples (cheap)
+uv run python -m backend.evals.cli run --stage extraction --subset 5
+
+# Run one stage filtered by tags
+uv run python -m backend.evals.cli run --stage rag --tags single_hop numeric
+
+# Run every stage (slow, $$ — judge + rubric calls)
+uv run python -m backend.evals.cli run --stage all
+
+# Harvest UI corrections from long-term memory into a regression set
+uv run python -m backend.evals.cli harvest-regressions
+```
+
+**Pre-merge gate (no API keys needed)** — the deterministic evaluator suite is unit-tested with duck-typed fakes:
+
+```bash
+cd backend && uv run pytest tests/evals/test_evaluators_metric_based.py \
+                         tests/evals/test_evaluators_sql.py \
+                         tests/evals/test_evaluators_trajectory.py \
+                         tests/evals/test_rubric_aggregate.py -q
+```
+
+**Dashboard** — start the backend + frontend and open <http://localhost:5173/evals>:
+
+- `/evals` — per-stage scorecards (primary metric + delta vs previous run, run-now button).
+- `/evals/trends` — pick `(stage, evaluator)` for a time-series chart.
+- `/evals/runs/:id` — per-example × per-evaluator drill-down with prediction/expected JSON and (for the agentic RAG) a tool-call trajectory viewer.
+
+**Trigger a run from the API** (used by the dashboard's run-now button):
+
+```bash
+curl -X POST http://localhost:8000/api/v1/evals/runs \
+     -H 'content-type: application/json' \
+     -d '{"stage": "rag", "subset": 10}'
+# → 202 Accepted; runner executes in a FastAPI BackgroundTask
+```
+
+### 5. Manual app smoke test
 
 Exercises the full stack: upload → pipeline → review → RAG.
 

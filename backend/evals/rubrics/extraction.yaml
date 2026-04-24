@@ -1,0 +1,45 @@
+# Rubric for the extractor node — scored per extracted field.
+# Each criterion is 1..5; `weight` is the contribution to the composite score.
+name: extraction
+description: Scores a single (field_name, extracted_value, source_text) triple.
+applies_to: backend.src.graph_nodes.extractor.extract_fields
+scale: [1, 5]
+criteria:
+  - id: verbatim_quote
+    description: >
+      Does `source_text` appear verbatim in the parsed document, with enough
+      surrounding context (1–2 sentences) to justify the extraction?
+    weight: 0.35
+    anchors:
+      "1": "Source text is fabricated or does not appear in the document."
+      "3": "Quote is close but paraphrased; context is thin."
+      "5": "Exact verbatim quote with 1–2 sentences of context."
+  - id: value_format
+    description: >
+      Is `extracted_value` in the format dictated by `data_type` and the
+      document (percentage with %, currency with symbol, date in the doc's
+      format, etc.)?
+    weight: 0.25
+    anchors:
+      "1": "Wrong type or misleading format (e.g. '2' for a percentage)."
+      "3": "Type correct but format normalised in a way that loses information."
+      "5": "Format preserved as in the document (e.g. '2.0%' not '0.02')."
+  - id: unit_correctness
+    description: >
+      For numeric/currency/percentage fields, is the unit correct and
+      unambiguous (bps vs %, USD vs EUR, years vs months)?
+    weight: 0.20
+    anchors:
+      "1": "Unit is wrong or missing (e.g. 20 bps vs 20%)."
+      "3": "Unit is implied but not explicit."
+      "5": "Unit is explicit and correct."
+  - id: completeness
+    description: >
+      Does `extracted_value` include all parts of the answer as stated in
+      the doc (e.g. 'Horizon Equity Partners IV, L.P.' not just 'Horizon IV')?
+    weight: 0.20
+    anchors:
+      "1": "Value is materially truncated or missing a qualifier."
+      "3": "Value is acceptable but loses a minor qualifier."
+      "5": "Value is complete as stated in the document."
+judge_model_hint: strong

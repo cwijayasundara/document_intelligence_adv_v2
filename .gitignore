@@ -20,6 +20,10 @@ build/
 
 # Data
 backend/data/
+/data/
+
+# Office lock files (temporary lockfiles written by PowerPoint/Word)
+~$*
 
 # Node
 node_modules/

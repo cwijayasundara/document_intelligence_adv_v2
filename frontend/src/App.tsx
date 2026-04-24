@@ -8,6 +8,9 @@ import CategoriesPage from "./pages/CategoriesPage";
 import ChatPage from "./pages/ChatPage";
 import ClassifyPage from "./pages/ClassifyPage";
 import DashboardPage from "./pages/DashboardPage";
+import EvalRunDetailPage from "./pages/EvalRunDetailPage";
+import EvalTrendsPage from "./pages/EvalTrendsPage";
+import EvalsPage from "./pages/EvalsPage";
 import ExtractionFieldsPage from "./pages/ExtractionFieldsPage";
 import ExtractionPage from "./pages/ExtractionPage";
 import ParsePage from "./pages/ParsePage";
@@ -35,6 +38,9 @@ export default function App() {
         <Route path="bulk" element={<BulkPage />} />
         <Route path="insights" element={<InsightsPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
+        <Route path="evals" element={<EvalsPage />} />
+        <Route path="evals/trends" element={<EvalTrendsPage />} />
+        <Route path="evals/runs/:id" element={<EvalRunDetailPage />} />
       </Route>
     </Routes>
   );

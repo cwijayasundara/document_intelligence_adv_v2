@@ -1,0 +1,170 @@
+name: Evals
+
+on:
+  pull_request:
+    paths:
+      - "backend/**"
+      - ".github/workflows/evals.yml"
+  push:
+    branches: [master]
+  schedule:
+    # Nightly full eval suite at 03:17 UTC — avoids the top-of-hour rush.
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      stage:
+        description: "Stage to run (or 'all')"
+        required: true
+        default: "all"
+      subset:
+        description: "Subset size (empty = full dataset)"
+        required: false
+        default: ""
+
+jobs:
+  # PR gate — metric-only smoke subset. Budget: ≤2 min, <$0.50.
+  pr-smoke:
+    name: PR smoke (metric evaluators)
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install deps
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev,evals]" || pip install -e ".[dev]"
+          pip install sqlglot pyyaml pytest pytest-asyncio
+
+      - name: Validate datasets + rubrics
+        working-directory: backend
+        run: |
+          python -c "import json; [json.loads(l) for l in open(f) if l.strip()] \
+            for f in ['evals/datasets/classification_golden.jsonl', \
+                     'evals/datasets/extraction_golden.jsonl', \
+                     'evals/datasets/summary_golden.jsonl', \
+                     'evals/datasets/rag_golden.jsonl', \
+                     'evals/datasets/sql_golden.jsonl', \
+                     'evals/datasets/pipeline_golden.jsonl']"
+          python -c "import yaml; [yaml.safe_load(open(p)) for p in \
+            ['evals/rubrics/extraction.yaml','evals/rubrics/summary.yaml', \
+             'evals/rubrics/agent_trajectory.yaml','evals/rubrics/sql.yaml']]"
+
+      - name: Run evaluator unit tests
+        run: |
+          python -m pytest backend/tests/evals/test_evaluators_metric_based.py \
+            backend/tests/evals/test_evaluators_sql.py \
+            backend/tests/evals/test_evaluators_trajectory.py \
+            backend/tests/evals/test_rubric_aggregate.py \
+            -q --no-header
+
+  # Nightly full suite — every stage against its full dataset with LLM judges.
+  nightly-full-suite:
+    name: Nightly full suite
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: doc_intel
+          POSTGRES_USER: doc_intel
+          POSTGRES_PASSWORD: doc_intel_dev
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U doc_intel" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+asyncpg://doc_intel:doc_intel_dev@localhost:5432/doc_intel
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      OPENAI_MODEL: gpt-5.2
+      EVAL_JUDGE_MODEL: gpt-5.3
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      LANGCHAIN_TRACING_V2: "true"
+      LANGCHAIN_PROJECT: pe-doc-intel-evals
+      REDUCTO_API_KEY: ${{ secrets.REDUCTO_API_KEY }}
+      REDUCTO_BASE_URL: https://platform.reducto.ai
+      WEAVIATE_URL: http://localhost:8080
+      # Workflow_dispatch inputs surfaced as env vars — safer than interpolating into run blocks.
+      INPUT_STAGE: ${{ github.event.inputs.stage }}
+      INPUT_SUBSET: ${{ github.event.inputs.subset }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install deps
+        working-directory: backend
+        run: |
+          pip install --upgrade pip
+          pip install -e ".[dev,evals]"
+
+      - name: Run alembic migrations
+        working-directory: backend
+        run: alembic upgrade head
+
+      - name: Sync datasets to LangSmith
+        working-directory: backend
+        run: python -m backend.evals.cli sync-datasets
+        continue-on-error: true
+
+      - name: Run full eval suite
+        working-directory: backend
+        run: |
+          STAGE="${INPUT_STAGE:-all}"
+          SUBSET_FLAG=""
+          if [ -n "$INPUT_SUBSET" ]; then
+            SUBSET_FLAG="--subset $INPUT_SUBSET"
+          fi
+          python -m backend.evals.cli run --stage "$STAGE" $SUBSET_FLAG | tee eval-run.log
+
+      - name: Harvest regressions from user corrections
+        working-directory: backend
+        run: python -m backend.evals.cli harvest-regressions
+        continue-on-error: true
+
+      - name: Upload run log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-run-log
+          path: backend/eval-run.log
+
+  # Pre-release pairwise A/B — runs on tagged commits.
+  release-ab:
+    name: Release A/B (pairwise vs. baseline)
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
+      LANGCHAIN_PROJECT: pe-doc-intel-evals
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.13" }
+      - name: Install deps
+        working-directory: backend
+        run: pip install -e ".[dev,evals]"
+      - name: Run RC evals
+        working-directory: backend
+        run: |
+          python -m backend.evals.cli run --stage all | tee release-candidate.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-candidate-evals
+          path: backend/release-candidate.log

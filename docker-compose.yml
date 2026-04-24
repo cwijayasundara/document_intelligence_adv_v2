@@ -17,6 +17,21 @@ services:
       timeout: 5s
       retries: 5
 
+  phoenix:
+    # Arize Phoenix — local OTel trace viewer for live debugging.
+    # Evals themselves are written to LangSmith; Phoenix is for ad-hoc span
+    # inspection during development.
+    image: arizephoenix/phoenix:latest
+    container_name: doc_intel_phoenix
+    restart: unless-stopped
+    ports:
+      - "6006:6006"  # UI
+      - "4317:4317"  # OTLP gRPC (not used; kept for parity)
+    environment:
+      PHOENIX_WORKING_DIR: /phoenix
+    volumes:
+      - phoenix_data:/phoenix
+
   weaviate:
     image: semitechnologies/weaviate:1.30.0
     container_name: doc_intel_weaviate
@@ -47,3 +62,4 @@ services:
 volumes:
   pgdata:
   weaviate_data:
+  phoenix_data:

@@ -1,0 +1,37 @@
+name: summary
+description: Scores a document summary against the source and PE attribute checklist.
+applies_to: backend.src.graph_nodes.summarizer.summarize_document
+scale: [1, 5]
+criteria:
+  - id: pe_attribute_coverage
+    description: >
+      Fraction of PE-specific attributes from the checklist (fund name, GP,
+      management fee, carry, preferred return, fund term, commitment period,
+      governing law, waterfall, key-person clauses) that appear in the summary
+      when present in the source.
+    weight: 0.35
+    scoring: "5 = ≥90% coverage, 4 = ≥75%, 3 = ≥60%, 2 = ≥40%, 1 = <40%"
+  - id: faithfulness
+    description: >
+      Does every claim in the summary follow from the source? Flag invented
+      facts (hallucinated fund names, fabricated fees, etc.).
+    weight: 0.35
+    anchors:
+      "1": "Contains at least one fabricated fact."
+      "3": "All claims defensible but some phrasing overstates the source."
+      "5": "Every sentence is directly supported by the source."
+  - id: non_redundancy
+    description: >
+      Does the summary avoid repetition and boilerplate padding?
+    weight: 0.10
+  - id: fluency_and_length
+    description: >
+      Well-formed prose, appropriate length for the document (short docs
+      should not be padded into long summaries).
+    weight: 0.10
+  - id: topic_tags_relevance
+    description: >
+      Are `key_topics` actual salient topics in the document (not generic PE
+      vocabulary dropped in regardless of content)?
+    weight: 0.10
+judge_model_hint: strong

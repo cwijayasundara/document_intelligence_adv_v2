@@ -75,6 +75,22 @@ class AppSettings(BaseSettings):
     database_url: str = Field(..., description="PostgreSQL async connection URL")
     weaviate_url: str = Field(..., description="Weaviate server URL")
     openai_model: str = Field(..., description="OpenAI model identifier")
+    data_agent_model: str = Field(
+        default="",
+        description="OpenAI model for the text-to-SQL data agent. Falls back to openai_model when empty.",
+    )
+    ragas_judge_model: str = Field(
+        default="gpt-4o-mini",
+        description=(
+            "OpenAI model used by ragas_triad metrics. ragas's Instructor adapter still "
+            "sends `max_tokens`, which the GPT-5 family rejects, so this defaults to a "
+            "compatible gpt-4o-class model independent of openai_model / eval_judge_model."
+        ),
+    )
+    ragas_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        description="OpenAI embedding model used by ragas AnswerRelevancy.",
+    )
 
     # Logging (configurable via LOG_LEVEL env var, defaults to INFO)
     log_level: str = Field(default="INFO", description="Root log level")
@@ -83,6 +99,13 @@ class AppSettings(BaseSettings):
     openai_fallback_model: str = Field(default="", description="Fallback model for retries")
     llm_max_retries: int = Field(default=3, description="Max LLM call retries")
     llm_base_delay: float = Field(default=1.0, description="Base delay for LLM retry backoff")
+    llm_timeout_seconds: float = Field(
+        default=90.0,
+        description=(
+            "Per-call LLM timeout in seconds. Bounds upstream stalls (e.g. OpenAI "
+            "502 with Retry-After: 60) so one bad call doesn't freeze a long batch."
+        ),
+    )
 
     # Agent rate limiting
     agent_max_llm_calls: int = Field(default=50, description="Max LLM calls per pipeline run")

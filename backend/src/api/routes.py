@@ -9,6 +9,7 @@ from src.api.routers import (
     config,
     data_agent,
     documents,
+    evals,
     events,
     extract,
     health,
@@ -38,3 +39,4 @@ def register_routers(app: FastAPI) -> None:
     app.include_router(events.router, prefix="/api/v1", tags=["events"])
     app.include_router(data_agent.router, prefix="/api/v1", tags=["analytics"])
     app.include_router(pipeline.router, prefix="/api/v1", tags=["pipeline"])
+    app.include_router(evals.router, prefix="/api/v1", tags=["evals"])

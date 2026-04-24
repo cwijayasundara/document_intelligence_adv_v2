@@ -20,6 +20,8 @@ const adminItems: NavItem[] = [
 const managementItems: NavItem[] = [
   { label: "Analytics", to: "/analytics" },
   { label: "Insights", to: "/insights" },
+  { label: "Evals", to: "/evals" },
+  { label: "Eval Trends", to: "/evals/trends" },
 ];
 
 function NavItemLink({ item }: { item: NavItem }) {

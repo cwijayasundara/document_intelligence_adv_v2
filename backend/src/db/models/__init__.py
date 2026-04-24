@@ -4,6 +4,7 @@ from src.db.models.audit import AuditLog
 from src.db.models.base import Base, TimestampMixin
 from src.db.models.bulk import BulkJob, BulkJobDocument
 from src.db.models.documents import Document, DocumentCategory, DocumentSummary
+from src.db.models.eval_run import EvalResult, EvalRun
 from src.db.models.extraction import (
     ExtractedValue,
     ExtractionField,
@@ -20,6 +21,8 @@ __all__ = [
     "Document",
     "DocumentCategory",
     "DocumentSummary",
+    "EvalResult",
+    "EvalRun",
     "ExtractedValue",
     "ExtractionField",
     "ExtractionSchema",

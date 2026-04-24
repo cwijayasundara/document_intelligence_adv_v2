@@ -117,9 +117,11 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
             max_overflow=_settings.audit_max_overflow,
         )
     yield
-    # Graceful shutdown: flush pending audit events
+    # Graceful shutdown: wake long-lived handlers (SSE), flush audit events.
+    from src.api.shutdown import trigger_shutdown
     from src.audit import get_audit_queue as _get_aq
 
+    trigger_shutdown()
     _get_aq().stop()
     logger.info("Shutting down, disposing database connections")
     await dispose_engine()
@@ -146,6 +148,19 @@ def create_app(database_url: str = "") -> FastAPI:
 
     # Request logging middleware (added first so it wraps everything)
     app.add_middleware(RequestLoggingMiddleware)
+
+    # Correlation IDs + optional OpenTelemetry export to Phoenix / OTel collector
+    from src.config.settings import get_settings
+    from src.observability.tracing import CorrelationIdMiddleware, init_tracing
+
+    settings = get_settings()
+    app.add_middleware(CorrelationIdMiddleware)
+    if settings.otel_enabled:
+        init_tracing(
+            app,
+            service_name=settings.otel_service_name,
+            endpoint=settings.otel_exporter_endpoint,
+        )
 
     # CORS middleware allowing localhost origins for frontend dev
     app.add_middleware(

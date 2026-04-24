@@ -1,0 +1,28 @@
+name: agent_trajectory
+description: Scores the agentic RAG agent's tool-call trajectory.
+applies_to: backend.src.rag.agent.agentic_rag_query
+scale: [1, 5]
+criteria:
+  - id: tool_selection
+    description: >
+      Did the agent pick the right tool at each step? Prefer `lookup_extractions`
+      for structured fields, `get_document_summary` for overview questions,
+      `search_documents` for free-text queries.
+    weight: 0.30
+  - id: query_reformulation_quality
+    description: >
+      When the agent reformulated the user query before calling `search_documents`,
+      was the reformulation genuinely better (more specific, better keywords)
+      than the original?
+    weight: 0.25
+  - id: hops_efficient
+    description: >
+      Did the agent converge in a reasonable number of tool calls?
+      5 = 1–2 calls; 4 = 3 calls; 2 = >4 calls on a single-hop question.
+    weight: 0.20
+  - id: final_answer_grounded
+    description: >
+      Is the final answer supported by the tool outputs the agent actually
+      received (not produced from the LLM's parametric memory)?
+    weight: 0.25
+judge_model_hint: strong

@@ -1,4 +1,4 @@
-"""Agentic RAG using LangChain's create_react_agent.
+"""Agentic RAG using LangChain's create_agent.
 
 The agent decides whether to search, can reformulate queries,
 look up extraction results, and grade retrieved chunks before
@@ -182,7 +182,7 @@ async def agentic_rag_query(
     Returns:
         Generated answer string.
     """
-    from langgraph.prebuilt import create_react_agent
+    from langchain.agents import create_agent
 
     # Filter PII from query
     filtered = _pii_filter.filter_content(query)
@@ -195,7 +195,7 @@ async def agentic_rag_query(
     )
 
     llm = get_llm()
-    agent = create_react_agent(llm, tools)
+    agent = create_agent(llm, tools)
 
     # Build message list
     messages = [SystemMessage(content=_SYSTEM_PROMPT)]

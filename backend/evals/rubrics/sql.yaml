@@ -1,0 +1,32 @@
+name: sql
+description: Scores NL→SQL generation + chart configuration.
+applies_to: backend.src.data_agent.agent.run_analytics_query
+scale: [1, 5]
+criteria:
+  - id: sql_intent_match
+    description: >
+      Does the generated SQL answer the user's question as a PE analyst
+      would reasonably interpret it?
+    weight: 0.35
+  - id: sql_parsimony
+    description: >
+      Is the SQL as simple as it could be? Penalise unnecessary joins,
+      subqueries, or casts when a simpler query suffices.
+    weight: 0.15
+  - id: chart_type_appropriate
+    description: >
+      Given the result shape and the question, is the chosen chart type
+      the right one? (Bar for categorical counts, line for time-series,
+      pie for small-cardinality distributions, table otherwise.)
+    weight: 0.20
+  - id: chart_axes_sensible
+    description: >
+      Do x_key / y_key / name_key / value_key match columns that actually
+      exist in the result set and are meaningful for the question?
+    weight: 0.20
+  - id: explanation_quality
+    description: >
+      Does the natural-language explanation accurately describe what the
+      SQL does and what the result means?
+    weight: 0.10
+judge_model_hint: strong

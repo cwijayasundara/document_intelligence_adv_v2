@@ -74,6 +74,40 @@ class AnalyticsResult(BaseModel):
 
 _pii_filter = PIIFilterMiddleware()
 
+# Schema introspection is stable for the life of a process — cache it so
+# successive analytics queries don't each pay one information_schema query.
+_SCHEMA_CACHE: str | None = None
+
+
+async def _get_cached_schema(session: AsyncSession) -> str:
+    """Return the cached schema description, introspecting once per process."""
+    global _SCHEMA_CACHE
+    if _SCHEMA_CACHE is None:
+        _SCHEMA_CACHE = await get_schema_description(session)
+    return _SCHEMA_CACHE
+
+
+def _refusal(
+    sql: str,
+    error: str,
+    explanation: str = "",
+    chart: ChartConfig | None = None,
+) -> dict[str, Any]:
+    """Build a standardised refusal/error response.
+
+    Callers (eval runners, UI) can distinguish refusals from successful runs
+    by the presence of a non-empty `error` key. `sql` is left empty on LLM
+    failure and populated on SQL-execution failure so the bad query is still
+    visible for debugging.
+    """
+    return {
+        "sql": sql,
+        "error": error,
+        "data": {"columns": [], "rows": []},
+        "chart": (chart or ChartConfig(chart_type="table", title="Error")).model_dump(),
+        "explanation": explanation,
+    }
+
 
 async def run_analytics_query(
     question: str,
@@ -118,7 +152,7 @@ async def run_analytics_query(
     filtered = _pii_filter.filter_content(question)
     question = filtered.redacted_text
 
-    schema = await get_schema_description(session)
+    schema = await _get_cached_schema(session)
 
     # Load conversation history for follow-up queries
     history_block = ""
@@ -140,7 +174,8 @@ async def run_analytics_query(
 
     from src.config.settings import get_settings as _settings
 
-    data_agent_model = getattr(_settings(), "data_agent_model", "gpt-5.3-codex")
+    settings = _settings()
+    data_agent_model = settings.data_agent_model or settings.openai_model
     llm = get_llm(model=data_agent_model).with_structured_output(AnalyticsResult)
 
     try:
@@ -148,19 +183,13 @@ async def run_analytics_query(
             SystemMessage(content=_SYSTEM_PROMPT),
             HumanMessage(content=prompt),
         ])
-        if analytics is None:
-            analytics = AnalyticsResult(
-                sql="SELECT 'No query generated' as message",
-                explanation="Could not generate a query for this question.",
-                chart=ChartConfig(chart_type="table", title="Error"),
-            )
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 — surface as explicit error state.
         logger.error("Data agent LLM call failed: %s", exc)
-        analytics = AnalyticsResult(
-            sql="SELECT 'No query generated' as message",
-            explanation=f"Could not generate a query: {exc}",
-            chart=ChartConfig(chart_type="table", title="Error"),
-        )
+        return _refusal(sql="", error=f"LLM call failed: {exc}")
+
+    if analytics is None:
+        logger.warning("Data agent LLM returned None (structured output parse failed)")
+        return _refusal(sql="", error="LLM returned no structured output")
 
     try:
         data = await execute_query(session, analytics.sql)
@@ -185,25 +214,23 @@ async def run_analytics_query(
             repaired = None
 
         if repaired is None:
-            return {
-                "sql": analytics.sql,
-                "error": str(exc),
-                "data": {"columns": [], "rows": []},
-                "chart": analytics.chart.model_dump(),
-                "explanation": analytics.explanation,
-            }
+            return _refusal(
+                sql=analytics.sql,
+                error=str(exc),
+                explanation=analytics.explanation,
+                chart=analytics.chart,
+            )
 
         try:
             data = await execute_query(session, repaired.sql)
             analytics = repaired
         except SQLExecutionError as exc2:
-            return {
-                "sql": repaired.sql,
-                "error": str(exc2),
-                "data": {"columns": [], "rows": []},
-                "chart": repaired.chart.model_dump(),
-                "explanation": repaired.explanation,
-            }
+            return _refusal(
+                sql=repaired.sql,
+                error=str(exc2),
+                explanation=repaired.explanation,
+                chart=repaired.chart,
+            )
 
     # Save to short-term memory
     if session_id:

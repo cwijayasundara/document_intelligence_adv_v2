@@ -66,8 +66,17 @@ def init_engine(
     pool_size: int = 5,
     max_overflow: int = 5,
 ) -> None:
-    """Initialize the module-level engine and session factory."""
+    """Initialize the module-level engine and session factory.
+
+    Idempotent: subsequent calls are no-ops, so callers that re-enter (CLIs,
+    eval runners) don't orphan the previous engine's asyncpg pool. Callers
+    that need to replace the engine (e.g. different URL) must call
+    `dispose_engine()` first.
+    """
     global _engine, _session_factory
+    if _engine is not None:
+        logger.debug("Database engine already initialized; skipping re-init")
+        return
     masked = database_url.split("@")[-1] if "@" in database_url else database_url
     logger.info(
         "Initializing database engine -> %s (pool_size=%d, max_overflow=%d)",
