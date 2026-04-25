@@ -23,4 +23,4 @@ MONO = "Menlo"
 
 SLIDE_W = Inches(13.333)
 SLIDE_H = Inches(7.5)
-TOTAL_SLIDES = 16
+TOTAL_SLIDES = 22
