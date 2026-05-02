@@ -8,14 +8,21 @@ and **trajectory** — and surfaces results to LangSmith + a local `/evals` dash
 
 ```
 backend/evals/
-├── datasets/          # Golden JSONL files, one per pipeline stage
-├── fixtures/          # PDFs + cached parsed markdown
-├── evaluators/        # LangSmith-compatible evaluator callables
-├── rubrics/           # YAML rubric definitions (multi-criterion)
-├── runners/           # Per-stage experiment runners
-├── cli.py             # `python -m evals.cli …`
-├── dataset_sync.py    # Push / pull datasets to LangSmith
-└── regression_harvest.py  # Mine `long_term` memory corrections → regression set
+├── datasets/             # Golden JSONL files, one per pipeline stage
+├── fixtures/             # PDFs + cached parsed markdown
+├── evaluators/           # LangSmith-compatible evaluator callables
+├── rubrics/              # YAML rubric definitions (multi-criterion)
+├── runners/              # Per-stage experiment runners
+├── data_synthesizer/     # Generate-then-verify golden datasets from parsed text
+│   ├── synthesizers/     #   one module per kind: rag, extraction, classification,
+│   │                     #   summary, sql, pipeline
+│   ├── corpus.py         #   parsed-doc loader + chunker
+│   ├── judge.py          #   judge wrapper with cost meter + audit log
+│   ├── writer.py         #   JSONL writer (append | overwrite | dry-run)
+│   └── README.md         #   full reference for the synthesizer
+├── cli.py                # `python -m evals.cli …`
+├── dataset_sync.py       # Push / pull datasets to LangSmith
+└── regression_harvest.py # Mine `long_term` memory corrections → regression set
 ```
 
 ## Datasets
@@ -23,16 +30,60 @@ backend/evals/
 Each JSONL file holds one golden example per line. Example keys are stage-specific; common
 keys are `id`, `tags`, `source`, and `notes`.
 
-| File | Purpose | Target size |
-|---|---|---|
-| `classification_golden.jsonl` | Category assignment + calibration | 50–100 |
-| `extraction_golden.jsonl` | 8 LPA fields + verbatim source | 30–50 |
-| `summary_golden.jsonl` | Reference summaries + PE checklist | 30 |
-| `rag_golden.jsonl` | Q&A + labelled relevant chunks | 100 |
-| `sql_golden.jsonl` | NL→SQL + expected row-sets | 60 |
-| `pipeline_golden.jsonl` | Full-pipeline gating correctness | 10 |
-| `regression_corrections.jsonl` | Auto-harvested user corrections | — |
-| `adversarial_synthetic.jsonl` | Synthesised perturbations | — |
+| File | Purpose | Synth kind | Target size |
+|---|---|---|---|
+| `classification_golden.jsonl` | Category assignment + calibration | `classification` | 50–100 |
+| `extraction_golden.jsonl` | Field-level extraction + verbatim source | `extraction` | 30–50 |
+| `summary_golden.jsonl` | Reference summaries + grounded checklist | `summary` | 30 |
+| `rag_golden.jsonl` | Q&A + labelled relevant chunks | `rag` | 100 |
+| `sql_golden.jsonl` | NL→SQL + expected row-sets | `sql` | 60 |
+| `pipeline_golden.jsonl` | Full-pipeline gating correctness | `pipeline` (deterministic) | 10 |
+| `regression_corrections.jsonl` | Auto-harvested user corrections | n/a — `evals.sh harvest-regressions` | — |
+| `adversarial_synthetic.jsonl` | Synthesised perturbations | n/a (manual) | — |
+
+## Generating golden datasets
+
+`backend/evals/data_synthesizer` produces golden JSONL using a generate-then-verify
+loop over an LLM judge. The synthesizers are **domain-agnostic**: prompts use
+a neutral persona, and per-kind specifics (categories for classification,
+fields for extraction, etc.) come from CLI flags rather than hardcoded
+PE/LPA lists. See `data_synthesizer/README.md` for full reference.
+
+```bash
+# List supported kinds.
+./evals.sh synth list-kinds
+
+# Dry-run: writes <out>.proposed.jsonl, never touches the live golden file.
+./evals.sh synth --kind rag,extraction --inputs backend/data/parsed --n 20 --mode dry-run
+
+# Tune the judge persona for any vertical via --domain-hint.
+./evals.sh synth --kind rag,extraction,summary \
+  --inputs backend/data/parsed --n 20 \
+  --domain-hint "private equity LPAs and amendments"
+
+# Classification needs categories (comma-separated; "Name: description" optional).
+./evals.sh synth --kind classification --inputs backend/data/parsed --n 30 \
+  --categories "Limited Partnership Agreement,Subscription Agreement,Side Letter,Other"
+
+# Pin extraction fields instead of letting the LLM discover them.
+./evals.sh synth --kind extraction --inputs backend/data/parsed --n 20 \
+  --fields ./fields.json   # [{"field_name":"fund_name","data_type":"string"}, ...]
+
+# Cost guardrail — abort once the rough estimate hits the cap.
+./evals.sh synth --kind rag --inputs backend/data/parsed --n 50 --max-cost-usd 5.0
+
+# Promote proposals: switch dry-run -> overwrite (or append).
+./evals.sh synth --kind rag --inputs backend/data/parsed --n 50 --mode overwrite
+```
+
+Notes:
+- `pipeline` is fully deterministic (no judge calls, no API cost).
+- `sql` is schema-driven (frozen Postgres description in
+  `data_synthesizer/synthesizers/_sql_fixtures.py`); `--inputs` is required
+  by the CLI but ignored.
+- Every judge call is logged to
+  `data_synthesizer/.synth_logs/audit_YYYYMMDD.jsonl` (gitignored). Set
+  `SYNTH_DISABLE_AUDIT_LOG=1` to opt out.
 
 ## Running evals
 
