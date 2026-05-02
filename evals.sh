@@ -12,6 +12,8 @@
 #     ./evals.sh list-stages
 #     ./evals.sh harvest-regressions
 #     ./evals.sh sync-datasets
+#     ./evals.sh synth --kind rag --inputs data/parsed --n 30
+#     ./evals.sh synth list-kinds
 
 set -euo pipefail
 cd "$(cd "$(dirname "$0")" && pwd)/backend"
