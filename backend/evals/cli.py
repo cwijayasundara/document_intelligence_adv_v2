@@ -5,11 +5,13 @@ Subcommands:
     harvest-regressions        Pull corrections memory → regression JSONL.
     run --stage STAGE [...]    Run an experiment for one stage.
     list-stages                Print stages + example counts.
+    synth --kind KIND [...]    Synthesize a golden dataset from parsed docs.
 
 Usage:
     uv run python -m evals.cli sync-datasets
     uv run python -m evals.cli run --stage extraction --subset 5
     uv run python -m evals.cli list-stages
+    uv run python -m evals.cli synth --kind rag --inputs data/parsed --n 30
 """
 
 from __future__ import annotations
@@ -235,8 +237,19 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    raw = list(argv) if argv is not None else sys.argv[1:]
+    # `synth` is a separate subparser tree that owns its own arguments.
+    # Hand off before our parser sees flags it doesn't know about.
+    if "synth" in raw:
+        idx = raw.index("synth")
+        from .data_synthesizer.cli import main as synth_main
+
+        # Forward `synth` and everything after it; the data_synthesizer CLI
+        # accepts both `synth ...` and `list-kinds` at its top level.
+        return synth_main(raw[idx:])
+
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(raw)
     _configure_logging(args.verbose)
     return args.func(args)
 
