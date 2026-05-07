@@ -59,14 +59,12 @@ class TestRetrieveChunks:
             )
         ]
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "The fee is 2% per annum based on the LPA."
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(
+            return_value=MagicMock(content="The fee is 2% per annum based on the LPA.")
+        )
 
-        with patch("src.graph_nodes.rag_retriever.AsyncOpenAI") as mock_openai_cls:
-            mock_client = AsyncMock()
-            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-            mock_openai_cls.return_value = mock_client
+        with patch("src.graph_nodes.rag_retriever.get_llm", return_value=mock_llm):
 
             from src.graph_nodes.rag_retriever import generate_answer
 
@@ -97,14 +95,12 @@ class TestRAGService:
             ]
         )
 
-        mock_response = MagicMock()
-        mock_response.choices = [MagicMock()]
-        mock_response.choices[0].message.content = "Commitment period is 5 years."
+        mock_llm = MagicMock()
+        mock_llm.ainvoke = AsyncMock(
+            return_value=MagicMock(content="Commitment period is 5 years.")
+        )
 
-        with patch("src.graph_nodes.rag_retriever.AsyncOpenAI") as mock_openai_cls:
-            mock_client = AsyncMock()
-            mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
-            mock_openai_cls.return_value = mock_client
+        with patch("src.graph_nodes.rag_retriever.get_llm", return_value=mock_llm):
 
             service = RAGService(weaviate_client=weaviate)
             result = await service.query(

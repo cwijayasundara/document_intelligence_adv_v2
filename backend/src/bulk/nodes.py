@@ -120,19 +120,46 @@ async def summarize_node(state: DocumentState) -> dict[str, Any]:
 
 
 async def classify_node(state: DocumentState) -> dict[str, Any]:
-    """Classify document using the classifier module (same as single-doc)."""
+    """Classify document using the configured provider."""
     start = time.time()
     doc_id = state.get("document_id", "")
 
     try:
-        from src.graph_nodes.classifier import classify_document
-
-        result = await classify_document(
-            file_name=state.get("file_name", "unknown"),
-            content=state.get("parsed_content", ""),
-            categories=state.get("categories", []),  # type: ignore[arg-type]
-            summary=state.get("summary_text"),
+        from src.config.settings import get_settings
+        from src.parser.reducto import ReductoClient
+        from src.services.processing_providers import (
+            LangGraphClassificationProvider,
+            get_classification_provider,
         )
+
+        settings = get_settings()
+        reducto = ReductoClient(
+            api_key=settings.reducto_api_key,
+            base_url=settings.reducto_base_url,
+        )
+        provider = get_classification_provider(settings.processing, reducto)
+        try:
+            result = await provider.classify(
+                file_name=state.get("file_name", "unknown"),
+                content=state.get("parsed_content", ""),
+                categories=state.get("categories", []),  # type: ignore[arg-type]
+                summary=state.get("summary_text"),
+                original_path=state.get("original_path"),
+            )
+        except Exception:
+            if (
+                settings.processing.classification_provider == "langgraph"
+                or not settings.processing.fallback_to_legacy
+            ):
+                raise
+            logger.exception("[bulk:%s] Reducto classify failed; falling back", doc_id[:8])
+            result = await LangGraphClassificationProvider().classify(
+                file_name=state.get("file_name", "unknown"),
+                content=state.get("parsed_content", ""),
+                categories=state.get("categories", []),  # type: ignore[arg-type]
+                summary=state.get("summary_text"),
+                original_path=state.get("original_path"),
+            )
 
         cat_id = str(result.category_id)
         extraction_fields = _lookup_extraction_fields(state, cat_id)
@@ -191,6 +218,7 @@ async def extract_node(state: DocumentState) -> dict[str, Any]:
             doc_id=uuid.UUID(doc_id),
             parsed_content=state.get("parsed_content", ""),
             extraction_fields=extraction_fields,
+            original_path=state.get("original_path"),
         )
         logger.info("[bulk:%s] Extracted %d fields", doc_id[:8], len(results))
         return {
@@ -215,9 +243,11 @@ async def ingest_node(state: DocumentState) -> dict[str, Any]:
 
     try:
         from src.config.settings import get_settings
+        from src.parser.reducto import ReductoClient
         from src.rag.chunker import DocumentChunker
         from src.rag.weaviate_client import WeaviateClient
         from src.services.ingest_service import IngestionService
+        from src.services.processing_providers import ReductoChunkProvider, get_chunk_provider
 
         settings = get_settings()
         weaviate = WeaviateClient(url=settings.weaviate_url)
@@ -229,6 +259,22 @@ async def ingest_node(state: DocumentState) -> dict[str, Any]:
                 overlap_tokens=settings.chunking.overlap_tokens,
             )
             service = IngestionService(weaviate_client=weaviate, chunker=chunker)
+            precomputed_chunks = None
+            reducto = ReductoClient(
+                api_key=settings.reducto_api_key,
+                base_url=settings.reducto_base_url,
+            )
+            chunk_provider = get_chunk_provider(settings.processing, reducto)
+            if isinstance(chunk_provider, ReductoChunkProvider):
+                try:
+                    precomputed_chunks = await chunk_provider.chunk_from_file(
+                        state.get("original_path", ""),
+                        chunk_size=settings.chunking.max_tokens * 4,
+                    )
+                except Exception:
+                    if not settings.processing.fallback_to_legacy:
+                        raise
+                    logger.exception("[bulk:%s] Reducto chunking failed; falling back", doc_id[:8])
 
             chunks_created = service.ingest_document(
                 document_id=uuid.UUID(doc_id),
@@ -236,6 +282,7 @@ async def ingest_node(state: DocumentState) -> dict[str, Any]:
                 document_category=state.get("category_name", ""),
                 file_name=state.get("file_name", ""),
                 parsed_content=state.get("parsed_content", ""),
+                chunks=precomputed_chunks,
             )
         finally:
             weaviate.disconnect()

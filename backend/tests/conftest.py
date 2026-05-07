@@ -5,12 +5,13 @@ from pathlib import Path
 
 import pytest
 
+from tests.db_helpers import TEST_BASE_URL, TEST_ENV_DEFAULTS
+
 try:
     from fastapi import FastAPI
     from httpx import ASGITransport, AsyncClient
 
     from src.api.app import create_app
-    from tests.db_helpers import TEST_BASE_URL, TEST_ENV_DEFAULTS
 
     _APP_AVAILABLE = True
 except ImportError:
@@ -29,6 +30,8 @@ def test_env(tmp_path: Path) -> dict[str, str]:
 @pytest.fixture
 def app() -> FastAPI:
     """Create a FastAPI test app without database initialization."""
+    if not _APP_AVAILABLE:
+        pytest.skip("FastAPI app dependencies are not available")
     return create_app(database_url="")
 
 

@@ -8,7 +8,6 @@ import aiofiles
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.graph_nodes.classifier import classify_document as run_classifier  # noqa: E402
 from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.classify import ClassifyResponse
@@ -114,12 +113,44 @@ async def classify_document(
             len(cat_dicts),
             source,
         )
-        result = await run_classifier(
-            file_name=doc.file_name,
-            content=content,
-            categories=cat_dicts,
-            summary=summary_text,
+        from src.parser.reducto import ReductoClient
+        from src.services.processing_providers import (
+            LangGraphClassificationProvider,
+            get_classification_provider,
         )
+
+        reducto = ReductoClient(
+            api_key=settings.reducto_api_key,
+            base_url=settings.reducto_base_url,
+        )
+        provider = get_classification_provider(settings.processing, reducto)
+        logger.info(
+            "Classification provider for document %s: %s",
+            doc_id,
+            settings.processing.classification_provider,
+        )
+        try:
+            result = await provider.classify(
+                file_name=doc.file_name,
+                content=content,
+                categories=cat_dicts,
+                summary=summary_text,
+                original_path=doc.original_path,
+            )
+        except Exception:
+            if (
+                settings.processing.classification_provider == "langgraph"
+                or not settings.processing.fallback_to_legacy
+            ):
+                raise
+            logger.exception("Reducto classify failed; falling back to LangGraph classifier")
+            result = await LangGraphClassificationProvider().classify(
+                file_name=doc.file_name,
+                content=content,
+                categories=cat_dicts,
+                summary=summary_text,
+                original_path=doc.original_path,
+            )
         logger.info(
             "Document %s classified as '%s' (confidence=%d%%)",
             doc_id,

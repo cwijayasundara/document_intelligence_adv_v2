@@ -15,6 +15,7 @@ from src.config.settings import (
     AppSettings,
     BulkSettings,
     ChunkingSettings,
+    ProcessingSettings,
     RAGSettings,
     StorageSettings,
     _load_yaml_config,
@@ -71,6 +72,18 @@ class TestRAGSettings:
     def test_default_top_k(self) -> None:
         s = RAGSettings()
         assert s.top_k == 5
+
+
+class TestProcessingSettings:
+    """Test document processing provider defaults."""
+
+    def test_reducto_is_default_provider_for_parallel_track(self) -> None:
+        settings = ProcessingSettings()
+
+        assert settings.classification_provider == "reducto"
+        assert settings.extraction_provider == "reducto"
+        assert settings.chunking_provider == "reducto"
+        assert settings.fallback_to_legacy is True
 
 
 class TestLoadYamlConfig:

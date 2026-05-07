@@ -46,6 +46,11 @@ evals = [
     "arize-phoenix>=6.0.0",
     "numpy>=1.26.0",
 ]
+foundry = [
+    "azure-ai-projects>=2.0.0",
+    "azure-ai-evaluation>=1.0.0",
+    "azure-identity>=1.18.0",
+]
 
 [tool.uv.sources]
 langgraph-checkpoint-asyncpg = { path = "../langgraph-checkpoint-asyncpg", editable = true }
@@ -65,6 +70,7 @@ select = ["E", "F", "I", "N", "W"]
 "tests/**" = ["N803"]
 "src/db/models/**" = ["F821"]
 "evals/**" = ["N803"]
+"ai_foundry_evals/**" = ["N803"]
 
 [tool.coverage.run]
 source = ["src"]

@@ -55,6 +55,15 @@ class RAGSettings(BaseSettings):
     top_k: int = 5
 
 
+class ProcessingSettings(BaseSettings):
+    """Provider selection for document processing stages."""
+
+    classification_provider: str = "reducto"
+    extraction_provider: str = "reducto"
+    chunking_provider: str = "reducto"
+    fallback_to_legacy: bool = True
+
+
 class AppSettings(BaseSettings):
     """Root application settings combining env vars and config.yml values.
 
@@ -77,7 +86,10 @@ class AppSettings(BaseSettings):
     openai_model: str = Field(..., description="OpenAI model identifier")
     data_agent_model: str = Field(
         default="",
-        description="OpenAI model for the text-to-SQL data agent. Falls back to openai_model when empty.",
+        description=(
+            "OpenAI model for the text-to-SQL data agent. "
+            "Falls back to openai_model when empty."
+        ),
     )
     ragas_judge_model: str = Field(
         default="gpt-4o-mini",
@@ -132,6 +144,7 @@ class AppSettings(BaseSettings):
     chunking: ChunkingSettings = Field(default_factory=ChunkingSettings)
     bulk: BulkSettings = Field(default_factory=BulkSettings)
     rag: RAGSettings = Field(default_factory=RAGSettings)
+    processing: ProcessingSettings = Field(default_factory=ProcessingSettings)
 
     @classmethod
     def from_yaml_and_env(cls, env_file: str | None = None) -> "AppSettings":
@@ -142,17 +155,24 @@ class AppSettings(BaseSettings):
         chunking_data = yaml_data.get("chunking", {})
         bulk_data = yaml_data.get("bulk", {})
         rag_data = yaml_data.get("rag", {})
+        processing_data = yaml_data.get("processing", {})
 
         storage = StorageSettings(**storage_data) if storage_data else StorageSettings()
         chunking = ChunkingSettings(**chunking_data) if chunking_data else ChunkingSettings()
         bulk = BulkSettings(**bulk_data) if bulk_data else BulkSettings()
         rag = RAGSettings(**rag_data) if rag_data else RAGSettings()
+        processing = (
+            ProcessingSettings(**processing_data)
+            if processing_data
+            else ProcessingSettings()
+        )
 
         kwargs: dict[str, object] = {
             "storage": storage,
             "chunking": chunking,
             "bulk": bulk,
             "rag": rag,
+            "processing": processing,
         }
         if env_file is not None:
             kwargs["_env_file"] = env_file

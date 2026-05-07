@@ -101,7 +101,11 @@ async def extract_document(
         logger.info("Extracting %s (%d fields, force=%s)", doc_id, len(field_defs), force)
 
         results = await service.extract_and_judge(
-            doc_id=doc_id, parsed_content=content, extraction_fields=field_defs, force=force,
+            doc_id=doc_id,
+            parsed_content=content,
+            extraction_fields=field_defs,
+            original_path=doc.original_path,
+            force=force,
         )
 
         ev_repo = ExtractedValuesRepository(session)
@@ -146,7 +150,11 @@ async def extract_document(
         await run_guard.release(str(doc_id))
 
 
-@router.get("/extract/{doc_id}/results", response_model=ExtractionResultsResponse, summary="Get results")
+@router.get(
+    "/extract/{doc_id}/results",
+    response_model=ExtractionResultsResponse,
+    summary="Get results",
+)
 async def get_extraction_results(
     doc_id: uuid.UUID,
     session: AsyncSession = Depends(get_session),
@@ -170,7 +178,11 @@ async def get_extraction_results(
     )
 
 
-@router.put("/extract/{doc_id}/results", response_model=ExtractionUpdateResponse, summary="Update results")
+@router.put(
+    "/extract/{doc_id}/results",
+    response_model=ExtractionUpdateResponse,
+    summary="Update results",
+)
 async def update_extraction_results(
     doc_id: uuid.UUID,
     body: ExtractionUpdateRequest,
@@ -208,7 +220,10 @@ async def update_extraction_results(
     )
 
 
-async def _load_extraction_fields(session: AsyncSession, category_id: uuid.UUID | None) -> list[dict]:
+async def _load_extraction_fields(
+    session: AsyncSession,
+    category_id: uuid.UUID | None,
+) -> list[dict]:
     """Load extraction field definitions for a category."""
     if category_id is None:
         return []

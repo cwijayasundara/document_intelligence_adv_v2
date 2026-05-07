@@ -9,7 +9,10 @@ from __future__ import annotations
 
 import logging
 
-from sentence_transformers import CrossEncoder
+try:
+    from sentence_transformers import CrossEncoder
+except ModuleNotFoundError:
+    CrossEncoder = None  # type: ignore[assignment]
 
 from src.rag.weaviate_client import SearchResult
 
@@ -23,6 +26,8 @@ _model: CrossEncoder | None = None
 
 def _get_model() -> CrossEncoder:
     """Lazy-load the cross-encoder model (singleton)."""
+    if CrossEncoder is None:
+        raise RuntimeError("sentence-transformers is not installed")
     global _model
     if _model is None:
         logger.info("Loading cross-encoder re-ranker: %s", _MODEL_NAME)
@@ -54,6 +59,10 @@ def rerank(
 
     if len(results) <= 1:
         return results
+
+    if CrossEncoder is None:
+        logger.info("sentence-transformers unavailable; returning original retrieval order")
+        return results[:top_n]
 
     model = _get_model()
 

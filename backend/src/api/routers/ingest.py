@@ -12,9 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.db.repositories.documents import DocumentRepository
+from src.parser.reducto import ReductoClient
 from src.rag.chunker import DocumentChunker
 from src.rag.weaviate_client import COLLECTION_NAME, WeaviateClient
 from src.services.ingest_service import IngestionService
+from src.services.processing_providers import ReductoChunkProvider, get_chunk_provider
 from src.services.state_machine import InvalidTransitionError, validate_transition
 
 logger = logging.getLogger(__name__)
@@ -90,6 +92,22 @@ async def ingest_document(
             overlap_tokens=settings.chunking.overlap_tokens,
         )
         service = IngestionService(weaviate_client=weaviate, chunker=chunker)
+        precomputed_chunks = None
+        reducto = ReductoClient(
+            api_key=settings.reducto_api_key,
+            base_url=settings.reducto_base_url,
+        )
+        chunk_provider = get_chunk_provider(settings.processing, reducto)
+        if isinstance(chunk_provider, ReductoChunkProvider):
+            try:
+                precomputed_chunks = await chunk_provider.chunk_from_file(
+                    doc.original_path,
+                    chunk_size=settings.chunking.max_tokens * 4,
+                )
+            except Exception:
+                if not settings.processing.fallback_to_legacy:
+                    raise
+                logger.exception("Reducto chunking failed; falling back to LangChain chunker")
 
         category_name = doc.category.name if doc.category else ""
 
@@ -106,6 +124,7 @@ async def ingest_document(
             document_category=category_name,
             file_name=doc.file_name,
             parsed_content=content,
+            chunks=precomputed_chunks,
         )
 
         doc.status = "ingested"

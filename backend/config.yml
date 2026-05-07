@@ -16,3 +16,9 @@ rag:
   default_search_mode: "hybrid"
   default_alpha: 0.5
   top_k: 5
+
+processing:
+  classification_provider: "reducto"
+  extraction_provider: "reducto"
+  chunking_provider: "reducto"
+  fallback_to_legacy: true

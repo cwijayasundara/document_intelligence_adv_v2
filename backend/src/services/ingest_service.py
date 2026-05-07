@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-from src.rag.chunker import DocumentChunker
-from src.rag.weaviate_client import WeaviateClient
+from src.rag.chunker import Chunk, DocumentChunker
+
+if TYPE_CHECKING:
+    from src.rag.weaviate_client import WeaviateClient
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +32,7 @@ class IngestionService:
         document_category: str,
         file_name: str,
         parsed_content: str,
+        chunks: list[Chunk] | None = None,
     ) -> int:
         """Chunk and ingest a document into Weaviate.
 
@@ -58,11 +61,14 @@ class IngestionService:
         logger.info("Step 1/3: Removing previous chunks for document %s", document_id)
         self._weaviate.delete_by_document(doc_id_str)
 
-        logger.info("Step 2/3: Chunking document with markdown-aware splitter")
-        chunks = self._chunker.chunk(parsed_content)
+        logger.info("Step 2/3: Chunking document")
+        chunks = chunks if chunks is not None else self._chunker.chunk(parsed_content)
 
         if not chunks:
-            logger.warning("No chunks generated for document %s — content may be empty", document_id)
+            logger.warning(
+                "No chunks generated for document %s — content may be empty",
+                document_id,
+            )
             return 0
 
         texts = [c.text for c in chunks]
@@ -79,7 +85,7 @@ class IngestionService:
         ]
 
         logger.info(
-            "Step 3/3: Embedding and storing %d chunks in Weaviate (metadata: document_id, file_name, category, headers)",
+            "Step 3/3: Embedding and storing %d chunks in Weaviate",
             len(chunks),
         )
         count = self._weaviate.add_documents(texts, metadatas)

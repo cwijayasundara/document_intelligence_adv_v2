@@ -33,6 +33,8 @@ class Chunk:
     text: str
     index: int
     metadata: dict[str, str] = field(default_factory=dict)
+    start_char: int = 0
+    end_char: int = 0
 
 
 class DocumentChunker:
@@ -56,6 +58,14 @@ class DocumentChunker:
             chunk_overlap=self._overlap_chars,
             separators=["\n\n", "\n", ". ", " "],
         )
+
+    @property
+    def max_chars(self) -> int:
+        return self._max_chars
+
+    @property
+    def overlap_chars(self) -> int:
+        return self._overlap_chars
 
     def chunk(self, text: str) -> list[Chunk]:
         """Split markdown text into chunks preserving document structure.
@@ -88,12 +98,20 @@ class DocumentChunker:
         )
 
         chunks = []
+        search_from = 0
         for idx, doc in enumerate(final_docs):
+            start_char = text.find(doc.page_content, search_from)
+            if start_char < 0:
+                start_char = search_from
+            end_char = start_char + len(doc.page_content)
+            search_from = end_char
             chunks.append(
                 Chunk(
                     text=doc.page_content,
                     index=idx,
                     metadata=dict(doc.metadata),
+                    start_char=start_char,
+                    end_char=end_char,
                 )
             )
 
@@ -105,3 +123,6 @@ class DocumentChunker:
             avg_chars,
         )
         return chunks
+
+
+SemanticChunker = DocumentChunker

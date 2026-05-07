@@ -14,9 +14,6 @@ from typing import Any
 
 import aiofiles
 
-from src.graph_nodes.extractor import extract_fields
-from src.graph_nodes.judge import judge_extraction
-
 logger = logging.getLogger(__name__)
 
 CONFIDENCE_LOW = "low"
@@ -49,6 +46,7 @@ class ExtractionService:
         parsed_content: str,
         extraction_fields: list[dict[str, Any]],
         *,
+        original_path: str | None = None,
         force: bool = False,
     ) -> list[dict[str, Any]]:
         """Run extraction then judge, with disk caching.
@@ -70,49 +68,13 @@ class ExtractionService:
             if cached is not None:
                 return cached
 
-        logger.info(
-            "Extracting %d fields from content (%d chars)",
-            len(extraction_fields),
-            len(parsed_content),
+        results = await self._run_provider(
+            doc_id=doc_id,
+            parsed_content=parsed_content,
+            extraction_fields=extraction_fields,
+            original_path=original_path,
+            force=force,
         )
-        extraction_result = await extract_fields(parsed_content, extraction_fields)
-
-        logger.info("Judging %d extracted fields", len(extraction_result.fields))
-        judge_result = await judge_extraction(
-            extraction_result.fields,
-            parsed_content,
-            field_metadata=extraction_fields,
-        )
-
-        eval_map = {e.field_name: e for e in judge_result.evaluations}
-
-        results = []
-        for i, field_def in enumerate(extraction_fields):
-            extracted = extraction_result.fields[i] if i < len(extraction_result.fields) else None
-            evaluation = eval_map.get(field_def["field_name"])
-
-            confidence = evaluation.confidence if evaluation else "medium"
-            reasoning = evaluation.reasoning if evaluation else ""
-            value = extracted.extracted_value if extracted else ""
-            is_required = field_def.get("required", False)
-            requires_review = (
-                confidence == CONFIDENCE_LOW
-                or (confidence == "medium" and not value)
-                or (is_required and not value)
-            )
-
-            results.append(
-                {
-                    "field_id": str(field_def["field_id"]),
-                    "field_name": field_def["field_name"],
-                    "display_name": field_def.get("display_name", ""),
-                    "extracted_value": value,
-                    "source_text": extracted.source_text if extracted else "",
-                    "confidence": confidence,
-                    "confidence_reasoning": reasoning,
-                    "requires_review": requires_review,
-                }
-            )
 
         # Persist to disk
         await self._write_to_disk(doc_id, content_hash, results)
@@ -124,6 +86,55 @@ class ExtractionService:
             low_count,
         )
         return results
+
+    async def _run_provider(
+        self,
+        *,
+        doc_id: uuid.UUID,
+        parsed_content: str,
+        extraction_fields: list[dict[str, Any]],
+        original_path: str | None,
+        force: bool,
+    ) -> list[dict[str, Any]]:
+        from src.config.settings import get_settings
+        from src.parser.reducto import ReductoClient
+        from src.services.processing_providers import get_extraction_provider
+
+        settings = get_settings()
+        reducto = ReductoClient(
+            api_key=settings.reducto_api_key,
+            base_url=settings.reducto_base_url,
+        )
+        provider = get_extraction_provider(settings.processing, reducto)
+        try:
+            logger.info(
+                "Extracting %d fields with %s",
+                len(extraction_fields),
+                settings.processing.extraction_provider,
+            )
+            return await provider.extract_and_judge(
+                doc_id=doc_id,
+                parsed_content=parsed_content,
+                extraction_fields=extraction_fields,
+                original_path=original_path,
+                force=force,
+            )
+        except Exception:
+            if (
+                settings.processing.extraction_provider == "langgraph"
+                or not settings.processing.fallback_to_legacy
+            ):
+                raise
+            logger.exception("Reducto extraction failed; falling back to LangGraph extractor")
+            from src.services.processing_providers import LangGraphExtractionProvider
+
+            return await LangGraphExtractionProvider().extract_and_judge(
+                doc_id=doc_id,
+                parsed_content=parsed_content,
+                extraction_fields=extraction_fields,
+                original_path=original_path,
+                force=force,
+            )
 
     async def _read_from_disk(self, doc_id: uuid.UUID) -> dict[str, Any] | None:
         path = self._cache_path(doc_id)

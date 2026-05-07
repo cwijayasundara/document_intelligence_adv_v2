@@ -72,6 +72,27 @@ async def _seed_default_categories() -> None:
         logger.warning("Could not seed default categories (DB may not be ready)")
 
 
+async def _seed_default_category() -> None:
+    """Backward-compatible helper for tests that seed only one default category."""
+    try:
+        factory = get_session_factory()
+        async with factory() as session:
+            from src.db.repositories.categories import CategoryRepository
+
+            repo = CategoryRepository(session)
+            count = await repo.count()
+            if count == 0:
+                category = DEFAULT_CATEGORIES[0]
+                await repo.create(
+                    name=category["name"],  # type: ignore[arg-type]
+                    description=category["description"],
+                    classification_criteria=category["classification_criteria"],
+                )
+                await session.commit()
+    except Exception:
+        logger.warning("Could not seed default category (DB may not be ready)")
+
+
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Log every HTTP request with method, path, status, and duration."""
 
