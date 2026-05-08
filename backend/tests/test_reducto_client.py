@@ -226,6 +226,78 @@ class TestReductoClient:
         assert result.fields[0].confidence == "high"
 
     @pytest.mark.asyncio
+    async def test_extract_captures_bbox_citations(self, tmp_path: Path) -> None:
+        test_file = tmp_path / "lpa.pdf"
+        test_file.write_bytes(b"pdf")
+        upload_resp = MagicMock()
+        upload_resp.raise_for_status = MagicMock()
+        upload_resp.json.return_value = {"file_id": "reducto://lpa.pdf"}
+        extract_resp = MagicMock()
+        extract_resp.raise_for_status = MagicMock()
+        extract_resp.json.return_value = {
+            "job_id": "extract-bbox",
+            "result": {
+                "total_due": {
+                    "value": "$1,575.00",
+                    "citations": [
+                        {
+                            "type": "Table",
+                            "content": "Total Due: $1,575.00",
+                            "confidence": "high",
+                            "bbox": {
+                                "left": 0.65,
+                                "top": 0.82,
+                                "width": 0.25,
+                                "height": 0.03,
+                                "page": 1,
+                            },
+                        },
+                        {
+                            "type": "Text",
+                            "content": "Total: $1,575.00",
+                            "confidence": "medium",
+                            "bbox": {
+                                "left": 0.30,
+                                "top": 0.40,
+                                "width": 0.20,
+                                "height": 0.02,
+                                "page": 2,
+                            },
+                        },
+                    ],
+                }
+            },
+        }
+
+        with patch("httpx.AsyncClient") as mock_cls:
+            mock_client = AsyncMock()
+            mock_client.post = AsyncMock(side_effect=[upload_resp, extract_resp])
+            mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.__aexit__ = AsyncMock(return_value=False)
+            mock_cls.return_value = mock_client
+
+            result = await self.client.extract(
+                test_file,
+                extraction_fields=[
+                    {"field_name": "total_due", "data_type": "currency"}
+                ],
+            )
+
+        field = result.fields[0]
+        assert len(field.citations) == 2
+        first = field.citations[0]
+        assert first.page == 1
+        assert first.left == 0.65
+        assert first.top == 0.82
+        assert first.width == 0.25
+        assert first.height == 0.03
+        assert first.content == "Total Due: $1,575.00"
+        assert first.confidence == "high"
+        # source_text mirrors the first citation for backward compat
+        assert field.source_text == "Total Due: $1,575.00"
+        assert field.confidence == "high"
+
+    @pytest.mark.asyncio
     async def test_parse_with_retrieval_chunks_sends_chunking_payload(self, tmp_path: Path) -> None:
         test_file = tmp_path / "doc.pdf"
         test_file.write_bytes(b"pdf")

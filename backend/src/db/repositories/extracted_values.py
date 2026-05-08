@@ -6,7 +6,7 @@ from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from src.db.models import ExtractedValue, ExtractionField
+from src.db.models import ExtractedValue, ExtractedValueCitation, ExtractionField
 
 
 class ExtractedValuesRepository:
@@ -50,15 +50,32 @@ class ExtractedValuesRepository:
                 reviewed=False,
             )
             self._session.add(ev)
+            for sort_order, c in enumerate(r.get("citations", [])):
+                self._session.add(
+                    ExtractedValueCitation(
+                        extracted_value_id=ev.id,
+                        page=int(c.get("page", 0)),
+                        bbox_left=float(c.get("left", 0.0)),
+                        bbox_top=float(c.get("top", 0.0)),
+                        bbox_width=float(c.get("width", 0.0)),
+                        bbox_height=float(c.get("height", 0.0)),
+                        content=c.get("content", ""),
+                        confidence=c.get("confidence", "medium"),
+                        sort_order=sort_order,
+                    )
+                )
             created.append(ev)
         await self._session.flush()
         return created
 
     async def get_by_document_id(self, document_id: uuid.UUID) -> list[ExtractedValue]:
-        """Get all extracted values for a document."""
+        """Get all extracted values for a document, with field defs and citations."""
         stmt = (
             select(ExtractedValue)
-            .options(selectinload(ExtractedValue.field))
+            .options(
+                selectinload(ExtractedValue.field),
+                selectinload(ExtractedValue.citations),
+            )
             .where(ExtractedValue.document_id == document_id)
             .order_by(ExtractedValue.created_at)
         )

@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -173,6 +174,50 @@ async def get_document(
             detail="Document not found",
         )
     return DocumentResponse.model_validate(doc)
+
+
+@router.get(
+    "/documents/{doc_id}/file",
+    summary="Stream the original uploaded file",
+)
+async def get_document_file(
+    doc_id: uuid.UUID,
+    session: AsyncSession = Depends(get_session),
+    user_id: str = Depends(get_current_user_id),
+) -> FileResponse:
+    """Serve the original uploaded file (used by the PDF viewer/citation overlay)."""
+    storage = _get_storage()
+    service = DocumentService(session, storage)
+
+    doc = await service.get_document(doc_id, user_id=user_id)
+    if doc is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Document not found"
+        )
+    file_path = Path(doc.original_path)
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Original file no longer on disk",
+        )
+    media_type = {
+        "pdf": "application/pdf",
+        "png": "image/png",
+        "jpg": "image/jpeg",
+        "jpeg": "image/jpeg",
+        "tiff": "image/tiff",
+        "docx": (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ),
+        "xlsx": (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+    }.get((doc.file_type or "").lower(), "application/octet-stream")
+    return FileResponse(
+        path=str(file_path),
+        media_type=media_type,
+        filename=doc.file_name,
+    )
 
 
 @router.delete(

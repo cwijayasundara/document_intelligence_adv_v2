@@ -2,6 +2,20 @@
 
 export type ConfidenceLevel = "high" | "medium" | "low";
 
+/**
+ * Bounding-box pointer back into the source document.
+ * left/top/width/height are page-normalized (0-1) for PDFs and images.
+ */
+export interface ExtractionCitation {
+  page: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+  content: string | null;
+  confidence: ConfidenceLevel;
+}
+
 export interface ExtractionResult {
   id: string;
   fieldName: string;
@@ -12,6 +26,7 @@ export interface ExtractionResult {
   confidenceReasoning: string;
   requiresReview: boolean;
   reviewed: boolean;
+  citations: ExtractionCitation[];
 }
 
 export interface ExtractionResponse {

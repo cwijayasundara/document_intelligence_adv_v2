@@ -1,7 +1,13 @@
 /** API functions for document endpoints. */
 
 import type { Document, DocumentListResponse } from "../../types/document";
+import { API_BASE_URL } from "../config";
 import apiClient from "./client";
+
+/** Absolute URL for streaming the original uploaded file. */
+export function documentFileUrl(id: string): string {
+  return `${API_BASE_URL}/documents/${id}/file`;
+}
 
 export async function fetchDocuments(params?: {
   status?: string;

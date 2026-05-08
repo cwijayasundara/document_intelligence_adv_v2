@@ -5,6 +5,22 @@ import uuid
 from pydantic import BaseModel, Field
 
 
+class ExtractionCitation(BaseModel):
+    """Bounding box pointer back into the source document.
+
+    ``left``/``top``/``width``/``height`` are page-normalized (0-1) for PDFs
+    and images. ``page`` is 1-indexed.
+    """
+
+    page: int
+    left: float
+    top: float
+    width: float
+    height: float
+    content: str | None = None
+    confidence: str = "medium"
+
+
 class ExtractionResultItem(BaseModel):
     """A single extraction result."""
 
@@ -17,6 +33,7 @@ class ExtractionResultItem(BaseModel):
     confidence_reasoning: str | None = None
     requires_review: bool = False
     reviewed: bool = False
+    citations: list[ExtractionCitation] = Field(default_factory=list)
 
 
 class ExtractionResponse(BaseModel):

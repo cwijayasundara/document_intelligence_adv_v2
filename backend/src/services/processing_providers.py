@@ -106,6 +106,22 @@ class ReductoExtractionProvider:
             value = field.extracted_value if field else ""
             confidence = field.confidence if field else CONFIDENCE_LOW
             is_required = field_def.get("required", False)
+            citations = (
+                [
+                    {
+                        "page": c.page,
+                        "left": c.left,
+                        "top": c.top,
+                        "width": c.width,
+                        "height": c.height,
+                        "content": c.content,
+                        "confidence": c.confidence,
+                    }
+                    for c in field.citations
+                ]
+                if field
+                else []
+            )
             results.append(
                 {
                     "field_id": str(field_def["field_id"]),
@@ -116,6 +132,7 @@ class ReductoExtractionProvider:
                     "confidence": confidence,
                     "confidence_reasoning": "Reducto citation confidence.",
                     "requires_review": confidence == CONFIDENCE_LOW or (is_required and not value),
+                    "citations": citations,
                 }
             )
         return results
@@ -164,6 +181,7 @@ class LangGraphExtractionProvider:
                         or (confidence == "medium" and not value)
                         or (is_required and not value)
                     ),
+                    "citations": [],
                 }
             )
         return results

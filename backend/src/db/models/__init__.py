@@ -7,6 +7,7 @@ from src.db.models.documents import Document, DocumentCategory, DocumentSummary
 from src.db.models.eval_run import EvalResult, EvalRun
 from src.db.models.extraction import (
     ExtractedValue,
+    ExtractedValueCitation,
     ExtractionField,
     ExtractionSchema,
 )
@@ -24,6 +25,7 @@ __all__ = [
     "EvalResult",
     "EvalRun",
     "ExtractedValue",
+    "ExtractedValueCitation",
     "ExtractionField",
     "ExtractionSchema",
     "MemoryEntry",

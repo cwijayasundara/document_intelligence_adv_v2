@@ -8,6 +8,7 @@ import { useExtractionResults } from "../../hooks/useExtraction";
 import type { DocumentListItem } from "../../types/document";
 import type { ConfidenceLevel, ExtractionResult } from "../../types/extraction";
 import DocumentStatusBadge from "./DocumentStatusBadge";
+import DocumentViewer from "./DocumentViewer";
 
 interface DocumentDetailPanelProps {
   document: DocumentListItem;
@@ -23,10 +24,15 @@ export default function DocumentDetailPanel({
   );
   const { data: summaryData } = useSummary(document.id);
   const { data: extractionData } = useExtractionResults(document.id);
+  const [activeFieldId, setActiveFieldId] = useState<string | null>(null);
 
   const hasParsedContent = !!parseData?.content;
   const hasSummary = !!summaryData?.summary;
   const hasExtraction = !!extractionData?.results?.length;
+  const hasCitations = !!extractionData?.results?.some(
+    (r) => (r.citations?.length ?? 0) > 0,
+  );
+  const isPdf = document.fileName.toLowerCase().endsWith(".pdf");
 
   return (
     <div className="border border-gray-200 rounded-lg bg-white shadow-sm overflow-hidden">
@@ -82,11 +88,39 @@ export default function DocumentDetailPanel({
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {extractionData.results.map((r) => (
-                    <ExtractionRow key={r.id} result={r} />
+                    <ExtractionRow
+                      key={r.id}
+                      result={r}
+                      isActive={r.id === activeFieldId}
+                      onSelect={() =>
+                        setActiveFieldId(activeFieldId === r.id ? null : r.id)
+                      }
+                    />
                   ))}
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {/* Source-document viewer with bbox overlay */}
+        {isPdf && (
+          <div className="px-6 py-4">
+            <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">
+              Source Document
+            </h4>
+            <p className="text-xs text-gray-500 mb-2">
+              {hasCitations
+                ? "Click a field row above to highlight where it was extracted from."
+                : "No bounding-box citations on these results — re-run extraction (force=true) to populate them."}
+            </p>
+            <DocumentViewer
+              documentId={document.id}
+              results={extractionData?.results ?? []}
+              activeFieldId={activeFieldId}
+              onSelectField={setActiveFieldId}
+              className="max-h-[800px] border border-gray-200 rounded-lg"
+            />
           </div>
         )}
 
@@ -152,14 +186,27 @@ export default function DocumentDetailPanel({
   );
 }
 
-function ExtractionRow({ result }: { result: ExtractionResult }) {
+interface ExtractionRowProps {
+  result: ExtractionResult;
+  isActive: boolean;
+  onSelect: () => void;
+}
+
+function ExtractionRow({ result, isActive, onSelect }: ExtractionRowProps) {
   const [expanded, setExpanded] = useState(false);
   const hasSource = !!result.sourceText;
+  const hasBbox = (result.citations?.length ?? 0) > 0;
+  const clickable = hasSource || hasBbox;
 
   return (
     <tr
-      className={`hover:bg-gray-50 ${hasSource ? "cursor-pointer" : ""}`}
-      onClick={() => hasSource && setExpanded(!expanded)}
+      className={`hover:bg-gray-50 ${clickable ? "cursor-pointer" : ""} ${
+        isActive ? "bg-amber-50" : ""
+      }`}
+      onClick={() => {
+        if (hasBbox) onSelect();
+        else if (hasSource) setExpanded(!expanded);
+      }}
     >
       <td className="px-4 py-2.5 align-top">
         <div className="text-sm font-medium text-gray-900">

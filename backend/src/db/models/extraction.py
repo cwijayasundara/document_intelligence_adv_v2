@@ -8,6 +8,7 @@ from datetime import datetime
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Integer,
     String,
@@ -148,3 +149,45 @@ class ExtractedValue(Base):
     # Relationships
     document: Mapped[Document] = relationship(back_populates="extracted_values")
     field: Mapped[ExtractionField] = relationship(back_populates="extracted_values")
+    citations: Mapped[list[ExtractedValueCitation]] = relationship(
+        back_populates="extracted_value",
+        cascade="all, delete-orphan",
+        order_by="ExtractedValueCitation.sort_order",
+    )
+
+
+class ExtractedValueCitation(Base):
+    """Bounding-box citation pointing back to the source document region."""
+
+    __tablename__ = "extracted_value_citations"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        primary_key=True,
+        server_default=text("gen_random_uuid()"),
+    )
+    extracted_value_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("extracted_values.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    bbox_left: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_top: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_width: Mapped[float] = mapped_column(Float, nullable=False)
+    bbox_height: Mapped[float] = mapped_column(Float, nullable=False)
+    content: Mapped[str | None] = mapped_column(Text, nullable=True)
+    confidence: Mapped[str] = mapped_column(
+        String(10), nullable=False, server_default=text("'medium'")
+    )
+    sort_order: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=text("NOW()"),
+    )
+
+    extracted_value: Mapped[ExtractedValue] = relationship(back_populates="citations")

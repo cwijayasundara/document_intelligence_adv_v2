@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.api.dependencies import get_app_settings, get_current_user_id, get_run_guard, get_session
 from src.api.middleware.run_guard import RunGuard
 from src.api.schemas.extract import (
+    ExtractionCitation,
     ExtractionResponse,
     ExtractionResultItem,
     ExtractionResultsResponse,
@@ -50,6 +51,18 @@ def _values_to_items(values: list[ExtractedValue]) -> list[ExtractionResultItem]
             confidence_reasoning=v.confidence_reasoning,
             requires_review=v.requires_review,
             reviewed=v.reviewed,
+            citations=[
+                ExtractionCitation(
+                    page=c.page,
+                    left=c.bbox_left,
+                    top=c.bbox_top,
+                    width=c.bbox_width,
+                    height=c.bbox_height,
+                    content=c.content,
+                    confidence=c.confidence,
+                )
+                for c in v.citations
+            ],
         )
         for v in values
     ]
@@ -131,6 +144,9 @@ async def extract_document(
                 confidence=results[i]["confidence"],
                 confidence_reasoning=results[i]["confidence_reasoning"],
                 requires_review=results[i]["requires_review"], reviewed=False,
+                citations=[
+                    ExtractionCitation(**c) for c in results[i].get("citations", [])
+                ],
             )
             for i in range(len(saved))
         ]
